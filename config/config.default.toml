@@ -1,0 +1,38 @@
+# Конфигурация по умолчанию (Этап 1).
+# Локальные и секретные значения переопределяются в config/config.local.toml
+# (этот файл не попадает в репозиторий).
+
+[server]
+host = "0.0.0.0"
+port = 8080
+secret_key = "CHANGE-ME-IN-CONFIG-LOCAL"   # ключ подписи сессионных cookie
+session_timeout_min = 60                    # тайм-аут сессии, минуты
+login_rate_limit = 10                       # максимум попыток входа с одного IP в минуту
+
+[paths]
+data_dir = "data"
+logs_dir = "logs"
+backups_dir = "backups"
+db_file = "data/poliv.db"
+
+[logging]
+level = "INFO"          # DEBUG / INFO / WARNING / ERROR
+max_bytes = 5242880     # 5 МБ на файл перед ротацией
+backup_count = 10       # сколько ротированных файлов хранить
+
+[database]
+wal = true              # режим WAL для SQLite
+foreign_keys = true     # включать внешние ключи
+
+[admin]
+# Первый администратор создаётся при старте сервера из этого раздела.
+username = "admin"
+password = ""           # если пусто — пароль генерируется и печатается в лог один раз
+must_change_password = true
+
+[test_data]
+# Тестовый контроллер и тестовые данные (Этап 1). Заменятся CRUD на Этапе 2.
+enabled = true
+controller_name = "Тестовый контроллер (эмулятор)"
+box_id = "TESTBOX-0001"
+zones = 8
