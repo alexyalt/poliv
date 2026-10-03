@@ -3,15 +3,17 @@
 {% block content %}
 <h1>Контроллеры</h1>
 
-<div class="card">
+<button type="button" class="btn btn-primary" id="add-controller-btn" {% if editing %}style="display:none"{% endif %}
+        onclick="document.getElementById('controller-form-card').style.display=''; this.style.display='none'; return false;">+ Новый контроллер</button>
+<div class="card" id="controller-form-card" {% if not editing %}style="display:none"{% endif %}>
   <h2>{% if editing %}Редактировать контроллер{% else %}Новый контроллер{% endif %}</h2>
   <form method="post" action="/controllers/save" class="form-grid">
     {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
     <label>Название *
       <input type="text" name="name" required maxlength="100" value="{{ editing.name if editing else '' }}">
     </label>
-    <label>Box ID * (уникальный идентификатор устройства)
-      <input type="text" name="box_id" required maxlength="50" value="{{ editing.box_id if editing else '' }}">
+    <label>Box ID (уникальный идентификатор устройства, пусто = сгенерировать автоматически)
+      <input type="text" name="box_id" maxlength="50" value="{{ editing.box_id if editing else '' }}" placeholder="BOX-XXXXXX (авто)">
     </label>
     <label>Модель
       <input type="text" name="model" maxlength="50" value="{{ editing.model if editing else '' }}">
@@ -23,7 +25,7 @@
       {{ 'checked' if (editing and editing.enabled) or not editing }}> Включён</label>
     <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
   </form>
-  {% if editing %}<a class="btn" href="/controllers">Отмена</a>{% endif %}
+  <a class="btn" href="/controllers">Отмена</a>
 </div>
 
 <div class="card">
@@ -44,7 +46,11 @@
       </td>
       <td><span class="badge badge-{{ c.connection_status }}">{{ c.connection_status }}</span></td>
       <td class="actions">
-        {% if not c.deleted_at %}
+        {% if c.deleted_at %}
+        <form method="post" action="/controllers/{{ c.id }}/enable" style="display:inline">
+          <button type="submit" class="btn btn-small btn-primary">Включить</button>
+        </form>
+        {% else %}
         <a class="btn btn-small" href="/controllers?edit={{ c.id }}">Ред.</a>
         <form method="post" action="/controllers/{{ c.id }}/delete" style="display:inline"
               onsubmit="return confirm('Отключить контроллер (soft-delete)? Физическое удаление запрещено ТЗ.')">

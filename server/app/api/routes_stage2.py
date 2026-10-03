@@ -176,10 +176,25 @@ def register_api_routes(
 
     async def set_program_zones(request: Request, program_id: int):
         data = await body(request)
-        zone_ids = data.get("zone_ids")
-        if not isinstance(zone_ids, list):
-            raise ValidationError("Ожидается список zone_ids")
-        p = catalog.set_program_zones(program_id, [int(z) for z in zone_ids])
+        # ADR-12: принимаем либо плоский список zone_ids (последовательные),
+        # либо zones = [{"zone_id": int, "parallel_group": optional[str]}, ...]
+        if "zones" in data:
+            spec = data.get("zones")
+            field = "zones"
+        else:
+            spec = data.get("zone_ids")
+            field = "zone_ids"
+        if not isinstance(spec, list):
+            raise ValidationError("Ожидается список zones или zone_ids")
+        cleaned: list = []
+        for item in spec:
+            if isinstance(item, dict):
+                cleaned.append(item)
+            elif isinstance(item, (int, str)):
+                cleaned.append(int(item))
+            else:
+                raise ValidationError(f"Некорректный элемент списка «{field}»")
+        p = catalog.set_program_zones(program_id, cleaned)
         _log(request, "program.zones_set", "program", program_id, {"count": len(p["zones"])})
         return p
 

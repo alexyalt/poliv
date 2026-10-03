@@ -10,7 +10,6 @@
     {{ out|join(', ') }}
   {% else %}раз в {{ prog.interval_days }} дн.{% endif %},
   старт в {{ prog.start_time }},
-  сезон: {{ (prog.season_start ~ '…' ~ prog.season_end) if prog.season_start else 'весь год' }},
   состояние: {{ 'включена' if prog.enabled else 'выключена' }}.
 </p>
 
@@ -18,7 +17,7 @@
   <h2>Зоны программы (порядок выполнения)</h2>
   {% if prog.zones %}
   <table>
-    <tr><th>Порядок</th><th>Контроллер</th><th>№ зоны</th><th>Название</th><th>Длительность</th></tr>
+    <tr><th>Порядок</th><th>Контроллер</th><th>№ зоны</th><th>Название</th><th>Длительность</th><th>Группа (параллельно)</th></tr>
     {% for z in prog.zones %}
     <tr>
       <td>{{ z.seq }}</td>
@@ -26,6 +25,7 @@
       <td>{{ z.zone_number }}</td>
       <td>{{ z.name }} {{ z.icon or '' }}</td>
       <td>{{ z.duration_override_minutes or z.base_duration_minutes }} мин</td>
+      <td>{{ z.parallel_group or '—' }}</td>
     </tr>
     {% endfor %}
   </table>
@@ -33,24 +33,97 @@
 </div>
 
 {% if user.role == 'admin' %}
-<div class="card">
+<button type="button" class="btn btn-primary" id="edit-zones-btn" {% if editing_zones %}style="display:none"{% endif %}
+        onclick="document.getElementById('zones-card').style.display=''; this.style.display='none'; return false;">Добавить зону / изменить состав</button>
+<div class="card" id="zones-card" {% if not editing_zones %}style="display:none"{% endif %}>
   <h2>Состав зон</h2>
-  <p class="muted">Отметьте зоны и упорядочьте их сверху вниз. Можно смешивать зоны разных контроллеров.</p>
-  <form method="post" action="/programs/{{ prog.id }}/zones">
+  <p class="muted">Отметьте зоны и упорядочьте их сверху вниз. Можно смешивать зоны разных контроллеров. Зоны с одинаковой группой запускаются параллельно (ADR-12), пустая группа — последовательный запуск.</p>
+  <p><input type="search" id="zone-search" placeholder="Поиск: контроллер, номер или название зоны…" style="width:22em"></p>
+  <form method="post" action="/programs/{{ prog.id }}/zones" id="zones-form">
     <div id="zone-list">
       {% for z in all_zones %}
-      <label class="check zone-pick">
+      <label class="check zone-pick" data-text="{{ (z.controller_name ~ ' ' ~ z.controller_box_id ~ ' №' ~ z.zone_number ~ ' ' ~ z.name)|lower }}">
         <input type="checkbox" name="zone_ids" value="{{ z.id }}"
                {{ 'checked' if z.id in selected }}>
         {{ z.controller_name }} · №{{ z.zone_number }} — {{ z.name }}
         ({{ z.base_duration_minutes }} мин){{ ' · ⛔ выкл.' if not z.enabled }}
+        <input type="text" name="pg_{{ z.id }}" size="8" placeholder="гр."
+               value="{{ group_of.get(z.id, '') }}">
       </label>
       {% endfor %}
     </div>
+    <!-- Правки 4.8/ADR-12: порядок выполнения (seq) и параллельные группы -->
+    <h3>Порядок выполнения (перетащите или используйте ▲▼; ✕ — убрать зону)</h3>
+    <ol id="order-list"></ol>
+    <input type="hidden" name="order_json" id="order-json" value="">
     <button type="submit" class="btn btn-primary">Сохранить состав</button>
+    <a class="btn" href="/programs/{{ prog.id }}">Отмена</a>
   </form>
 </div>
 {% endif %}
 
 <a class="btn" href="/programs">← К списку программ</a>
+{% endblock %}
+{% block scripts %}
+{% if user.role == 'admin' %}
+<script>
+var ZONES = [
+{%- for z in all_zones %}
+  {id: {{ z.id }}, label: "{{ z.controller_name }} · №{{ z.zone_number }} — {{ z.name }}", group: {{ (group_of.get(z.id, '') or "") | tojson }}}{% if not loop.last %},{% endif %}
+{%- endfor %}
+];
+(function(){
+  // 4.6: живой поиск по списку зон
+  var search = document.getElementById('zone-search');
+  if (search) search.addEventListener('input', function(){
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('#zone-list .zone-pick').forEach(function(l){
+      l.style.display = !q || (l.dataset.text||'').indexOf(q)>=0 ? '' : 'none';
+    });
+  });
+  // 4.8: конструктор порядка выполнения
+  var orderList = document.getElementById('order-list');
+  if (!orderList) return;
+  var form = document.getElementById('zones-form');
+  function checkedIds(){
+    var ids=[]; form.querySelectorAll('input[name=zone_ids]:checked').forEach(function(cb){ids.push(+cb.value);});
+    return ids;
+  }
+  var order = checkedIds().slice(); // по умолчанию — как отмечено
+  function byId(id){return ZONES.filter(function(z){return z.id===id;})[0];}
+  function render(){
+    orderList.innerHTML='';
+    order.forEach(function(id, idx){
+      var z = byId(id); if(!z) return;
+      var li = document.createElement('li');
+      li.textContent = (idx+1)+'. '+z.label+' ';
+      var gb = document.createElement('button'); gb.type='button'; gb.className='btn btn-small'; gb.textContent='▲';
+      gb.onclick=function(){if(idx>0){order.splice(idx,1);order.splice(idx-1,0,id);render();}};
+      var gd = document.createElement('button'); gd.type='button'; gd.className='btn btn-small'; gd.textContent='▼';
+      gd.onclick=function(){if(idx<order.length-1){order.splice(idx,1);order.splice(idx+1,0,id);render();}};
+      var rm = document.createElement('button'); rm.type='button'; rm.className='btn btn-small btn-danger'; rm.textContent='✕';
+      rm.onclick=function(){order.splice(idx,1);
+        var cb=form.querySelector('input[name=zone_ids][value="'+id+'"]'); if(cb) cb.checked=false; render();};
+      var gi = document.createElement('input'); gi.type='text'; gi.size=6; gi.placeholder='гр.'; gi.value=z.group||'';
+      gi.oninput=function(){z.group=this.value;};
+      li.appendChild(gb); li.appendChild(gd); li.appendChild(document.createTextNode(' группа: ')); li.appendChild(gi); li.appendChild(rm);
+      orderList.appendChild(li);
+    });
+  }
+  form.querySelectorAll('input[name=zone_ids]').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      var id=+cb.value;
+      if(cb.checked){ if(order.indexOf(id)<0) order.push(id); }
+      else { var i=order.indexOf(id); if(i>=0) order.splice(i,1); }
+      render();
+    });
+  });
+  form.addEventListener('submit', function(){
+    document.getElementById('order-json').value = JSON.stringify(
+      order.map(function(id){var z=byId(id);return {zone_id:id, parallel_group:z.group||null};}));
+  });
+  render();
+})();
+</script>
+{% endif %}
 {% endblock %}

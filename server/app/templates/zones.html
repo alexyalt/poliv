@@ -4,7 +4,8 @@
 <h1>Зоны полива</h1>
 <p class="muted">Зоны не удаляются физически — только отключаются (нумерация уникальна в пределах контроллера).</p>
 
-<div class="card">
+{% set form_open = editing is not none or (q is defined and false) %}
+<div class="card" id="zone-form-card" {% if not form_open %}style="display:none"{% endif %}>
   <h2>{% if editing %}Редактировать зону{% else %}Новая зона{% endif %}</h2>
   <form method="post" action="/zones/save" class="form-grid">
     {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
@@ -36,12 +37,6 @@
     <label>Изображение (путь/URL)
       <input type="text" name="image_path" maxlength="300" value="{{ editing.image_path if editing else '' }}" placeholder="/static/zones/…">
     </label>
-    <label>Сезон: начало (ММ-ДД)
-      <input type="text" name="season_start" maxlength="5" value="{{ editing.season_start if editing else '' }}" placeholder="04-01">
-    </label>
-    <label>Сезон: конец (ММ-ДД)
-      <input type="text" name="season_end" maxlength="5" value="{{ editing.season_end if editing else '' }}" placeholder="10-15">
-    </label>
     <label>Примечания
       <input type="text" name="notes" maxlength="500" value="{{ editing.notes if editing else '' }}">
     </label>
@@ -51,32 +46,49 @@
       {{ 'checked' if (editing and editing.enabled) or not editing }}> Включена</label>
     <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
   </form>
-  {% if editing %}<a class="btn" href="/zones">Отмена</a>{% endif %}
+  <a class="btn" href="/zones" onclick="return hideForm(event)">Отмена</a>
 </div>
+{% if not form_open %}<button type="button" class="btn btn-primary" id="add-zone-btn"
+        onclick="document.getElementById('zone-form-card').style.display=''; this.style.display='none'; return false;">+ Добавить зону</button>{% endif %}
 
 <div class="card">
   <h2>Список зон
-    {% if show_deleted %}<a class="btn btn-small" href="/zones">Скрыть отключённые</a>
-    {% else %}<a class="btn btn-small" href="/zones?deleted=1">Показать отключённые</a>{% endif %}
+    {% if show_deleted %}<a class="btn btn-small" href="/zones{{ '?q=' ~ q if q else '' }}">Скрыть отключённые</a>
+    {% else %}<a class="btn btn-small" href="/zones?deleted=1{{ '&q=' ~ q if q else '' }}">Показать отключённые</a>{% endif %}
   </h2>
+  <!-- Правка 3.1: фильтры по столбцам (поиск подзаголовком, автодополнение контроллера) -->
+  <div class="filters">
+    <input type="search" id="f-name" placeholder="Поиск по названию" size="18">
+    <input type="search" id="f-controller" list="controller-list" placeholder="Контроллер (напр. 12 → СК12, КП12)" size="24">
+    <datalist id="controller-list">{% for c in controllers %}<option value="{{ c.name }}">{{ c.box_id }}</option>{% endfor %}</datalist>
+    <input type="number" id="f-number" placeholder="№ зоны" min="1" max="16" style="width:6.5em">
+    <select id="f-state"><option value="">Состояние: все</option><option value="on">вкл.</option><option value="off">выкл./отключена</option></select>
+    <button type="button" class="btn btn-small" onclick="resetFilters()">Сброс</button>
+  </div>
   {% if zones %}
-  <table>
-    <tr><th></th><th>№</th><th>Название</th><th>Контроллер</th><th>Длит.</th><th>Сезон</th><th>Состояние</th><th></th></tr>
+  <table id="zone-table">
+    <tr><th></th><th>№</th><th>Название</th><th>Контроллер</th><th>Длит.</th><th>Корр.%</th><th>Состояние</th><th></th></tr>
     {% for z in zones %}
-    <tr class="{{ 'row-disabled' if z.deleted_at or not z.enabled }}">
+    <tr class="{{ 'row-disabled' if z.deleted_at or not z.enabled }}"
+        data-name="{{ z.name|lower }}" data-controller="{{ (z.controller_name ~ ' ' ~ z.controller_box_id)|lower }}"
+        data-number="{{ z.zone_number }}" data-on="{{ '1' if z.enabled and not z.deleted_at else '0' }}">
       <td>{{ z.icon or '🌱' }}</td>
       <td>{{ z.zone_number }}</td>
       <td>{{ z.name }}</td>
       <td>{{ z.controller_name }}</td>
       <td>{{ z.base_duration_minutes }} мин</td>
-      <td>{{ (z.season_start ~ '…' ~ z.season_end) if z.season_start else 'весь год' }}</td>
+      <td>{{ z.watering_adjustment_percent }}%</td>
       <td>
         {% if z.deleted_at %}<span class="badge badge-off">отключена</span>
         {% elif z.enabled %}<span class="badge badge-on">вкл.</span>
         {% else %}<span class="badge badge-off">выкл.</span>{% endif %}
       </td>
       <td class="actions">
-        {% if not z.deleted_at %}
+        {% if z.deleted_at %}
+        <form method="post" action="/zones/{{ z.id }}/enable" style="display:inline">
+          <button type="submit" class="btn btn-small btn-primary">Включить</button>
+        </form>
+        {% else %}
         <a class="btn btn-small" href="/zones?edit={{ z.id }}">Ред.</a>
         <form method="post" action="/zones/{{ z.id }}/delete" style="display:inline"
               onsubmit="return confirm('Отключить зону? Зоны не удаляются — см. ТЗ.')">
@@ -89,4 +101,29 @@
   </table>
   {% else %}<p class="muted">Зон нет.</p>{% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function hideForm(e){var c=document.getElementById('zone-form-card');if(c){c.style.display='none';}return true;}
+function applyZoneFilters(){
+  var n=(document.getElementById('f-name').value||'').toLowerCase();
+  var ct=(document.getElementById('f-controller').value||'').toLowerCase();
+  var num=document.getElementById('f-number').value;
+  var st=document.getElementById('f-state').value;
+  document.querySelectorAll('#zone-table tbody tr').forEach(function(tr){
+    var ok=true;
+    if(n && (tr.dataset.name||'').indexOf(n)<0) ok=false;
+    if(ok && ct && (tr.dataset.controller||'').indexOf(ct)<0) ok=false;
+    if(ok && num && tr.dataset.number!==num) ok=false;
+    if(ok && st==='on' && tr.dataset.on!=='1') ok=false;
+    if(ok && st==='off' && tr.dataset.on==='1') ok=false;
+    tr.style.display=ok?'':'none';
+  });
+}
+function resetFilters(){['f-name','f-controller','f-number'].forEach(function(i){document.getElementById(i).value='';});document.getElementById('f-state').value='';applyZoneFilters();}
+['f-name','f-controller','f-number','f-state'].forEach(function(i){
+  document.getElementById(i).addEventListener('input',applyZoneFilters);
+});
+</script>
 {% endblock %}

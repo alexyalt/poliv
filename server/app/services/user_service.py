@@ -96,12 +96,25 @@ class UserService:
                 raise ValidationError(
                     "Нельзя снять роль или отключить последнего активного администратора"
                 )
+        new_password = str(data.get("password") or "").strip()
+        if new_password and len(new_password) < 6:
+            raise ValidationError("Пароль: минимум 6 символов")
         with self.conn:
             self.conn.execute(
                 "UPDATE users SET role=?, enabled=? WHERE id=?", (role, enabled, user_id)
             )
+            if new_password:
+                self.conn.execute(
+                    "UPDATE users SET password_hash=?, must_change_password=0 WHERE id=?",
+                    (hash_password(new_password), user_id),
+                )
+                # смена пароля администратором — инвалидируем сессии пользователя
+                self.conn.execute(
+                    "DELETE FROM sessions WHERE user_id=?", (user_id,)
+                )
         self.auth.write_log(None, actor, "user.updated", "user", user["username"],
-                            {"role": role, "enabled": enabled})
+                            {"role": role, "enabled": enabled,
+                             "password_changed": bool(new_password)})
         return self.get_user(user_id)  # type: ignore[return-value]
 
     def reset_password(self, user_id: int, actor: str) -> Optional[str]:

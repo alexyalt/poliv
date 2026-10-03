@@ -15,6 +15,10 @@ table{width:100%;border-collapse:collapse;font-size:.9rem}
 th,td{text-align:left;padding:.35rem .5rem;border-bottom:1px solid var(--border)}
 label{display:block;margin-bottom:.8rem;color:var(--muted);font-size:.9rem}
 input{display:block;width:100%;padding:.5rem;margin-top:.25rem;border:1px solid var(--border);border-radius:6px;font-size:1rem}
+select{display:block;width:100%;padding:.5rem;margin-top:.25rem;border:1px solid var(--border);border-radius:6px;font-size:1rem;background:#fff;color:inherit}
+.filters{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.5rem 0}
+.filters input,.filters select{width:auto;display:inline-block;margin:0}
+.row-muted td{color:#999}
 .btn{display:inline-block;background:#e9edf2;border:1px solid var(--border);border-radius:6px;padding:.45rem .9rem;cursor:pointer;text-decoration:none;color:var(--text);font-size:.9rem}
 .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);width:100%}
 .btn-small{padding:.2rem .5rem;font-size:.8rem}

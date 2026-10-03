@@ -44,6 +44,8 @@ SQL = [
         zone_id     INTEGER NOT NULL REFERENCES zones(id),
         seq         INTEGER NOT NULL,   -- порядок зоны в программе (1..)
         duration_override_minutes INTEGER,  -- NULL = базовая длительность зоны
+        parallel_group TEXT,            -- ADR-12: группы с одинаковым именем стартуют
+                                        -- параллельно; NULL = последовательный запуск
         PRIMARY KEY (program_id, seq),
         UNIQUE (program_id, zone_id)
     )
@@ -72,6 +74,8 @@ ADDITIONS = [
     ("zones", "deleted_at", "TEXT"),
     ("zones", "season_start", "TEXT"),
     ("zones", "season_end", "TEXT"),
+    # ADR-12: параллельные зоны (для уже существующих БД, созданных до правки)
+    ("program_zones", "parallel_group", "TEXT"),
 ]
 
 

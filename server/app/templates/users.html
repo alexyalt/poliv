@@ -3,12 +3,15 @@
 {% block content %}
 <h1>Пользователи</h1>
 
-<div class="card">
+<button type="button" class="btn btn-primary" id="add-user-btn" {% if editing_user %}style="display:none"{% endif %}
+        onclick="document.getElementById('user-form-card').style.display=''; this.style.display='none'; return false;">+ Добавить пользователя</button>
+<div class="card" id="user-form-card" {% if not editing_user %}style="display:none"{% endif %}>
   <h2>{% if editing_user %}Редактировать: {{ editing_user.username }}{% else %}Новый пользователь{% endif %}</h2>
   <form method="post" action="/users/save" class="form-grid">
     {% if editing_user %}<input type="hidden" name="id" value="{{ editing_user.id }}">{% endif %}
-    <label>Логин *
-      <input type="text" name="username" required maxlength="50"
+    <label>Логин * (без пробелов — используйте подчёркивание: ivan_petrov)
+      <input type="text" name="username" required maxlength="50" pattern="[A-Za-z0-9_.\-]+" 
+             title="Только буквы, цифры, точка, дефис и подчёркивание (вместо пробела — _)"
              value="{{ editing_user.username if editing_user else '' }}" {{ 'readonly' if editing_user }}>
     </label>
     <label>Роль *
@@ -18,15 +21,14 @@
         {% endfor %}
       </select>
     </label>
-    {% if not editing_user %}
-    <label>Пароль (пусто = сгенерировать)
+    <label>{% if editing_user %}Новый пароль (пусто = без смены){% else %}Пароль (пусто = сгенерировать){% endif %}
       <input type="password" name="password" minlength="6" autocomplete="new-password">
     </label>
-    {% endif %}
     <label class="check"><input type="checkbox" name="enabled" value="on"
       {{ 'checked' if (editing_user and editing_user.enabled) or not editing_user }}> Активен</label>
     <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
   </form>
+  <a class="btn" href="/users">Отмена</a>
 </div>
 
 <div class="card">

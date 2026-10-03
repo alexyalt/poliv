@@ -72,6 +72,21 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
     def form_data(request_form) -> dict:
         return {k: v for k, v in request_form.items()}
 
+    def _form_to_dict(form) -> dict:
+        """Form -> dict. Повторяющиеся поля (чекбоксы weekdays/zone_ids)
+        собираются в списки через multi_items(); одиночные — последнее значение."""
+        d: dict = {}
+        for k, v in form.multi_items():
+            if k in d:
+                cur = d[k]
+                if isinstance(cur, list):
+                    cur.append(v)
+                else:
+                    d[k] = [cur, v]
+            else:
+                d[k] = v
+        return d
+
     @app.get("/login", response_class=HTMLResponse)
     def login_page(request: Request):
         token = request.cookies.get(SESSION_COOKIE)
@@ -161,7 +176,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         if err:
             return redirect("/controllers", error=err)
         form = await request.form()
-        data = dict(form)
+        data = _form_to_dict(form)
         cid = data.pop("id", None)
         try:
             if cid and cid.isdigit():
@@ -192,6 +207,22 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             return redirect("/controllers", error=str(exc))
         return redirect("/controllers", ok="Контроллер отключён (soft-delete)")
 
+    @app.post("/controllers/{controller_id}/enable")
+    def controllers_enable(controller_id: int, request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/controllers", error=err)
+        try:
+            catalog.enable_controller(controller_id)
+            auth.write_log(user["id"], user["username"], "controller.enabled",
+                           "controller", controller_id)
+        except ValidationError as exc:
+            return redirect("/controllers", error=str(exc))
+        return redirect("/controllers", ok="Контроллер включён")
+
     # ====================================== Этап 2: зоны ===================
     @app.get("/zones")
     def zones_page(request: Request):
@@ -208,6 +239,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             controllers=catalog.list_controllers(),
             show_deleted=include_deleted,
             editing=editing,
+            q=request.query_params.get("q", ""),
         )
 
     @app.post("/zones/save")
@@ -219,8 +251,10 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         if err:
             return redirect("/zones", error=err)
         form = await request.form()
-        data = dict(form)
-        data["cycle_soak_enabled"] = "on" in str(form.get("cycle_soak_enabled", "")) or bool(form.get("cycle_soak_enabled"))
+        data = _form_to_dict(form)
+        # Чекбокс не отмечен -> поле не отправляется: считаем False (правка 5.6)
+        data["enabled"] = form.get("enabled") == "on"
+        data["cycle_soak_enabled"] = form.get("cycle_soak_enabled") == "on"
         zid = data.pop("id", None)
         try:
             if zid and zid.isdigit():
@@ -249,6 +283,21 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             return redirect("/zones", error=str(exc))
         return redirect("/zones", ok="Зона отключена (зоны не удаляются — см. ТЗ)")
 
+    @app.post("/zones/{zone_id}/enable")
+    def zones_enable(zone_id: int, request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/zones", error=err)
+        try:
+            catalog.enable_zone(zone_id)
+            auth.write_log(user["id"], user["username"], "zone.enabled", "zone", zone_id)
+        except ValidationError as exc:
+            return redirect("/zones", error=str(exc))
+        return redirect("/zones", ok="Зона включена")
+
     # ================================== Этап 2: программы ==================
     @app.get("/programs")
     def programs_page(request: Request):
@@ -274,8 +323,11 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             request,
             "program_detail.html",
             prog=prog,
+            editing_zones=bool(request.query_params.get("edit_zones")),
             all_zones=all_zones,
             selected=[z["zone_id"] for z in prog["zones"]],
+            group_of={z["zone_id"]: (z.get("parallel_group") or "")
+                      for z in prog["zones"]},
         )
 
     @app.post("/programs/save")
@@ -287,10 +339,8 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         if err:
             return redirect("/programs", error=err)
         form = await request.form()
-        # dict(form)/getlist теряют повторы (чекбоксы дней недели) —
-        # все повторяющиеся поля берём из multi_items()
-        data = {k: v for k, v in form.multi_items() if k != "weekdays"}
-        data["weekdays"] = [v for k, v in form.multi_items() if k == "weekdays"]
+        data = _form_to_dict(form)
+        data["enabled"] = form.get("enabled") == "on"
         pid = data.pop("id", None)
         try:
             if pid and pid.isdigit():
@@ -334,8 +384,30 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         # формы читаем через multi_items().
         form = await request.form()
         raw = [v for k, v in form.multi_items() if k == "zone_ids"]
+        groups = {
+            str(v): (g.strip()[:30] if (g := form.get(f"pg_{v}")) else "")
+            for v in raw
+        }
+        spec = [
+            {"zone_id": int(r), "parallel_group": groups.get(str(r), "")}
+            for r in raw if r.isdigit()
+        ]
+        # Правка 4.8: UI передаёт явный порядок выполнения (seq) и группы в JSON
+        order_json = form.get("order_json")
+        if order_json:
+            import json as _json
+            try:
+                parsed = _json.loads(order_json)
+                if isinstance(parsed, list) and parsed:
+                    spec = [
+                        {"zone_id": int(e["zone_id"]),
+                         "parallel_group": (e.get("parallel_group") or "")}
+                        for e in parsed if str(e.get("zone_id", "")).isdigit()
+                    ]
+            except (ValueError, TypeError, KeyError):
+                pass  # некорректный JSON — остаёмся на последовательном разборе формы
         try:
-            catalog.set_program_zones(program_id, [int(r) for r in raw if r.isdigit()])
+            catalog.set_program_zones(program_id, spec)
             auth.write_log(user["id"], user["username"], "program.zones_set",
                            "program", program_id, {"zone_ids": raw})
         except ValidationError as exc:
@@ -366,11 +438,15 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         if err:
             return redirect("/users", error=err)
         form = await request.form()
-        data = dict(form)
+        data = _form_to_dict(form)
+        data["enabled"] = form.get("enabled") == "on"  # правка 5.6
         uid = data.pop("id", None)
         try:
             if uid and uid.isdigit():
-                data.pop("password", None)  # смена пароля — отдельной кнопкой сброса
+                # Правка 5.2: свой пароль при редактировании (пусто = без смены)
+                pw = (data.pop("password", "") or "").strip()
+                if pw:
+                    data["password"] = pw
                 users.update_user(int(uid), data, user["username"])
             else:
                 _, generated = users.create_user(data, user["username"])

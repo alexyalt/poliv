@@ -4,7 +4,9 @@
 <h1>Программы полива</h1>
 <p class="muted">Программа может быть без зон и содержать зоны разных контроллеров. Внутри одного контроллера зоны выполняются последовательно (по порядку).</p>
 
-<div class="card">
+<button type="button" class="btn btn-primary" id="add-program-btn" {% if editing %}style="display:none"{% endif %}
+        onclick="document.getElementById('program-form-card').style.display=''; this.style.display='none'; return false;">+ Новая программа</button>
+<div class="card" id="program-form-card" {% if not editing %}style="display:none"{% endif %}>
   <h2>{% if editing %}Редактировать программу{% else %}Новая программа{% endif %}</h2>
   <form method="post" action="/programs/save" class="form-grid">
     {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
@@ -31,12 +33,6 @@
     <label>Время старта (ЧЧ:ММ) *
       <input type="time" name="start_time" required value="{{ editing.start_time if editing else '06:00' }}">
     </label>
-    <label>Сезон: начало (ММ-ДД)
-      <input type="text" name="season_start" maxlength="5" value="{{ editing.season_start if editing else '' }}" placeholder="04-01">
-    </label>
-    <label>Сезон: конец (ММ-ДД)
-      <input type="text" name="season_end" maxlength="5" value="{{ editing.season_end if editing else '' }}" placeholder="10-15">
-    </label>
     <label>Описание
       <input type="text" name="description" maxlength="500" value="{{ editing.description if editing else '' }}">
     </label>
@@ -44,14 +40,14 @@
       {{ 'checked' if (editing and editing.enabled) or not editing }}> Включена</label>
     <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
   </form>
-  {% if editing %}<a class="btn" href="/programs">Отмена</a>{% endif %}
+  <a class="btn" href="/programs">Отмена</a>
 </div>
 
 <div class="card">
   <h2>Список программ</h2>
   {% if programs %}
   <table>
-    <tr><th>Название</th><th>Расписание</th><th>Старт</th><th>Сезон</th><th>Зон</th><th>Состояние</th><th></th></tr>
+    <tr><th>Название</th><th>Расписание</th><th>Старт</th><th>Зон</th><th>Состояние</th><th></th></tr>
     {% for p in programs %}
     <tr class="{{ 'row-disabled' if not p.enabled }}">
       <td><a href="/programs/{{ p.id }}">{{ p.name }}</a></td>
@@ -63,7 +59,6 @@
         {% else %}раз в {{ p.interval_days }} дн.{% endif %}
       </td>
       <td>{{ p.start_time }}</td>
-      <td>{{ (p.season_start ~ '…' ~ p.season_end) if p.season_start else 'весь год' }}</td>
       <td>{{ p.zone_count }}</td>
       <td>{% if p.enabled %}<span class="badge badge-on">вкл.</span>{% else %}<span class="badge badge-off">выкл.</span>{% endif %}</td>
       <td class="actions">
@@ -78,4 +73,25 @@
   </table>
   {% else %}<p class="muted">Программ нет.</p>{% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  var sel = document.querySelector('select[name=schedule_type]');
+  var daysFieldset = document.querySelector('fieldset.days');
+  var intervalLabel = document.querySelector('input[name=interval_days]').closest('label');
+  function apply(){
+    var isInterval = sel.value === 'interval';
+    // 4.2: при днях недели интервал скрываем; 4.4: при интервале — показываем
+    intervalLabel.style.display = isInterval ? '' : 'none';
+    daysFieldset.querySelectorAll('input[type=checkbox]').forEach(function(cb){
+      cb.disabled = isInterval;           // 4.4: при типе «интервал» дни только для визуализации
+      cb.parentElement.style.color = isInterval ? '#999' : '';
+    });
+  }
+  sel.addEventListener('change', apply);
+  apply();
+})();
+</script>
 {% endblock %}

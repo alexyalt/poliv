@@ -33,6 +33,7 @@
   {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
   {% if flash %}<div class="alert alert-ok">{{ flash }}</div>{% endif %}
   {% block content %}{% endblock %}
+  {% block scripts %}{% endblock %}
 </main>
 <footer class="footer">Этап 2 — базовые справочники и CRUD</footer>
 </body>

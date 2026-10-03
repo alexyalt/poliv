@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import random
 import sqlite3
 from typing import Any, Optional
 
@@ -87,7 +88,15 @@ class CatalogService:
 
     def create_controller(self, data: dict) -> dict:
         name = _clean_str(data.get("name"), "Название", 100)
-        box_id = _clean_str(data.get("box_id"), "Box ID", 50).upper()
+        # Правка 2.2: Box ID можно не указывать — генерируется автоматически.
+        box_id = _clean_str(data.get("box_id"), "Box ID", 50, required=False).upper()
+        if not box_id:
+            while True:
+                box_id = f"BOX-{random.randint(100000, 999999)}"
+                if not self.conn.execute(
+                    "SELECT 1 FROM controllers WHERE box_id=?", (box_id,)
+                ).fetchone():
+                    break
         if not box_id.replace("-", "").replace("_", "").isalnum():
             raise ValidationError("Box ID: только буквы, цифры, дефис и подчёркивание")
         now = utcnow_iso()
@@ -117,7 +126,15 @@ class CatalogService:
         if not current:
             raise ValidationError("Контроллер не найден")
         name = _clean_str(data.get("name"), "Название", 100)
-        box_id = _clean_str(data.get("box_id"), "Box ID", 50).upper()
+        # Правка 2.2: Box ID можно не указывать — генерируется автоматически.
+        box_id = _clean_str(data.get("box_id"), "Box ID", 50, required=False).upper()
+        if not box_id:
+            while True:
+                box_id = f"BOX-{random.randint(100000, 999999)}"
+                if not self.conn.execute(
+                    "SELECT 1 FROM controllers WHERE box_id=?", (box_id,)
+                ).fetchone():
+                    break
         try:
             with self.conn:
                 self.conn.execute(
@@ -138,7 +155,7 @@ class CatalogService:
         return self.get_controller(controller_id)  # type: ignore[return-value]
 
     def delete_controller(self, controller_id: int) -> None:
-        """Soft-disable: помечаем удалённым, если зон нет."""
+        """Soft-disable: помечаем удалённым, если зон нет. Обратное — enable_controller."""
         current = self.get_controller(controller_id)
         if not current:
             raise ValidationError("Контроллер не найден")
@@ -158,11 +175,35 @@ class CatalogService:
             )
         log.info("Контроллер id=%s отключён (soft-delete)", controller_id)
 
+    def enable_controller(self, controller_id: int) -> dict:
+        """Включение ранее отключённого контроллера (правка 2.5)."""
+        current = self.get_controller(controller_id)
+        if not current:
+            raise ValidationError("Контроллер не найден")
+        if not current["deleted_at"]:
+            raise ValidationError("Контроллер уже включён")
+        box_taken = self.conn.execute(
+            "SELECT id FROM controllers WHERE box_id=? AND id<>? AND deleted_at IS NULL",
+            (current["box_id"], controller_id),
+        ).fetchone()
+        if box_taken:
+            raise ValidationError(
+                f"Box ID «{current['box_id']}» занят другим активным контроллером"
+            )
+        with self.conn:
+            self.conn.execute(
+                "UPDATE controllers SET deleted_at=NULL, enabled=1, updated_at=? WHERE id=?",
+                (utcnow_iso(), controller_id),
+            )
+        log.info("Контроллер id=%s включён обратно", controller_id)
+        return self.get_controller(controller_id)  # type: ignore[return-value]
+
     # ------------------------------------------------------------------ zones
     def list_zones(
         self, controller_id: Optional[int] = None, include_deleted: bool = False
     ) -> list[dict]:
-        sql = "SELECT z.*, c.name AS controller_name FROM zones z JOIN controllers c ON c.id=z.controller_id"
+        sql = ("SELECT z.*, c.name AS controller_name, c.box_id AS controller_box_id "
+               "FROM zones z JOIN controllers c ON c.id=z.controller_id")
         conds, params = [], []
         if not include_deleted:
             conds.append("z.deleted_at IS NULL")
@@ -176,7 +217,7 @@ class CatalogService:
 
     def get_zone(self, zone_id: int) -> Optional[dict]:
         row = self.conn.execute(
-            "SELECT z.*, c.name AS controller_name FROM zones z "
+            "SELECT z.*, c.name AS controller_name, c.box_id AS controller_box_id FROM zones z "
             "JOIN controllers c ON c.id=z.controller_id WHERE z.id=?",
             (zone_id,),
         ).fetchone()
@@ -193,9 +234,8 @@ class CatalogService:
         duration = _parse_int(data.get("base_duration_minutes", 10), "Базовая длительность", 1)
         if duration > 240:
             raise ValidationError("Базовая длительность не должна превышать 240 минут")
-        season_start, season_end = _validate_season(
-            data.get("season_start"), data.get("season_end")
-        )
+        # Правки 3.5/3.10: сезон у зон убран из UI — всегда «весь год» (None).
+        season_start = season_end = None
         now = utcnow_iso()
         try:
             with self.conn:
@@ -243,26 +283,27 @@ class CatalogService:
         duration = _parse_int(data.get("base_duration_minutes", 10), "Базовая длительность", 1)
         if duration > 240:
             raise ValidationError("Базовая длительность не должна превышать 240 минут")
-        season_start, season_end = _validate_season(
-            data.get("season_start"), data.get("season_end")
-        )
+        # Правки 3.5/3.10: сезон у зон из UI убран — поле не трогаем при обновлении.
+        icon_in = _clean_str(data.get("icon"), "Иконка", 10, required=False)
+        image_in = _clean_str(data.get("image_path"), "Изображение", 300, required=False)
+        # Правка 3.11: пустое поле иконки при редактировании не сбрасывает значение
+        icon = icon_in if icon_in else current["icon"]
+        image = image_in if image_in else current["image_path"]
         with self.conn:
             self.conn.execute(
                 """UPDATE zones SET name=?, enabled=?, icon=?, image_path=?, notes=?,
                    base_duration_minutes=?, watering_adjustment_percent=?,
-                   cycle_soak_enabled=?, season_start=?, season_end=?, updated_at=?
+                   cycle_soak_enabled=?, updated_at=?
                    WHERE id=?""",
                 (
                     name,
                     _parse_bool(data.get("enabled", current["enabled"])),
-                    _clean_str(data.get("icon"), "Иконка", 10, required=False) or None,
-                    _clean_str(data.get("image_path"), "Изображение", 300, required=False) or None,
+                    icon,
+                    image,
                     _clean_str(data.get("notes"), "Примечания", 500, required=False) or None,
                     duration,
                     _parse_int(data.get("watering_adjustment_percent", 100), "Корректировка %"),
                     _parse_bool(data.get("cycle_soak_enabled", current["cycle_soak_enabled"])),
-                    season_start,
-                    season_end,
                     utcnow_iso(),
                     zone_id,
                 ),
@@ -282,6 +323,30 @@ class CatalogService:
                 "DELETE FROM program_zones WHERE zone_id=?", (zone_id,)
             )
         log.info("Зона id=%s отключена (soft-delete), убрана из программ", zone_id)
+
+    def enable_zone(self, zone_id: int) -> dict:
+        """Включение ранее отключённой зоны (правка 3.9).
+
+        Физическая строка зоны сохранялась (soft-delete), поэтому включение
+        безопасно; UNIQUE(controller_id, zone_number) при этом не нарушается.
+        """
+        current = self.get_zone(zone_id)
+        if not current:
+            raise ValidationError("Зона не найдена")
+        if not current["deleted_at"]:
+            raise ValidationError("Зона уже включена")
+        controller = self.get_controller(current["controller_id"])
+        if not controller or controller["deleted_at"]:
+            raise ValidationError(
+                "Контроллер зоны отключён — сначала включите контроллер"
+            )
+        with self.conn:
+            self.conn.execute(
+                "UPDATE zones SET deleted_at=NULL, enabled=1, updated_at=? WHERE id=?",
+                (utcnow_iso(), zone_id),
+            )
+        log.info("Зона id=%s включена обратно", zone_id)
+        return self.get_zone(zone_id)  # type: ignore[return-value]
 
     # --------------------------------------------------------------- programs
     WEEKDAYS = ("пн", "вт", "ср", "чт", "пт", "сб", "вс")
@@ -307,7 +372,8 @@ class CatalogService:
         prog["zones"] = [
             dict(r)
             for r in self.conn.execute(
-                """SELECT pz.seq, pz.duration_override_minutes, z.id AS zone_id,
+                """SELECT pz.seq, pz.duration_override_minutes, pz.parallel_group,
+                          z.id AS zone_id,
                           z.zone_number, z.name, z.enabled, z.base_duration_minutes,
                           c.name AS controller_name, c.id AS controller_id
                    FROM program_zones pz
@@ -370,9 +436,8 @@ class CatalogService:
         name = _clean_str(data.get("name"), "Название", 100)
         schedule_type, mask, interval = self._validate_schedule(data)
         start_time = self._validate_time(data.get("start_time", "06:00"))
-        season_start, season_end = _validate_season(
-            data.get("season_start"), data.get("season_end")
-        )
+        # Правки 4.1/4.5: сезон у программ из UI убран — программа либо активна, либо нет.
+        season_start = season_end = None
         now = utcnow_iso()
         try:
             with self.conn:
@@ -408,15 +473,13 @@ class CatalogService:
         name = _clean_str(data.get("name"), "Название", 100)
         schedule_type, mask, interval = self._validate_schedule(data)
         start_time = self._validate_time(data.get("start_time", "06:00"))
-        season_start, season_end = _validate_season(
-            data.get("season_start"), data.get("season_end")
-        )
+        # Правка 4.1: сезон из UI убран — поля season_* при обновлении не трогаем.
         try:
             with self.conn:
                 self.conn.execute(
                     """UPDATE programs SET name=?, description=?, enabled=?, schedule_type=?,
-                       weekdays_mask=?, interval_days=?, start_time=?, season_start=?,
-                       season_end=?, updated_at=? WHERE id=?""",
+                       weekdays_mask=?, interval_days=?, start_time=?, updated_at=?
+                       WHERE id=?""",
                     (
                         name,
                         _clean_str(data.get("description"), "Описание", 500, required=False) or None,
@@ -425,8 +488,6 @@ class CatalogService:
                         mask,
                         interval,
                         start_time,
-                        season_start,
-                        season_end,
                         utcnow_iso(),
                         program_id,
                     ),
@@ -446,8 +507,14 @@ class CatalogService:
             self.conn.execute("DELETE FROM programs WHERE id=?", (program_id,))
         log.info("Удалена программа id=%s", program_id)
 
-    def set_program_zones(self, program_id: int, zone_ids: list[int]) -> dict:
-        """Заменяет состав зон программы; порядок = порядок в списке.
+    def set_program_zones(self, program_id: int, zones_spec: list) -> dict:
+        """Заменяет состав зон программы.
+
+        Принимает список элементов, каждый из которых:
+        - int (ID зоны) — последовательный запуск; либо
+        - {"zone_id": int, "parallel_group": optional[str]} — ADR-12:
+          зоны с одинаковым parallel_group стартуют параллельно,
+          разные группы выполняются последовательно в порядке списка.
 
         Программа может содержать зоны разных контроллеров (ТЗ).
         Внутри одного контроллера порядок сохраняется — позже компилятор
@@ -458,24 +525,33 @@ class CatalogService:
         ).fetchone():
             raise ValidationError("Программа не найдена")
         seen: set[int] = set()
-        ordered: list[int] = []
-        for raw in zone_ids:
-            zid = _parse_int(raw, "Зона")
+        ordered: list[tuple[int, Optional[str]]] = []
+        for raw in zones_spec:
+            group: Optional[str] = None
+            if isinstance(raw, dict):
+                zid = _parse_int(raw.get("zone_id"), "Зона")
+                g = raw.get("parallel_group")
+                if g is not None and str(g).strip():
+                    group = str(g).strip()[:30]
+            else:
+                zid = _parse_int(raw, "Зона")
             if zid in seen:
-                continue
+                continue  # дубликаты убираем, сохраняя первый порядок
             zone = self.get_zone(zid)
             if not zone or zone["deleted_at"]:
                 raise ValidationError(f"Зона id={zid} не найдена или отключена")
             seen.add(zid)
-            ordered.append(zid)
+            ordered.append((zid, group))
         with self.conn:
             self.conn.execute(
                 "DELETE FROM program_zones WHERE program_id=?", (program_id,)
             )
-            for seq, zid in enumerate(ordered, start=1):
+            for seq, (zid, group) in enumerate(ordered, start=1):
                 self.conn.execute(
-                    "INSERT INTO program_zones(program_id, zone_id, seq) VALUES (?,?,?)",
-                    (program_id, zid, seq),
+                    """INSERT INTO program_zones(program_id, zone_id, seq,
+                                                 parallel_group)
+                       VALUES (?,?,?,?)""",
+                    (program_id, zid, seq, group),
                 )
         log.info("Программа id=%s: установлено зон: %d", program_id, len(ordered))
         return self.get_program(program_id)  # type: ignore[return-value]

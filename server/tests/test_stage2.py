@@ -129,18 +129,28 @@ def test_zone_rules():
               "base_duration_minutes": "10", "enabled": "on"},
     )
     assert "error=" in _url(r)
-    # некорректный сезон -> ошибка
+    # Правки 3.5/3.10: сезон у зон убран — невалид season_start игнорируется,
+    # зона сохраняется (поля season_* всегда NULL)
     r = client.post(
         "/zones/save",
-        data={"id": str(zid), "controller_id": str(cid), "zone_number": "3",
-              "name": "X", "base_duration_minutes": "10", "season_start": "13-01"},
+        data={"id": str(zid), "controller_id": str(cid), "zone_number": "7",
+              "name": "X", "base_duration_minutes": "10", "season_start": "13-01",
+              "enabled": "on"},
     )
-    assert "error=" in _url(r)
+    assert "error=" not in _url(r), _url(r)
+    zrow2 = db.execute("SELECT season_start, season_end FROM zones WHERE id=?", (zid,)).fetchone()
+    assert zrow2["season_start"] is None and zrow2["season_end"] is None
     # отключение (soft-delete): физически строка остаётся
     r = client.post(f"/zones/{zid}/delete")
     assert "ok=" in _url(r)
     row = db.execute("SELECT deleted_at, enabled FROM zones WHERE id=?", (zid,)).fetchone()
     assert row["deleted_at"] is not None and row["enabled"] == 0
+    # Правка 3.9: отключённую зону можно включить обратно
+    r = client.post(f"/zones/{zid}/enable")
+    assert "ok=" in _url(r), _url(r)
+    row = db.execute("SELECT deleted_at, enabled FROM zones WHERE id=?", (zid,)).fetchone()
+    assert row["deleted_at"] is None and row["enabled"] == 1
+    client.post(f"/zones/{zid}/delete")  # оставляем отключённой для проверки занятости номера
     # номер 7 остаётся занят даже после soft-delete
     r = client.post(
         "/zones/save",
