@@ -20,3 +20,4 @@ backups/
 config/config.local.toml
 .env
 .env.local
+__pycache__/
