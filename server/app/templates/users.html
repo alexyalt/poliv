@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Пользователи{% endblock %}
+{% block content %}
+<h1>Пользователи</h1>
+
+<div class="card">
+  <h2>{% if editing_user %}Редактировать: {{ editing_user.username }}{% else %}Новый пользователь{% endif %}</h2>
+  <form method="post" action="/users/save" class="form-grid">
+    {% if editing_user %}<input type="hidden" name="id" value="{{ editing_user.id }}">{% endif %}
+    <label>Логин *
+      <input type="text" name="username" required maxlength="50"
+             value="{{ editing_user.username if editing_user else '' }}" {{ 'readonly' if editing_user }}>
+    </label>
+    <label>Роль *
+      <select name="role" required>
+        {% for r in ['admin', 'operator', 'viewer'] %}
+        <option value="{{ r }}" {{ 'selected' if editing_user and editing_user.role == r }}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% if not editing_user %}
+    <label>Пароль (пусто = сгенерировать)
+      <input type="password" name="password" minlength="6" autocomplete="new-password">
+    </label>
+    {% endif %}
+    <label class="check"><input type="checkbox" name="enabled" value="on"
+      {{ 'checked' if (editing_user and editing_user.enabled) or not editing_user }}> Активен</label>
+    <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Список пользователей</h2>
+  <table>
+    <tr><th>Логин</th><th>Роль</th><th>Состояние</th><th>Смена пароля</th><th>Последний вход</th><th></th></tr>
+    {% for u in user_list %}
+    <tr class="{{ 'row-disabled' if not u.enabled }}">
+      <td>{{ u.username }}</td>
+      <td>{{ u.role }}</td>
+      <td>{% if u.enabled %}<span class="badge badge-on">активен</span>{% else %}<span class="badge badge-off">отключён</span>{% endif %}</td>
+      <td>{{ 'нужно сменить' if u.must_change_password else '—' }}</td>
+      <td>{{ u.last_login_at or 'никогда' }}</td>
+      <td class="actions">
+        <a class="btn btn-small" href="/users?edit={{ u.id }}">Ред.</a>
+        <form method="post" action="/users/{{ u.id }}/reset_password" style="display:inline"
+              onsubmit="return confirm('Сбросить пароль? Пользователь будет разлогинен.')">
+          <button type="submit" class="btn btn-small">Сброс пароля</button>
+        </form>
+        {% if u.username != user.username %}
+        <form method="post" action="/users/{{ u.id }}/delete" style="display:inline"
+              onsubmit="return confirm('Удалить пользователя {{ u.username }}?')">
+          <button type="submit" class="btn btn-small btn-danger">Удалить</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

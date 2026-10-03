@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ prog.name }}{% endblock %}
+{% block content %}
+<h1>Программа «{{ prog.name }}»</h1>
+<p class="muted">
+  Расписание:
+  {% if prog.schedule_type == 'weekdays' %}
+    {% set days = ['пн','вт','ср','чт','пт','сб','вс'] %}
+    {% set out = [] %}{% for i in range(7) %}{% if prog.weekdays_mask[i] == '1' %}{{ out.append(days[i]) or '' }}{% endif %}{% endfor %}
+    {{ out|join(', ') }}
+  {% else %}раз в {{ prog.interval_days }} дн.{% endif %},
+  старт в {{ prog.start_time }},
+  сезон: {{ (prog.season_start ~ '…' ~ prog.season_end) if prog.season_start else 'весь год' }},
+  состояние: {{ 'включена' if prog.enabled else 'выключена' }}.
+</p>
+
+<div class="card">
+  <h2>Зоны программы (порядок выполнения)</h2>
+  {% if prog.zones %}
+  <table>
+    <tr><th>Порядок</th><th>Контроллер</th><th>№ зоны</th><th>Название</th><th>Длительность</th></tr>
+    {% for z in prog.zones %}
+    <tr>
+      <td>{{ z.seq }}</td>
+      <td>{{ z.controller_name }}</td>
+      <td>{{ z.zone_number }}</td>
+      <td>{{ z.name }} {{ z.icon or '' }}</td>
+      <td>{{ z.duration_override_minutes or z.base_duration_minutes }} мин</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Программа без зон — это допустимо (ТЗ).</p>{% endif %}
+</div>
+
+{% if user.role == 'admin' %}
+<div class="card">
+  <h2>Состав зон</h2>
+  <p class="muted">Отметьте зоны и упорядочьте их сверху вниз. Можно смешивать зоны разных контроллеров.</p>
+  <form method="post" action="/programs/{{ prog.id }}/zones">
+    <div id="zone-list">
+      {% for z in all_zones %}
+      <label class="check zone-pick">
+        <input type="checkbox" name="zone_ids" value="{{ z.id }}"
+               {{ 'checked' if z.id in selected }}>
+        {{ z.controller_name }} · №{{ z.zone_number }} — {{ z.name }}
+        ({{ z.base_duration_minutes }} мин){{ ' · ⛔ выкл.' if not z.enabled }}
+      </label>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary">Сохранить состав</button>
+  </form>
+</div>
+{% endif %}
+
+<a class="btn" href="/programs">← К списку программ</a>
+{% endblock %}

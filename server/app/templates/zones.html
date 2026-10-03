@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Зоны{% endblock %}
+{% block content %}
+<h1>Зоны полива</h1>
+<p class="muted">Зоны не удаляются физически — только отключаются (нумерация уникальна в пределах контроллера).</p>
+
+<div class="card">
+  <h2>{% if editing %}Редактировать зону{% else %}Новая зона{% endif %}</h2>
+  <form method="post" action="/zones/save" class="form-grid">
+    {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+    <label>Контроллер *
+      <select name="controller_id" required {{ 'disabled' if editing }}>
+        <option value="">— выберите —</option>
+        {% for c in controllers %}
+        <option value="{{ c.id }}" {{ 'selected' if editing and editing.controller_id == c.id }}>{{ c.name }} ({{ c.box_id }})</option>
+        {% endfor %}
+      </select>
+      {% if editing %}<input type="hidden" name="controller_id" value="{{ editing.controller_id }}">{% endif %}
+    </label>
+    <label>Номер зоны * (1..16)
+      <input type="number" name="zone_number" min="1" max="16" required value="{{ editing.zone_number if editing else '' }}"
+             {{ 'readonly' if editing }}>
+    </label>
+    <label>Название *
+      <input type="text" name="name" required maxlength="100" value="{{ editing.name if editing else '' }}">
+    </label>
+    <label>Базовая длительность, мин *
+      <input type="number" name="base_duration_minutes" min="1" max="240" required value="{{ editing.base_duration_minutes if editing else 10 }}">
+    </label>
+    <label>Корректировка полива, %
+      <input type="number" name="watering_adjustment_percent" min="10" max="300" value="{{ editing.watering_adjustment_percent if editing else 100 }}">
+    </label>
+    <label>Иконка (эмодзи или символ)
+      <input type="text" name="icon" maxlength="10" value="{{ editing.icon if editing else '' }}" placeholder="🌿">
+    </label>
+    <label>Изображение (путь/URL)
+      <input type="text" name="image_path" maxlength="300" value="{{ editing.image_path if editing else '' }}" placeholder="/static/zones/…">
+    </label>
+    <label>Сезон: начало (ММ-ДД)
+      <input type="text" name="season_start" maxlength="5" value="{{ editing.season_start if editing else '' }}" placeholder="04-01">
+    </label>
+    <label>Сезон: конец (ММ-ДД)
+      <input type="text" name="season_end" maxlength="5" value="{{ editing.season_end if editing else '' }}" placeholder="10-15">
+    </label>
+    <label>Примечания
+      <input type="text" name="notes" maxlength="500" value="{{ editing.notes if editing else '' }}">
+    </label>
+    <label class="check"><input type="checkbox" name="cycle_soak_enabled" value="on"
+      {{ 'checked' if editing and editing.cycle_soak_enabled }}> Cycle &amp; Soak</label>
+    <label class="check"><input type="checkbox" name="enabled" value="on"
+      {{ 'checked' if (editing and editing.enabled) or not editing }}> Включена</label>
+    <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
+  </form>
+  {% if editing %}<a class="btn" href="/zones">Отмена</a>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Список зон
+    {% if show_deleted %}<a class="btn btn-small" href="/zones">Скрыть отключённые</a>
+    {% else %}<a class="btn btn-small" href="/zones?deleted=1">Показать отключённые</a>{% endif %}
+  </h2>
+  {% if zones %}
+  <table>
+    <tr><th></th><th>№</th><th>Название</th><th>Контроллер</th><th>Длит.</th><th>Сезон</th><th>Состояние</th><th></th></tr>
+    {% for z in zones %}
+    <tr class="{{ 'row-disabled' if z.deleted_at or not z.enabled }}">
+      <td>{{ z.icon or '🌱' }}</td>
+      <td>{{ z.zone_number }}</td>
+      <td>{{ z.name }}</td>
+      <td>{{ z.controller_name }}</td>
+      <td>{{ z.base_duration_minutes }} мин</td>
+      <td>{{ (z.season_start ~ '…' ~ z.season_end) if z.season_start else 'весь год' }}</td>
+      <td>
+        {% if z.deleted_at %}<span class="badge badge-off">отключена</span>
+        {% elif z.enabled %}<span class="badge badge-on">вкл.</span>
+        {% else %}<span class="badge badge-off">выкл.</span>{% endif %}
+      </td>
+      <td class="actions">
+        {% if not z.deleted_at %}
+        <a class="btn btn-small" href="/zones?edit={{ z.id }}">Ред.</a>
+        <form method="post" action="/zones/{{ z.id }}/delete" style="display:inline"
+              onsubmit="return confirm('Отключить зону? Зоны не удаляются — см. ТЗ.')">
+          <button type="submit" class="btn btn-small btn-danger">Отключить</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Зон нет.</p>{% endif %}
+</div>
+{% endblock %}

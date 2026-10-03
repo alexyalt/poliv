@@ -1,4 +1,4 @@
-"""Веб-слой Этапа 1: страница входа, базовый шаблон, пустой дашборд."""
+"""Веб-слой: страница входа, дашборд, разделы справочников Этапа 2."""
 from __future__ import annotations
 
 import sqlite3
@@ -10,6 +10,8 @@ from fastapi.templating import Jinja2Templates
 
 from ..infra.config import Config
 from ..services.auth_service import SESSION_COOKIE, AuthService
+from ..services.catalog_service import CatalogService, ValidationError
+from ..services.user_service import UserService
 from .errors import render_error
 
 TEMPLATES_DIR = "templates"
@@ -37,11 +39,38 @@ class _NotAuthed(Exception):
 
 def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthService):
     templates = build_templates(str(app.state.app_dir))
+    catalog: CatalogService = app.state.catalog
+    users: UserService = app.state.users
 
     def ctx(request: Request, **extra):
         # Новый синтаксис Starlette: request передаётся первым аргументом
         # TemplateResponse(request, name, context), поэтому request здесь не нужен.
         return dict(extra)
+
+    def current_user(request: Request):
+        token = request.cookies.get(SESSION_COOKIE)
+        user = auth.get_user_by_token(token) if token else None
+        return dict(user) if user else None
+
+    def page(request: Request, name: str, status_code: int = 200, **extra):
+        """Общая подготовка контекста страницы: пользователь + ошибка/flash."""
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        error = request.query_params.get("error")
+        flash = request.query_params.get("ok")
+        base = ctx(
+            request,
+            user=user,
+            nav=name.split(".")[0] if "." in name else name,
+            error=error,
+            flash=flash,
+            **extra,
+        )
+        return templates.TemplateResponse(request, name, base, status_code=status_code)
+
+    def form_data(request_form) -> dict:
+        return {k: v for k, v in request_form.items()}
 
     @app.get("/login", response_class=HTMLResponse)
     def login_page(request: Request):
@@ -84,29 +113,326 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request):
-        token = request.cookies.get(SESSION_COOKIE)
-        user = auth.get_user_by_token(token) if token else None
-        if user is None:
-            return RedirectResponse("/login", status_code=302)
-        controllers = [
-            dict(r)
-            for r in conn.execute(
-                "SELECT c.*, (SELECT COUNT(*) FROM zones z WHERE z.controller_id=c.id) AS zone_count "
-                "FROM controllers c ORDER BY c.name"
-            ).fetchall()
-        ]
-        logs = auth.recent_logs(20)
-        return templates.TemplateResponse(
+        return page(
             request,
             "dashboard.html",
-            ctx(
-                request,
-                user=dict(user),
-                controllers=controllers,
-                logs=logs,
-                stage="Этап 1. Базовый серверный каркас",
-            ),
+            controllers=catalog.list_controllers(),
+            programs=catalog.list_programs(),
+            zones_count=len(catalog.list_zones()),
+            logs=auth.recent_logs(20),
+            stage="Этап 2. Базовые справочники и CRUD",
         )
+
+    # ============================== Этап 2: контроллеры ====================
+    def redirect(url: str, error: str = "", ok: str = "") -> RedirectResponse:
+        from urllib.parse import quote
+
+        if error:
+            url += ("&" if "?" in url else "?") + "error=" + quote(error)
+        if ok:
+            url += ("&" if "?" in url else "?") + "ok=" + quote(ok)
+        return RedirectResponse(url, status_code=302)
+
+    def require_admin(user: dict):
+        if user["role"] != "admin":
+            return "Действие доступно только администратору"
+        return None
+
+    @app.get("/controllers")
+    def controllers_page(request: Request):
+        all_controllers = catalog.list_controllers(include_deleted=True)
+        edit_id = request.query_params.get("edit")
+        editing = None
+        if edit_id and edit_id.isdigit():
+            editing = next((c for c in all_controllers if c["id"] == int(edit_id)), None)
+        return page(
+            request,
+            "controllers.html",
+            controllers=all_controllers,
+            editing=editing,
+        )
+
+    @app.post("/controllers/save")
+    async def controllers_save(request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/controllers", error=err)
+        form = await request.form()
+        data = dict(form)
+        cid = data.pop("id", None)
+        try:
+            if cid and cid.isdigit():
+                catalog.update_controller(int(cid), data)
+                auth.write_log(user["id"], user["username"], "controller.updated",
+                               "controller", cid)
+            else:
+                c = catalog.create_controller(data)
+                auth.write_log(user["id"], user["username"], "controller.created",
+                               "controller", c["id"], {"box_id": c["box_id"]})
+        except ValidationError as exc:
+            return redirect("/controllers", error=str(exc))
+        return redirect("/controllers", ok="Контроллер сохранён")
+
+    @app.post("/controllers/{controller_id}/delete")
+    def controllers_delete(controller_id: int, request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/controllers", error=err)
+        try:
+            catalog.delete_controller(controller_id)
+            auth.write_log(user["id"], user["username"], "controller.deleted",
+                           "controller", controller_id)
+        except ValidationError as exc:
+            return redirect("/controllers", error=str(exc))
+        return redirect("/controllers", ok="Контроллер отключён (soft-delete)")
+
+    # ====================================== Этап 2: зоны ===================
+    @app.get("/zones")
+    def zones_page(request: Request):
+        include_deleted = request.query_params.get("deleted") == "1"
+        all_zones = catalog.list_zones(include_deleted=include_deleted)
+        edit_id = request.query_params.get("edit")
+        editing = None
+        if edit_id and edit_id.isdigit():
+            editing = next((z for z in all_zones if z["id"] == int(edit_id)), None)
+        return page(
+            request,
+            "zones.html",
+            zones=all_zones,
+            controllers=catalog.list_controllers(),
+            show_deleted=include_deleted,
+            editing=editing,
+        )
+
+    @app.post("/zones/save")
+    async def zones_save(request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/zones", error=err)
+        form = await request.form()
+        data = dict(form)
+        data["cycle_soak_enabled"] = "on" in str(form.get("cycle_soak_enabled", "")) or bool(form.get("cycle_soak_enabled"))
+        zid = data.pop("id", None)
+        try:
+            if zid and zid.isdigit():
+                catalog.update_zone(int(zid), data)
+                auth.write_log(user["id"], user["username"], "zone.updated", "zone", zid)
+            else:
+                z = catalog.create_zone(data)
+                auth.write_log(user["id"], user["username"], "zone.created", "zone",
+                               z["id"], {"number": z["zone_number"]})
+        except ValidationError as exc:
+            return redirect("/zones", error=str(exc))
+        return redirect("/zones", ok="Зона сохранена")
+
+    @app.post("/zones/{zone_id}/delete")
+    def zones_delete(zone_id: int, request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/zones", error=err)
+        try:
+            catalog.delete_zone(zone_id)
+            auth.write_log(user["id"], user["username"], "zone.disabled", "zone", zone_id)
+        except ValidationError as exc:
+            return redirect("/zones", error=str(exc))
+        return redirect("/zones", ok="Зона отключена (зоны не удаляются — см. ТЗ)")
+
+    # ================================== Этап 2: программы ==================
+    @app.get("/programs")
+    def programs_page(request: Request):
+        all_programs = catalog.list_programs()
+        edit_id = request.query_params.get("edit")
+        editing = None
+        if edit_id and edit_id.isdigit():
+            editing = next((p for p in all_programs if p["id"] == int(edit_id)), None)
+        return page(
+            request,
+            "programs.html",
+            programs=all_programs,
+            editing=editing,
+        )
+
+    @app.get("/programs/{program_id}")
+    def program_page(program_id: int, request: Request):
+        prog = catalog.get_program(program_id)
+        if not prog:
+            return render_error(templates, request, 404)
+        all_zones = catalog.list_zones()
+        return page(
+            request,
+            "program_detail.html",
+            prog=prog,
+            all_zones=all_zones,
+            selected=[z["zone_id"] for z in prog["zones"]],
+        )
+
+    @app.post("/programs/save")
+    async def programs_save(request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/programs", error=err)
+        form = await request.form()
+        # dict(form)/getlist теряют повторы (чекбоксы дней недели) —
+        # все повторяющиеся поля берём из multi_items()
+        data = {k: v for k, v in form.multi_items() if k != "weekdays"}
+        data["weekdays"] = [v for k, v in form.multi_items() if k == "weekdays"]
+        pid = data.pop("id", None)
+        try:
+            if pid and pid.isdigit():
+                catalog.update_program(int(pid), data)
+                auth.write_log(user["id"], user["username"], "program.updated",
+                               "program", pid)
+            else:
+                p = catalog.create_program(data)
+                auth.write_log(user["id"], user["username"], "program.created",
+                               "program", p["id"], {"name": p["name"]})
+        except ValidationError as exc:
+            return redirect("/programs", error=str(exc))
+        return redirect("/programs", ok="Программа сохранена")
+
+    @app.post("/programs/{program_id}/delete")
+    def programs_delete(program_id: int, request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/programs", error=err)
+        try:
+            catalog.delete_program(program_id)
+            auth.write_log(user["id"], user["username"], "program.deleted",
+                           "program", program_id)
+        except ValidationError as exc:
+            return redirect("/programs", error=str(exc))
+        return redirect("/programs", ok="Программа удалена")
+
+    @app.post("/programs/{program_id}/zones")
+    async def programs_zones(program_id: int, request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect(f"/programs/{program_id}", error=err)
+        # Примечание: getlist() в Starlette MultiDictProxy возвращает только
+        # ПЕРВОЕ значение ключа (наследие Django), поэтому повторяющиеся поля
+        # формы читаем через multi_items().
+        form = await request.form()
+        raw = [v for k, v in form.multi_items() if k == "zone_ids"]
+        try:
+            catalog.set_program_zones(program_id, [int(r) for r in raw if r.isdigit()])
+            auth.write_log(user["id"], user["username"], "program.zones_set",
+                           "program", program_id, {"zone_ids": raw})
+        except ValidationError as exc:
+            return redirect(f"/programs/{program_id}", error=str(exc))
+        return redirect(f"/programs/{program_id}", ok="Состав зон программы обновлён")
+
+    # =============================== Этап 2: пользователи ==================
+    @app.get("/users")
+    def users_page(request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        if user["role"] != "admin":
+            return redirect("/", error="Раздел доступен только администратору")
+        user_list = users.list_users()
+        edit_id = request.query_params.get("edit")
+        editing_user = None
+        if edit_id and edit_id.isdigit():
+            editing_user = next((u for u in user_list if u["id"] == int(edit_id)), None)
+        return page(request, "users.html", user_list=user_list, editing_user=editing_user)
+
+    @app.post("/users/save")
+    async def users_save(request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/users", error=err)
+        form = await request.form()
+        data = dict(form)
+        uid = data.pop("id", None)
+        try:
+            if uid and uid.isdigit():
+                data.pop("password", None)  # смена пароля — отдельной кнопкой сброса
+                users.update_user(int(uid), data, user["username"])
+            else:
+                _, generated = users.create_user(data, user["username"])
+                if generated:
+                    return redirect(
+                        "/users",
+                        ok=f"Пользователь создан, пароль: {generated} (сохраните, показывается один раз)",
+                    )
+        except ValidationError as exc:
+            return redirect("/users", error=str(exc))
+        return redirect("/users", ok="Пользователь сохранён")
+
+    @app.post("/users/{user_id}/reset_password")
+    def users_reset(user_id: int, request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/users", error=err)
+        try:
+            new_pw = users.reset_password(user_id, user["username"])
+        except ValidationError as exc:
+            return redirect("/users", error=str(exc))
+        return redirect("/users", ok=f"Новый пароль: {new_pw} (показывается один раз)")
+
+    @app.post("/users/{user_id}/delete")
+    def users_delete(user_id: int, request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/users", error=err)
+        try:
+            users.delete_user(user_id, user["username"])
+        except ValidationError as exc:
+            return redirect("/users", error=str(exc))
+        return redirect("/users", ok="Пользователь удалён")
+
+    # ================================ Этап 2: настройки =====================
+    @app.get("/settings")
+    def settings_page(request: Request):
+        return page(request, "settings.html", settings=catalog.list_settings())
+
+    @app.post("/settings/save")
+    async def settings_save(request: Request):
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        err = require_admin(user)
+        if err:
+            return redirect("/settings", error=err)
+        form = await request.form()
+        try:
+            for key, value in form.items():
+                if key.startswith("setting:"):
+                    catalog.set_setting(key[len("setting:"):], value, user["username"])
+        except ValidationError as exc:
+            return redirect("/settings", error=str(exc))
+        auth.write_log(user["id"], user["username"], "settings.updated", "setting", None)
+        return redirect("/settings", ok="Настройки сохранены")
 
     @app.exception_handler(_NotAuthed)
     async def _not_authed_handler(request: Request, exc: _NotAuthed):

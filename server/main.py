@@ -30,15 +30,19 @@ from fastapi.staticfiles import StaticFiles
 from server.app.infra.config import ConfigError, load_config
 from server.app.infra.db import init_db
 from server.app.infra.logging import get_logger, setup_logging
+from server.app.api.routes_stage2 import register_api_routes
 from server.app.services.auth_service import AuthService
+from server.app.services.catalog_service import CatalogService
 from server.app.services.test_data import seed_test_data
+from server.app.services.user_service import UserService
 from server.app.web.routes import register_web_routes
 
 log = get_logger("poliv.main")
 
 
-def create_app() -> FastAPI:
-    cfg = load_config()
+def create_app(cfg: Config | None = None) -> FastAPI:
+    if cfg is None:
+        cfg = load_config()
 
     # Пути времени выполнения создаём при старте.
     for d in (cfg.data_dir, cfg.logs_dir, cfg.backups_dir):
@@ -53,18 +57,24 @@ def create_app() -> FastAPI:
     seed_test_data(conn, cfg)
     auth.cleanup_sessions()
 
-    app = FastAPI(title="Автополив", version="0.1.0-stage1")
+    catalog = CatalogService(conn)
+    users = UserService(conn, auth)
+
+    app = FastAPI(title="Автополив", version="0.2.0-stage2")
     app.state.cfg = cfg
     app.state.db = conn
     app.state.auth = auth
+    app.state.catalog = catalog
+    app.state.users = users
     app.state.app_dir = str(ROOT / "app")
 
     app.mount("/static", StaticFiles(directory=app.state.app_dir + "/static"), name="static")
-    register_web_routes(app, cfg, conn, auth)
+    templates = register_web_routes(app, cfg, conn, auth)
+    register_api_routes(app, cfg, conn, catalog, users)
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "stage": 1}
+        return {"status": "ok", "stage": 2}
 
     log.info("Сервер готов. Веб-интерфейс: http://%s:%d/", cfg.server_host, cfg.server_port)
     return app

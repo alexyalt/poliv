@@ -1,40 +1,54 @@
 {% extends "base.html" %}
 {% block title %}Дашборд{% endblock %}
-{% block header_extra %}
-<div class="userbox">
-  {{ user.username }} ({{ user.role }})
-  <form method="post" action="/logout" style="display:inline">
-    <button type="submit" class="btn btn-small">Выйти</button>
-  </form>
-</div>
-{% endblock %}
 {% block content %}
 <h1>Дашборд</h1>
-<p class="muted">{{ stage }}. Данные справочников появятся на Этапе 2, живой обмен — на Этапе 3.</p>
+<p class="muted">{{ stage }}. Живой обмен с контроллерами появится на Этапе 3.</p>
 
 <div class="grid">
   <section class="card">
-    <h2>Контроллеры (тестовые данные)</h2>
+    <h2>Контроллеры</h2>
     {% if controllers %}
     <table>
-      <tr><th>Название</th><th>Box ID</th><th>Зон</th><th>Связь</th><th>Статус</th></tr>
+      <tr><th>Название</th><th>Box ID</th><th>Зон</th><th>Связь</th><th>Состояние</th></tr>
       {% for c in controllers %}
       <tr>
         <td>{{ c.name }}</td><td>{{ c.box_id }}</td><td>{{ c.zone_count }}</td>
         <td><span class="badge badge-{{ c.connection_status }}">{{ c.connection_status }}</span></td>
-        <td>{{ c.status }}</td>
+        <td>{{ 'включён' if c.enabled else 'выключен' }}</td>
       </tr>
       {% endfor %}
     </table>
-    {% else %}<p class="muted">Контроллеров пока нет.</p>{% endif %}
+    {% else %}<p class="muted">Контроллеров пока нет. <a href="/controllers">Создать</a>.</p>{% endif %}
+    <p><a class="btn btn-small" href="/controllers">Управление контроллерами</a></p>
   </section>
 
   <section class="card">
+    <h2>Программы полива</h2>
+    {% if programs %}
+    <table>
+      <tr><th>Название</th><th>Зон</th><th>Состояние</th></tr>
+      {% for p in programs %}
+      <tr>
+        <td><a href="/programs/{{ p.id }}">{{ p.name }}</a></td>
+        <td>{{ p.zone_count }}</td>
+        <td>{{ 'вкл.' if p.enabled else 'выкл.' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">Программ пока нет. <a href="/programs">Создать</a>.</p>{% endif %}
+    <p>Зон в системе: {{ zones_count }} · <a class="btn btn-small" href="/zones">Зоны</a></p>
+  </section>
+
+  <section class="card span2">
     <h2>Журнал действий (последние 20)</h2>
     <table>
-      <tr><th>Время (UTC)</th><th>Пользователь</th><th>Действие</th></tr>
+      <tr><th>Время (UTC)</th><th>Пользователь</th><th>Действие</th><th>Объект</th></tr>
       {% for l in logs %}
-      <tr><td>{{ l.ts }}</td><td>{{ l.username or '—' }}</td><td>{{ l.action }}</td></tr>
+      <tr>
+        <td>{{ l.ts[:19] }}</td><td>{{ l.username or '—' }}</td>
+        <td>{{ l.action }}</td>
+        <td>{{ (l.object_type ~ ' #' ~ l.object_id) if l.object_type else '—' }}</td>
+      </tr>
       {% endfor %}
     </table>
   </section>

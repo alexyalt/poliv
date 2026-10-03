@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Программы полива{% endblock %}
+{% block content %}
+<h1>Программы полива</h1>
+<p class="muted">Программа может быть без зон и содержать зоны разных контроллеров. Внутри одного контроллера зоны выполняются последовательно (по порядку).</p>
+
+<div class="card">
+  <h2>{% if editing %}Редактировать программу{% else %}Новая программа{% endif %}</h2>
+  <form method="post" action="/programs/save" class="form-grid">
+    {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+    <label>Название *
+      <input type="text" name="name" required maxlength="100" value="{{ editing.name if editing else '' }}">
+    </label>
+    <label>Тип расписания *
+      <select name="schedule_type" required>
+        <option value="weekdays" {{ 'selected' if not editing or editing.schedule_type == 'weekdays' }}>По дням недели</option>
+        <option value="interval" {{ 'selected' if editing and editing.schedule_type == 'interval' }}>Интервал (раз в N дней)</option>
+      </select>
+    </label>
+    <fieldset class="days"><legend>Дни недели</legend>
+      {% set days = ['пн','вт','ср','чт','пт','сб','вс'] %}
+      {% set mask = editing.weekdays_mask if editing else '0000000' %}
+      {% for d in days %}
+      <label class="check-inline"><input type="checkbox" name="weekdays" value="{{ loop.index0 }}"
+        {{ 'checked' if mask[loop.index0] == '1' }}> {{ d }}</label>
+      {% endfor %}
+    </fieldset>
+    <label>Интервал, дней (для типа «интервал»)
+      <input type="number" name="interval_days" min="1" max="365" value="{{ editing.interval_days if editing and editing.interval_days else '' }}">
+    </label>
+    <label>Время старта (ЧЧ:ММ) *
+      <input type="time" name="start_time" required value="{{ editing.start_time if editing else '06:00' }}">
+    </label>
+    <label>Сезон: начало (ММ-ДД)
+      <input type="text" name="season_start" maxlength="5" value="{{ editing.season_start if editing else '' }}" placeholder="04-01">
+    </label>
+    <label>Сезон: конец (ММ-ДД)
+      <input type="text" name="season_end" maxlength="5" value="{{ editing.season_end if editing else '' }}" placeholder="10-15">
+    </label>
+    <label>Описание
+      <input type="text" name="description" maxlength="500" value="{{ editing.description if editing else '' }}">
+    </label>
+    <label class="check"><input type="checkbox" name="enabled" value="on"
+      {{ 'checked' if (editing and editing.enabled) or not editing }}> Включена</label>
+    <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
+  </form>
+  {% if editing %}<a class="btn" href="/programs">Отмена</a>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Список программ</h2>
+  {% if programs %}
+  <table>
+    <tr><th>Название</th><th>Расписание</th><th>Старт</th><th>Сезон</th><th>Зон</th><th>Состояние</th><th></th></tr>
+    {% for p in programs %}
+    <tr class="{{ 'row-disabled' if not p.enabled }}">
+      <td><a href="/programs/{{ p.id }}">{{ p.name }}</a></td>
+      <td>
+        {% if p.schedule_type == 'weekdays' %}
+          {% set days = ['пн','вт','ср','чт','пт','сб','вс'] %}
+          {% set out = [] %}{% for i in range(7) %}{% if p.weekdays_mask[i] == '1' %}{{ out.append(days[i]) or '' }}{% endif %}{% endfor %}
+          {{ out|join(', ') }}
+        {% else %}раз в {{ p.interval_days }} дн.{% endif %}
+      </td>
+      <td>{{ p.start_time }}</td>
+      <td>{{ (p.season_start ~ '…' ~ p.season_end) if p.season_start else 'весь год' }}</td>
+      <td>{{ p.zone_count }}</td>
+      <td>{% if p.enabled %}<span class="badge badge-on">вкл.</span>{% else %}<span class="badge badge-off">выкл.</span>{% endif %}</td>
+      <td class="actions">
+        <a class="btn btn-small" href="/programs?edit={{ p.id }}">Ред.</a>
+        <form method="post" action="/programs/{{ p.id }}/delete" style="display:inline"
+              onsubmit="return confirm('Удалить программу? Зоны останутся.')">
+          <button type="submit" class="btn btn-small btn-danger">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Программ нет.</p>{% endif %}
+</div>
+{% endblock %}
