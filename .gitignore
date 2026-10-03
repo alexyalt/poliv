@@ -1,13 +1,19 @@
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+# === Виртуальные окружения ===
+.venv/
 venv/
 env/
+ENV/
 
-# Логи и данные (не коммитим)
+# === Кэш Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# === Логи, данные, резервные копии (не коммитим) ===
 logs/
 *.log
 data/
@@ -15,29 +21,16 @@ backups/
 *.db
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
 
-# Локальные секреты и конфиги
-config/config.local.toml
-.env
-.env.local
-__pycache__/
-
-# Виртуальное окружение Python
-.venv/
-venv/
-env/
-
-# Кэш Python
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Логи, данные, резервные копии
-
-# Локальные секреты
+# === Локальные секреты и конфиги ===
 config/config.local.toml
 .env*
 
-# Файлы IDE
+# === IDE и ОС ===
 .vscode/
 .idea/
+*.swp
+.DS_Store
+Thumbs.db
