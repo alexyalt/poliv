@@ -29,3 +29,22 @@ Traceback (most recent call last):
     version = _bcrypt.__about__.__version__
               ^^^^^^^^^^^^^^^^^
 AttributeError: module 'bcrypt' has no attribute '__about__'
+2026-10-03 14:33:40 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-03 14:33:41 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-03 14:33:41 WARNING  [poliv.auth] Пароль администратора admin: 5SK3WfKUcQWaK7XZ (сохраните и смените при первом входе)
+2026-10-03 14:33:41 INFO     [poliv.testdata] Загружены тестовые данные: контроллер TESTBOX-0001 (8 зон)
+2026-10-03 14:33:41 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-03 14:33:41 INFO     [httpx] HTTP Request: GET http://testserver/health "HTTP/1.1 200 OK"
+2026-10-03 14:33:41 INFO     [httpx] HTTP Request: GET http://testserver/ "HTTP/1.1 302 Found"
+2026-10-03 14:33:41 INFO     [httpx] HTTP Request: POST http://testserver/login "HTTP/1.1 401 Unauthorized"
+2026-10-03 14:33:41 INFO     [httpx] HTTP Request: GET http://testserver/login "HTTP/1.1 200 OK"
+2026-10-03 14:33:47 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-03 14:33:47 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-03 14:33:56 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-03 14:33:56 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-03 14:34:22 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-03 14:34:22 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-03 14:34:22 INFO     [httpx] HTTP Request: GET http://testserver/health "HTTP/1.1 200 OK"
+2026-10-03 14:34:22 INFO     [httpx] HTTP Request: GET http://testserver/ "HTTP/1.1 302 Found"
+2026-10-03 14:34:23 INFO     [httpx] HTTP Request: POST http://testserver/login "HTTP/1.1 401 Unauthorized"
+2026-10-03 14:34:23 INFO     [httpx] HTTP Request: GET http://testserver/login "HTTP/1.1 200 OK"
