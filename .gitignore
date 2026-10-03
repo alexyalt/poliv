@@ -1,1 +1,22 @@
-(empty)
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Логи и данные (не коммитим)
+logs/
+*.log
+data/
+backups/
+*.db
+*.sqlite
+*.sqlite3
+
+# Локальные секреты и конфиги
+config/config.local.toml
+.env
+.env.local
