@@ -21,3 +21,23 @@ config/config.local.toml
 .env
 .env.local
 __pycache__/
+
+# Виртуальное окружение Python
+.venv/
+venv/
+env/
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Логи, данные, резервные копии
+
+# Локальные секреты
+config/config.local.toml
+.env*
+
+# Файлы IDE
+.vscode/
+.idea/
