@@ -39,16 +39,16 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
     templates = build_templates(str(app.state.app_dir))
 
     def ctx(request: Request, **extra):
-        base = {"request": request}
-        base.update(extra)
-        return base
+        # Новый синтаксис Starlette: request передаётся первым аргументом
+        # TemplateResponse(request, name, context), поэтому request здесь не нужен.
+        return dict(extra)
 
     @app.get("/login", response_class=HTMLResponse)
     def login_page(request: Request):
         token = request.cookies.get(SESSION_COOKIE)
         if token and auth.get_user_by_token(token):
             return RedirectResponse("/", status_code=302)
-        return templates.TemplateResponse("login.html", ctx(request, error=None))
+        return templates.TemplateResponse(request, "login.html", ctx(request, error=None))
 
     @app.post("/login")
     def login_submit(
@@ -61,7 +61,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         token, user, message = auth.login(username, password, ip, ua)
         if not token:
             return templates.TemplateResponse(
-                "login.html", ctx(request, error=message), status_code=401
+                request, "login.html", ctx(request, error=message), status_code=401
             )
         resp = RedirectResponse("/", status_code=302)
         resp.set_cookie(
@@ -97,6 +97,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         ]
         logs = auth.recent_logs(20)
         return templates.TemplateResponse(
+            request,
             "dashboard.html",
             ctx(
                 request,

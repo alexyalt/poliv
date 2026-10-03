@@ -13,7 +13,8 @@ def render_error(templates, request, code: int) -> HTMLResponse:
     }
     title, text = titles.get(code, ("Ошибка", f"Код ошибки: {code}"))
     return templates.TemplateResponse(
+        request,
         f"errors/{code}.html" if code in titles and code != 500 else "errors/500.html",
-        {"request": request, "code": code, "title": title, "text": text},
+        {"code": code, "title": title, "text": text},
         status_code=code,
     )
