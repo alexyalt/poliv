@@ -1,29 +1,61 @@
-# Project
+# Система автополива «Полив»
 
-This repository contains a minimal starter project.
+Модульная веб-система управления поливом: сервер на FastAPI, база данных SQLite,
+веб-интерфейс на Jinja2, контроллеры TESTBOX.
 
-## Contents
+## Текущий статус
 
-- `test` — a sample text file containing the placeholder content `TEST`.
+- **Этап 0 — Подготовка проекта** — завершён (ТЗ в `stage0/`).
+- **Этап 1 — Каркас приложения** — завершён (FastAPI, SQLite, миграции, авторизация, базовые страницы).
+- Следующий этап — **Этап 2** (см. ТЗ `stage0/Этап 0 Полное ТЗ с артефактами.txt`).
 
-## Getting Started
-
-Clone the repository and explore the files:
-
-```bash
-git clone <repository-url>
-cd <repository-name>
-cat test
-```
-
-## Repository Structure
+## Структура репозитория
 
 ```
 .
-├── README.md
-└── test
+├── README.md                  # этот файл
+├── requirements.txt           # зависимости (версии зафиксированы)
+├── stage0/                    # полное ТЗ с артефактами
+├── docs/                      # инструкции по проверке этапов
+│   └── ИНСТРУКЦИЯ_ЭТАП1.md
+├── config/
+│   ├── config.default.toml    # базовая конфигурация (в git)
+│   └── config.local.toml      # локальные секреты (НЕ в git)
+├── server/
+│   ├── main.py                # точка входа FastAPI
+│   ├── infra/                 # config, БД, логирование, миграции
+│   ├── services/              # бизнес-логика (авторизация и др.)
+│   ├── web/                   # роуты и шаблоны Jinja2
+│   └── tests/                 # смоук-тесты (pytest)
+├── data/                      # SQLite БД (не в git)
+├── logs/                      # логи с ротацией (не в git)
+└── backups/                   # резервные копии (не в git)
 ```
+
+## Быстрый старт
+
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp config/config.default.toml config/config.local.toml   # затем отредактируйте секреты
+python -m pytest server/tests -q                          # проверка: 2 passed
+python server/main.py                                     # сервер на http://127.0.0.1:8000
+```
+
+При первом запуске создаётся пользователь `admin`; его пароль выводится в
+`logs/app.log`. Вход — через страницу `/login`. Проверка работоспособности: `GET /health`.
+
+## Конфигурация и секреты
+
+- `config.default.toml` — общие значения, хранится в git.
+- `config.local.toml` — локальные overrides и секреты; **исключён из git** через `.gitignore`.
+- Файлы `data/`, `logs/`, `backups/`, `*.db`, `.env*` также не коммитятся.
+
+## Документация по этапам
+
+Инструкции по проверке и критерии приёмки — в каталоге `docs/`
+(например, `docs/ИНСТРУКЦИЯ_ЭТАП1.md`).
 
 ## License
 
-No license has been specified yet.
+Лицензия не определена.
