@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Дашборд{% endblock %}
+{% block header_extra %}
+<div class="userbox">
+  {{ user.username }} ({{ user.role }})
+  <form method="post" action="/logout" style="display:inline">
+    <button type="submit" class="btn btn-small">Выйти</button>
+  </form>
+</div>
+{% endblock %}
+{% block content %}
+<h1>Дашборд</h1>
+<p class="muted">{{ stage }}. Данные справочников появятся на Этапе 2, живой обмен — на Этапе 3.</p>
+
+<div class="grid">
+  <section class="card">
+    <h2>Контроллеры (тестовые данные)</h2>
+    {% if controllers %}
+    <table>
+      <tr><th>Название</th><th>Box ID</th><th>Зон</th><th>Связь</th><th>Статус</th></tr>
+      {% for c in controllers %}
+      <tr>
+        <td>{{ c.name }}</td><td>{{ c.box_id }}</td><td>{{ c.zone_count }}</td>
+        <td><span class="badge badge-{{ c.connection_status }}">{{ c.connection_status }}</span></td>
+        <td>{{ c.status }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">Контроллеров пока нет.</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Журнал действий (последние 20)</h2>
+    <table>
+      <tr><th>Время (UTC)</th><th>Пользователь</th><th>Действие</th></tr>
+      {% for l in logs %}
+      <tr><td>{{ l.ts }}</td><td>{{ l.username or '—' }}</td><td>{{ l.action }}</td></tr>
+      {% endfor %}
+    </table>
+  </section>
+</div>
+{% endblock %}
