@@ -62,11 +62,14 @@ class AuthService:
         self.write_log(None, self.cfg.admin_username, "admin.created", "user", None, source="system")
         log.info("Создан первый администратор: %s", self.cfg.admin_username)
         if generated:
-            log.warning(
-                "Пароль администратора %s: %s (сохраните и смените при первом входе)",
-                self.cfg.admin_username,
-                generated,
+            # stage2_hotfix_v3 (аудит п. 2.3): пароль НЕ пишется в файл-лог —
+            # только в stdout при старте; в лог — факт создания без секрета.
+            print(
+                f"[POLIV] Сгенерирован пароль администратора "
+                f"'{self.cfg.admin_username}': {generated} "
+                f"(показывается один раз при старте; сохраните и смените при первом входе)"
             )
+            log.info("Admin created, password printed to stdout (not logged)")
         return generated
 
     def change_password(self, user_id: int, new_password: str) -> None:

@@ -58,8 +58,13 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         user = auth.get_user_by_token(token) if token else None
         return dict(user) if user else None
 
-    def page(request: Request, name: str, status_code: int = 200, **extra):
-        """Общая подготовка контекста страницы: пользователь + ошибка/flash."""
+    def page(request: Request, name: str, status_code: int = 200, no_store: bool = False, **extra):
+        """Общая подготовка контекста страницы: пользователь + ошибка/flash.
+
+        stage2_hotfix_v3 (аудит п. 2.3): no_store=True добавляет заголовок
+        Cache-Control: no-store — для ответов, содержащих одноразовые секреты
+        (сгенерированные пароли). Секреты НЕ попадают в URL/историю браузера.
+        """
         user = current_user(request)
         if user is None:
             return RedirectResponse("/login", status_code=302)
@@ -73,7 +78,10 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             flash=flash,
             **extra,
         )
-        return templates.TemplateResponse(request, name, base, status_code=status_code)
+        resp = templates.TemplateResponse(request, name, base, status_code=status_code)
+        if no_store:
+            resp.headers["Cache-Control"] = "no-store"
+        return resp
 
     def form_data(request_form) -> dict:
         return {k: v for k, v in request_form.items()}
@@ -455,11 +463,22 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
                     data["password"] = pw
                 users.update_user(int(uid), data, user["username"])
             else:
-                _, generated = users.create_user(data, user["username"])
+                created, generated = users.create_user(data, user["username"])
                 if generated:
-                    return redirect(
-                        "/users",
-                        ok=f"Пользователь создан, пароль: {generated} (сохраните, показывается один раз)",
+                    # stage2_hotfix_v3 (аудит п. 2.3): пароль НЕ попадает в URL
+                    # (?ok=...). Рендерим users.html напрямую (POST -> 200) с
+                    # одноразовым блоком flash_secret и Cache-Control: no-store.
+                    return page(
+                        request,
+                        "users.html",
+                        no_store=True,
+                        user_list=users.list_users(),
+                        editing_user=None,
+                        flash_secret={
+                            "username": created["username"],
+                            "password": generated,
+                            "text": "Пользователь создан. Пароль показан один раз — сохраните.",
+                        },
                     )
         except ValidationError as exc:
             return redirect("/users", error=str(exc))
@@ -477,7 +496,21 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             new_pw = users.reset_password(user_id, user["username"])
         except ValidationError as exc:
             return redirect("/users", error=str(exc))
-        return redirect("/users", ok=f"Новый пароль: {new_pw} (показывается один раз)")
+        target = next((u for u in users.list_users() if u["id"] == user_id), None)
+        # stage2_hotfix_v3 (аудит п. 2.3): новый пароль — только в теле ответа
+        # с no-store, не в URL.
+        return page(
+            request,
+            "users.html",
+            no_store=True,
+            user_list=users.list_users(),
+            editing_user=None,
+            flash_secret={
+                "username": target["username"] if target else str(user_id),
+                "password": new_pw,
+                "text": "Пароль сброшен. Новый пароль показан один раз — сохраните.",
+            },
+        )
 
     @app.post("/users/{user_id}/delete")
     def users_delete(user_id: int, request: Request):

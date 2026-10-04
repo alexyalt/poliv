@@ -26,10 +26,32 @@ class ValidationError(ValueError):
 
 
 def _parse_int(value: Any, name: str, minimum: int = 1) -> int:
-    try:
-        ivalue = int(value)
-    except (TypeError, ValueError):
+    # stage2_hotfix_v3 (аудит п. 3): отклоняем нецелые числа — float без
+    # целочисленного значения (1.9) и строки с точкой ("1.9"). Целые float
+    # (2.0) и числовые строки ("2") допускаются (формы присылают строки).
+    if isinstance(value, bool):
         raise ValidationError(f"Поле «{name}» должно быть целым числом")
+    if isinstance(value, float):
+        if not value.is_integer():
+            raise ValidationError(f"Ожидается целое число: поле «{name}»")
+        ivalue = int(value)
+    else:
+        s = None if value is None else str(value).strip()
+        # строки с точкой/экспонентой ("1.9", "2e3") проверяем как float:
+        # нецелые отклоняем, целые (2.0) допускаем; int() их не принимает сам.
+        if s is not None and any(ch in s for ch in ".eE"):
+            try:
+                fvalue = float(s)
+            except ValueError:
+                raise ValidationError(f"Ожидается целое число: поле «{name}»")
+            if not fvalue.is_integer():
+                raise ValidationError(f"Ожидается целое число: поле «{name}»")
+            ivalue = int(fvalue)
+        else:
+            try:
+                ivalue = int(value)
+            except (TypeError, ValueError):
+                raise ValidationError(f"Ожидается целое число: поле «{name}»")
     if ivalue < minimum:
         raise ValidationError(f"Поле «{name}» должно быть >= {minimum}")
     return ivalue
@@ -39,6 +61,17 @@ def _parse_bool(value: Any) -> int:
     if isinstance(value, bool):
         return 1 if value else 0
     return 1 if str(value).lower() in ("1", "true", "on", "yes", "да") else 0
+
+
+def _parse_number(value: Any, name: str) -> float:
+    """Строгое число для настроек (stage2_hotfix_v3, аудит п. 3):
+    принимает int/float/числовые строки; None, bool, строки-не-числа -> ValidationError."""
+    if value is None or isinstance(value, bool):
+        raise ValidationError(f"Поле «{name}» должно быть числом")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise ValidationError(f"Поле «{name}» должно быть числом")
 
 
 def _clean_str(value: Any, name: str, max_len: int = 200, required: bool = True) -> str:
@@ -439,8 +472,12 @@ class CatalogService:
         schedule_type = _clean_str(data.get("schedule_type"), "Тип расписания", 20)
         if schedule_type == "weekdays":
             days = data.get("weekdays") or []
+            # stage2_hotfix_v3 (аудит п. 3): weekdays обязан быть списком
+            # (или строкой формы "1,2,3"). Число/словарь -> 422, а не тихая ошибка.
             if isinstance(days, str):
                 days = [d.strip() for d in days.split(",") if d.strip()]
+            elif not isinstance(days, list):
+                raise ValidationError("Ожидается список дней недели")
             # поддержка индексов (0..6, чекбоксы формы) и названий (пн..вс)
             idxs: set[int] = set()
             for d in days:
@@ -517,9 +554,24 @@ class CatalogService:
         current = self.get_program(program_id)
         if not current:
             raise ValidationError("Программа не найдена")
-        name = _clean_str(data.get("name"), "Название", 100)
-        schedule_type, mask, interval = self._validate_schedule(data)
-        start_time = self._validate_time(data.get("start_time", "06:00"))
+        # stage2_hotfix_v3: PUT — частичное обновление в стиле update_zone
+        # (None = «поле не прислали» -> сохраняем текущее). Иначе PUT только с
+        # weekdays падал бы 422 «Название обязательно».
+        name_raw = data.get("name")
+        name = current["name"] if name_raw is None else _clean_str(name_raw, "Название", 100)
+        sched_data = {
+            "schedule_type": (data["schedule_type"] if data.get("schedule_type") is not None
+                              else current["schedule_type"]),
+            "weekdays": (data["weekdays"] if "weekdays" in data
+                         else current["weekdays_mask"]),
+            "interval_days": (data.get("interval_days")
+                              if data.get("interval_days") is not None
+                              else current["interval_days"]),
+        }
+        schedule_type, mask, interval = self._validate_schedule(sched_data)
+        st_raw = data.get("start_time")
+        start_time = (current["start_time"] if st_raw in (None, "")
+                      else self._validate_time(st_raw))
         # Правка 4.1: сезон из системы убран полностью — полей season_* больше нет.
         try:
             with self.conn:
@@ -627,9 +679,41 @@ class CatalogService:
                 parsed = value
         else:
             parsed = value
+        # stage2_hotfix_v3 (аудит п. 3): строгая валидация значения по ключу.
+        # null / невалидное -> ValidationError (422 на API), БД не меняется.
+        parsed = self._validate_setting_value(key, parsed)
         with self.conn:
             self.conn.execute(
                 "UPDATE settings SET value_json=?, updated_at=?, updated_by=? WHERE key=?",
                 (json.dumps(parsed, ensure_ascii=False), utcnow_iso(), username, key),
             )
         log.info("Настройка %s изменена пользователем %s", key, username)
+
+    @staticmethod
+    def _validate_setting_value(key: str, parsed: Any) -> Any:
+        """Валидация значения настройки по ключу (stage2_hotfix_v3, аудит п. 3)."""
+        if key == "adjustment.rain_delay_hours":
+            # целое число, диапазон [0..720]; null/не-число -> ValidationError (422),
+            # БД не меняется. Строки форм ("36") допускаются.
+            n = _parse_int(parsed, f"настройка «{key}»", 0)
+            if n > 720:
+                raise ValidationError(f"Настройка {key}: допустимый диапазон [0..720]")
+            return n
+        if key == "adjustment.temp_factor_min":
+            n = _parse_number(parsed, f"настройка «{key}»")
+            if not 0.1 <= n <= 1.0:
+                raise ValidationError(f"Настройка {key}: допустимый диапазон [0.1..1.0]")
+            return n
+        if key == "adjustment.temp_factor_max":
+            n = _parse_number(parsed, f"настройка «{key}»")
+            if not 1.0 <= n <= 5.0:
+                raise ValidationError(f"Настройка {key}: допустимый диапазон [1.0..5.0]")
+            return n
+        if key == "adjustment.soak_default_enabled":
+            if isinstance(parsed, bool):
+                return parsed
+            if isinstance(parsed, str) and parsed.lower() in ("true", "false"):
+                return parsed.lower() == "true"
+            raise ValidationError(f"Настройка {key}: ожидается true/false")
+        # прочие ключи — без типовой схемы, пропускаем как раньше
+        return parsed

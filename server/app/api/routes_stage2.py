@@ -20,6 +20,11 @@ from ..services.user_service import UserService
 ROLE_LEVELS = {"viewer": 0, "operator": 1, "admin": 2}
 
 
+class _BadJson(Exception):
+    """stage2_hotfix_v3 (аудит п. 3): битый/не-словарный JSON тела запроса -> 400."""
+    pass
+
+
 def _user(request: Request) -> Optional[dict]:
     auth: AuthService = request.app.state.auth
     token = request.cookies.get(SESSION_COOKIE)
@@ -51,11 +56,15 @@ def register_api_routes(
         )
 
     async def body(request: Request) -> dict:
+        # stage2_hotfix_v3 (аудит п. 3): больше не возвращаем {} молча —
+        # битый JSON или JSON не-словарь -> 400 {"detail": "Некорректный JSON"}.
         try:
             data = await request.json()
-            return data if isinstance(data, dict) else {}
         except Exception:
-            return {}
+            raise _BadJson()
+        if not isinstance(data, dict):
+            raise _BadJson()
+        return data
 
     import functools
     import inspect
@@ -77,6 +86,8 @@ def register_api_routes(
                 return await handler(*args, **kwargs)
             except ValidationError as exc:
                 return JSONResponse({"detail": str(exc)}, status_code=422)
+            except _BadJson:
+                return JSONResponse({"detail": "Некорректный JSON"}, status_code=400)
 
         # уникальное имя для operationId в OpenAPI (без этого схемы дублируются)
         endpoint.__name__ = f"{handler.__name__}_{method.lower()}"
@@ -190,8 +201,17 @@ def register_api_routes(
         for item in spec:
             if isinstance(item, dict):
                 cleaned.append(item)
+            elif isinstance(item, bool):
+                # stage2_hotfix_v3 (аудит п. 3): bool — подкласс int, отклоняем явно
+                raise ValidationError(f"Некорректный элемент списка «{field}»")
             elif isinstance(item, (int, str)):
-                cleaned.append(int(item))
+                # строка "not-an-id" -> ValueError -> 422, а не 500 и не тихий пропуск
+                try:
+                    cleaned.append(int(item))
+                except ValueError:
+                    raise ValidationError(
+                        f"Ожидается целое число: элемент списка «{field}»"
+                    ) from None
             else:
                 raise ValidationError(f"Некорректный элемент списка «{field}»")
         p = catalog.set_program_zones(program_id, cleaned)

@@ -3,6 +3,17 @@
 {% block content %}
 <h1>Пользователи</h1>
 
+{# stage2_hotfix_v3 (аудит п. 2.3): одноразовый показ пароля в теле ответа
+   (Cache-Control: no-store), без попадания в URL/историю браузера. #}
+{% if flash_secret %}
+<div class="alert alert-ok" id="one-time-secret">
+  <strong>{{ flash_secret.text }}</strong><br>
+  Логин: <code>{{ flash_secret.username }}</code><br>
+  Пароль: <code id="one-time-password">{{ flash_secret.password }}</code>
+  <noscript><p><em>Показано один раз. После перехода на другую страницу пароль восстановить нельзя — используйте «Сброс пароля».</em></p></noscript>
+</div>
+{% endif %}
+
 <button type="button" class="btn btn-primary" id="add-user-btn" {% if editing_user %}style="display:none"{% endif %}
         onclick="document.getElementById('user-form-card').style.display=''; this.style.display='none'; return false;">+ Добавить пользователя</button>
 <div class="card" id="user-form-card" {% if not editing_user %}style="display:none"{% endif %}>

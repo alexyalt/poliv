@@ -160,3 +160,40 @@ _has_column; DROP COLUMN season_* с проверками _table_exists/_has_col
 **Проверка:** pytest server/tests -q → 14 passed; ручной сценарий TestClient:
 GET /programs?edit=<id> → 200 (без 500); POST /programs/<id>/zones с группой "A"
 у двух зон одного контроллера → roundtrip: parallel_group="A" у обеих зон; icon 🌿 сохранён.
+
+## Запись 15. stage2_hotfix_v3 (05.10.2026) — секреты вне URL, строгая валидация JSON API
+
+**Контекст:** блоки stage2_hotfix (миграция 0003, логирование 500, иконка зоны,
+UI parallel_group) уже применены — не переделывались. Остаток по аудиту.
+
+**Закрытые пункты аудита:**
+- **п. 2.3 (утечка секретов через URL):** web/routes.py users_save/users_reset —
+  сгенерированный пароль НЕ передаётся через redirect(?ok=...); POST рендерит
+  users.html напрямую (200) с одноразовым блоком flash_secret («Пароль показан
+  один раз — сохраните») и заголовком Cache-Control: no-store. Обычное
+  редактирование без генерации пароля — редирект без секретов. auth_service.
+  ensure_admin(): пароль первого админа не пишется в файл-лог — print() в stdout
+  при старте, в лог только факт «admin created, password printed to stdout».
+- **п. 3 (слабая валидация JSON API):** api/routes_stage2.py body(): битый JSON
+  или JSON не-словарь -> 400 {"detail": "Некорректный JSON"} (раньше молча {});
+  zone_ids=["not-an-id"] -> 422 (int() обёрнут в try/except ValueError); bool
+  отклоняется явно. catalog_service: _parse_int отвергает нецелые float (1.9) и
+  строки с точкой («Ожидается целое число»), целые float (2.0) допускает;
+  weekdays не списком -> 422 «Ожидается список дней недели»; set_setting +
+  _validate_setting_value: rain_delay_hours int [0..720], temp_factor_min
+  [0.1..1.0], temp_factor_max [1.0..5.0], soak_default_enabled bool; null ->
+  422, БД не меняется. Partial-семантика update_* сохранена (None = не прислали).
+  Веб-формы (HTML) не затронуты.
+
+**Регресс-тесты:** server/tests/test_stage2_hardening.py — 9 тестов (float id,
+not-an-id, weekdays=3, битый JSON + неизменность БД, value:null, диапазоны
+настроек, пароль не в URL при создании пользователя, 302 без секретов при
+обычном редактировании, частичный PUT зоны только с icon сохраняет name/duration).
+
+**Проверка:** python -m pytest server/tests -q -> 23 passed (14 прежних + 9 новых).
+
+**ОСОЗНАННО ОТЛОЖЕНО:**
+- connection-per-request (пул соединений) — до Этапа 4;
+- must_change_password enforcement — Этап 5;
+- CSRF-токены и Secure/SameSite cookie — Этап 5 / облачный режим;
+- CI (GitHub Actions) и lock-файлы зависимостей — Этап 6.
