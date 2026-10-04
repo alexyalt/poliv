@@ -38,9 +38,11 @@
     </label>
     <label class="check"><input type="checkbox" name="enabled" value="on"
       {{ 'checked' if (editing and editing.enabled) or not editing }}> Включена</label>
-    <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary form-btn-save">Сохранить</button>
+      <a class="btn btn-cancel form-btn-cancel" href="/zones" onclick="return hideForm(event)">Отмена</a>
+    </div>
   </form>
-  <a class="btn" href="/programs">Отмена</a>
 </div>
 
 <div class="card">
