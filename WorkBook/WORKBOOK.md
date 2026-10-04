@@ -117,3 +117,19 @@
 - settings.html — без пары кнопок (нет «Отмены»), теперь кнопка компактная;
 - base.html — CSS подключается с `?v={{ app_version }}`: при каждом пуше версия меняется и браузер больше не отдаёт старый кэш стилей (заодно устраняет риск «правки не видны из-за кэша»).
 **Проверка:** pytest 11 passed; grep подтверждает наличие form-actions во всех парах Сохранить/Отмена. Ожидание от пользователя: git pull + Ctrl+F5, хэш версии в шапке должен быть новым.
+
+## 13. before_stage_3: критические исправления + облачный режим (05.10.2026)
+**Запрос пользователя:** применить в main все правки из PR #4 (corrections-before-stage-3-a013b, не был смерджён) + дополнительные исправления перед Этапом 3; блоки: сезонность, parallel_group, enable-методы, миграция 0002, шаблоны, тесты, .gitignore, .pyc, ADR-15.
+**Аудит состояния main:** правки PR #4 по коду УЖЕ присутствуют в main (проверено grep):
+- `catalog_service.py`: функция `_validate_season` удалена (комментарий п. 3.5/3.10 на месте), вызовов season_* в INSERT/UPDATE нет, `set_program_zones` поддерживает `parallel_group` (ADR-12), методы `enable_controller` (правка 2.5) и `enable_zone` (правка 3.9) присутствуют и stronger варианта из промпта (проверка занятости Box ID, проверка контроллера зоны);
+- `migrations/0002_stage2_catalogs.py`: season_start/season_end удалены из CREATE TABLE, `parallel_group TEXT` в program_zones, есть `LEGACY_DROP_COLUMNS` и `_drop_legacy_season_columns()` с вызовом в `upgrade()`;
+- шаблоны `zones.html`/`programs.html`: полей сезона нет (grep по templates — пусто);
+- `tests/test_stage2.py`: проверки отсутствия season_* в схеме и наличия parallel_group — на месте.
+**Сделано в этой итерации:**
+- Блок 2 `.gitignore`: заменён с 6 строк на полную версию (Python, venv, data/logs/backups/*.db/wal/shm, config.local.toml, .env*, IDE/ОС, tmp/bak/node_modules);
+- Блок 3: из git-индекса удалены 22 закоммиченных `.pyc` (`git rm -r --cached */__pycache__`), а также ранее закоммиченные `.venv/` (10 файлов) и `data/poliv.db*` — теперь они исключены новым .gitignore; файлы остались на диске;
+- Блок 4 (ADR-15): в реестр ADR (АРТЕФАКТ 0.2, после ADR-10) добавлена строка ADR-15 «Два режима размещения: локальный и облачный»; в `config/config.default.toml` добавлена секция `[deployment]` (mode/local|cloud, public_url, mqtt_cloud_host/port/tls/username, пароль — в config.local.toml); в README.md добавлен раздел «Режимы размещения».
+**Решение:** дублировать уже применённые код-правки PR #4 не стали (риск регрессии); вместо этого верифицировали их наличие и прошли блок 5 (миграции с чистой БД + pytest). Секция [deployment] пока декларативная — используется Этапом 3 (MQTT) при выборе брокера.
+**Проверка:** см. ниже (запуск тестов).
+**Проверка (блок 5, 05.10.2026):** удалена старая БД `data/poliv.db*`; миграции 0001+0002 применены с чистой БД; PRAGMA: в `zones`/`programs` колонок season_* нет, в `program_zones` есть `parallel_group`; функционально проверены create→delete→enable для контроллера и зоны, `set_program_zones` с parallel_group="A"; pytest `server/tests/test_stage2.py` — **9 passed**. Для прогонов создан локальный `config/config.local.toml` (в git не попадает). Замечание среды: системный python требовал установки passlib/bcrypt==4.0.x (см. requirements.txt) — на боевой машине пользователя venv уже настроен.
+**Финализация:** при повторной проверке выявлено, что коммиты aa58b1d/88355cf фактически не изменили индекс (git status показал .pyc/.venv/data/logs снова добавленными, а рабочий .gitignore был случайно обнулён) — выполнено корректное удаление из индекса (`git rm --cached`, файлы на диске сохранены), `.gitignore` восстановлен в полной версии, тесты переинициализированы с нуля. Примечание окружения CI: сторонний плагин libtmux несовместим с pytest 9 («Marks cannot be applied to fixtures») — запускать с `-p no:libtmux` (на машине пользователя с venv из requirements проблемы нет).

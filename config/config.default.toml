@@ -36,3 +36,19 @@ enabled = true
 controller_name = "Тестовый контроллер (эмулятор)"
 box_id = "TESTBOX-0001"
 zones = 8
+
+[deployment]
+# ADR-15: Режим размещения системы — "local" (локальная сеть) или "cloud" (облако/интернет).
+mode = "local"
+
+# Для облачного режима: публичный URL сервера (для генерации ссылок в UI)
+# Пример: "https://poliv.example.com" или "http://ваш-внешний-ip:8080"
+public_url = ""
+
+# Для облачного режима: настройки MQTT-брокера
+# Если пусто, используется локальный брокер
+mqtt_cloud_host = ""
+mqtt_cloud_port = 8883
+mqtt_cloud_use_tls = true
+mqtt_cloud_username = ""
+# Пароль MQTT хранится в config.local.toml
