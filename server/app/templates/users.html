@@ -26,7 +26,10 @@
     </label>
     <label class="check"><input type="checkbox" name="enabled" value="on"
       {{ 'checked' if (editing_user and editing_user.enabled) or not editing_user }}> Активен</label>
-    <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
+    <div class="form-actions">
+    <button type="submit" class="btn btn-primary form-btn-save">Сохранить</button>
+    <a class="btn form-btn-cancel" href="/controllers">Отмена</a>
+</div>
   </form>
 </div>
 
