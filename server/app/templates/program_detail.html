@@ -56,8 +56,10 @@
     <h3>Порядок выполнения (перетащите или используйте ▲▼; ✕ — убрать зону)</h3>
     <ol id="order-list"></ol>
     <input type="hidden" name="order_json" id="order-json" value="">
-    <button type="submit" class="btn btn-primary">Сохранить состав</button>
-    <a class="btn" href="/programs/{{ prog.id }}">Отмена</a>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary form-btn-save">Сохранить состав</button>
+      <a class="btn form-btn-cancel" href="/programs/{{ prog.id }}">Отмена</a>
+    </div>
   </form>
 </div>
 {% endif %}
