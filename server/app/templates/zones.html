@@ -61,9 +61,14 @@
     </script>
     <label class="check"><input type="checkbox" name="enabled" value="on"
       {{ 'checked' if (editing and editing.enabled) or not editing }}> Включена</label>
-    <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
+    <!-- Правка v3: Сохранить 2/3, Отмена 1/3 в одной строке -->
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary form-btn-save">Сохранить</button>
+      <a class="btn btn-cancel form-btn-cancel" href="/zones" onclick="return hideForm(event)">Отмена</a>
+    </div>
+    <!-- Правка v3: предпросмотр расчёта Cycle & Soak по базовому времени -->
+    <div id="cs-preview" class="muted cs-preview"></div>
   </form>
-  <a class="btn" href="/zones" onclick="return hideForm(event)">Отмена</a>
 </div>
 {% if not form_open %}<button type="button" class="btn btn-primary" id="add-zone-btn"
         onclick="document.getElementById('zone-form-card').style.display=''; this.style.display='none'; return false;">+ Добавить зону</button>{% endif %}
@@ -80,20 +85,25 @@
     <datalist id="controller-list">{% for c in controllers %}<option value="{{ c.name }}">{{ c.box_id }}</option>{% endfor %}</datalist>
     <input type="number" id="f-number" placeholder="№ зоны" min="1" max="16" style="width:6.5em">
     <select id="f-state"><option value="">Состояние: все</option><option value="on">вкл.</option><option value="off">выкл./отключена</option></select>
+    <!-- Правка v3: фильтр по режиму (об. / CS) -->
+    <select id="f-mode"><option value="">Режим: все</option><option value="ob">об.</option><option value="cs">CS</option></select>
     <button type="button" class="btn btn-small" onclick="resetFilters()">Сброс</button>
   </div>
   {% if zones %}
   <table id="zone-table">
-    <tr><th></th><th>№</th><th>Название</th><th>Контроллер</th><th>Длит.</th><th>Корр.%</th><th>Состояние</th><th></th></tr>
+    <tr><th></th><th>№</th><th>Название</th><th>Контроллер</th><th>Длит.</th><th>Режим</th><th>Корр.%</th><th>Состояние</th><th></th></tr>
     {% for z in zones %}
     <tr class="{{ 'row-disabled' if z.deleted_at or not z.enabled }}"
         data-name="{{ z.name|lower }}" data-controller="{{ (z.controller_name ~ ' ' ~ z.controller_box_id)|lower }}"
-        data-number="{{ z.zone_number }}" data-on="{{ '1' if z.enabled and not z.deleted_at else '0' }}">
+        data-number="{{ z.zone_number }}" data-on="{{ '1' if z.enabled and not z.deleted_at else '0' }}"
+        data-mode="{{ 'cs' if z.cycle_soak_enabled else 'ob' }}">
       <td>{{ z.icon or '🌱' }}</td>
       <td>{{ z.zone_number }}</td>
       <td>{{ z.name }}</td>
       <td>{{ z.controller_name }}</td>
       <td>{{ z.base_duration_minutes }} мин</td>
+      <td>{% if z.cycle_soak_enabled %}<span class="badge badge-cs" title="Цикл {{ z.cycle_minutes }} мин, выдержка {{ z.soak_minutes }} мин">CS</span>
+          {% else %}<span class="badge badge-ob" title="Обычный режим">об.</span>{% endif %}</td>
       <td>{{ z.watering_adjustment_percent }}%</td>
       <td>
         {% if z.deleted_at %}<span class="badge badge-off">отключена</span>
@@ -128,6 +138,7 @@ function applyZoneFilters(){
   var ct=(document.getElementById('f-controller').value||'').toLowerCase();
   var num=document.getElementById('f-number').value;
   var st=document.getElementById('f-state').value;
+  var md=document.getElementById('f-mode').value;
   document.querySelectorAll('#zone-table tbody tr').forEach(function(tr){
     var ok=true;
     if(n && (tr.dataset.name||'').indexOf(n)<0) ok=false;
@@ -135,12 +146,34 @@ function applyZoneFilters(){
     if(ok && num && tr.dataset.number!==num) ok=false;
     if(ok && st==='on' && tr.dataset.on!=='1') ok=false;
     if(ok && st==='off' && tr.dataset.on==='1') ok=false;
+    if(ok && md && tr.dataset.mode!==md) ok=false;
     tr.style.display=ok?'':'none';
   });
 }
-function resetFilters(){['f-name','f-controller','f-number'].forEach(function(i){document.getElementById(i).value='';});document.getElementById('f-state').value='';applyZoneFilters();}
-['f-name','f-controller','f-number','f-state'].forEach(function(i){
+function resetFilters(){['f-name','f-controller','f-number'].forEach(function(i){document.getElementById(i).value='';});document.getElementById('f-state').value='';document.getElementById('f-mode').value='';applyZoneFilters();}
+['f-name','f-controller','f-number','f-state','f-mode'].forEach(function(i){
   document.getElementById(i).addEventListener('input',applyZoneFilters);
 });
+/* Правка v3: предпросмотр расчёта Cycle & Soak.
+   Циклы выполняются последовательно до исчерпания базового времени полива,
+   между циклами — выдержка (soak). Пример из ТЗ: база 10 мин, цикл 5 мин,
+   soak 10 мин => 2 цикла. */
+function csCalc(){
+  var el=document.getElementById('cs-preview');if(!el)return;
+  var on=document.getElementById('cs-toggle').checked;
+  if(!on){el.textContent='';return;}
+  var base=parseInt(document.querySelector('[name=base_duration_minutes]').value||'0',10);
+  var cyc=parseInt(document.querySelector('[name=cycle_minutes]').value||'0',10);
+  var soak=parseInt(document.querySelector('[name=soak_minutes]').value||'0',10);
+  if(base<=0||cyc<=0){el.textContent='Укажите базовое время и длительность цикла.';return;}
+  var cycles=Math.max(1,Math.ceil(base/cyc));
+  var watered=Math.min(base,cycles*cyc);
+  var total=watered+(cycles-1)*soak;
+  el.textContent='Расчёт: '+cycles+' цикл'+(cycles>1?'а':'')+' по '+cyc+' мин ('+watered+' мин полива), '+
+    (cycles-1)+' выдержк'+((cycles-1)===1?'а':'и')+' по '+soak+' мин ⇒ всего ~'+total+' мин.';
+}
+['cs-toggle'].concat(['base_duration_minutes','cycle_minutes','soak_minutes'].map(function(x){return '[name='+x+']';}))
+ .forEach(function(sel){var e=document.querySelector(sel);if(e)e.addEventListener('input',csCalc);if(e)e.addEventListener('change',csCalc);});
+csCalc();
 </script>
 {% endblock %}
