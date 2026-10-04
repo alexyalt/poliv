@@ -126,15 +126,16 @@ class CatalogService:
         if not current:
             raise ValidationError("Контроллер не найден")
         name = _clean_str(data.get("name"), "Название", 100)
-        # Правка 2.2: Box ID можно не указывать — генерируется автоматически.
-        box_id = _clean_str(data.get("box_id"), "Box ID", 50, required=False).upper()
-        if not box_id:
-            while True:
-                box_id = f"BOX-{random.randint(100000, 999999)}"
-                if not self.conn.execute(
-                    "SELECT 1 FROM controllers WHERE box_id=?", (box_id,)
-                ).fetchone():
-                    break
+        # Правка v2 2.3: Box ID — постоянный идентификатор устройства (используется
+        # протоколом привязки контроллера на Этапе 3+), поэтому в UI он read-only.
+        # Менять Box ID нельзя через веб-форму; поле игнорируется при обновлении.
+        box_id = current["box_id"]
+        def _keep(key: str, maxlen: int):
+            raw = data.get(key)
+            if raw is None:
+                return current[key]
+            cleaned = _clean_str(raw, key, maxlen, required=False)
+            return cleaned or None
         try:
             with self.conn:
                 self.conn.execute(
@@ -143,9 +144,10 @@ class CatalogService:
                     (
                         name,
                         box_id,
-                        _clean_str(data.get("model"), "Модель", 50, required=False) or None,
-                        _clean_str(data.get("description"), "Описание", 500, required=False) or None,
-                        _parse_bool(data.get("enabled", current["enabled"])),
+                        _keep("model", 50),
+                        _keep("description", 500),
+                        (current["enabled"] if data.get("enabled") is None
+                         else _parse_bool(data.get("enabled"))),
                         utcnow_iso(),
                         controller_id,
                     ),
@@ -236,6 +238,15 @@ class CatalogService:
             raise ValidationError("Базовая длительность не должна превышать 240 минут")
         # Правки 3.5/3.10: сезон у зон убран из UI — всегда «весь год» (None).
         season_start = season_end = None
+        # Правка v2 3.1: параметры Cycle&Soak сохраняются из формы.
+        cycle_minutes = (_parse_int(data.get("cycle_minutes"), "Цикл, мин", 1)
+                         if data.get("cycle_minutes") not in (None, "") else None)
+        soak_minutes = (_parse_int(data.get("soak_minutes"), "Soak, мин", 1)
+                        if data.get("soak_minutes") not in (None, "") else None)
+        if cycle_minutes is not None and cycle_minutes > 240:
+            raise ValidationError("Цикл не должен превышать 240 минут")
+        if soak_minutes is not None and soak_minutes > 240:
+            raise ValidationError("Soak не должен превышать 240 минут")
         now = utcnow_iso()
         try:
             with self.conn:
@@ -243,8 +254,9 @@ class CatalogService:
                     """INSERT INTO zones(controller_id, zone_number, name, enabled, icon,
                                          image_path, notes, base_duration_minutes,
                                          watering_adjustment_percent, cycle_soak_enabled,
+                                         cycle_minutes, soak_minutes, soak_after_last,
                                          season_start, season_end, created_at, updated_at)
-                       SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                       SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                        WHERE EXISTS (SELECT 1 FROM controllers
                                      WHERE id=? AND deleted_at IS NULL)""",
                     (
@@ -258,6 +270,9 @@ class CatalogService:
                         duration,
                         _parse_int(data.get("watering_adjustment_percent", 100), "Корректировка %"),
                         _parse_bool(data.get("cycle_soak_enabled", False)),
+                        cycle_minutes,
+                        soak_minutes,
+                        _parse_bool(data.get("soak_after_last", False)),
                         season_start,
                         season_end,
                         now,
@@ -284,26 +299,56 @@ class CatalogService:
         if duration > 240:
             raise ValidationError("Базовая длительность не должна превышать 240 минут")
         # Правки 3.5/3.10: сезон у зон из UI убран — поле не трогаем при обновлении.
-        icon_in = _clean_str(data.get("icon"), "Иконка", 10, required=False)
-        image_in = _clean_str(data.get("image_path"), "Изображение", 300, required=False)
-        # Правка 3.11: пустое поле иконки при редактировании не сбрасывает значение
-        icon = icon_in if icon_in else current["icon"]
-        image = image_in if image_in else current["image_path"]
+        # Правка v2 3.2: поля, НЕ присутствующие в форме (None), сохраняют текущее
+        # значение; пустая строка ("") — явное намерение очистить. Так значения
+        # не «сбрасываются в none» при частичном POST.
+        def _keep(key: str, maxlen: int):
+            raw = data.get(key)
+            if raw is None:
+                return current[key]
+            cleaned = _clean_str(raw, key, maxlen, required=False)
+            return cleaned or None
+
+        icon_in = _keep("icon", 10)
+        image_in = _keep("image_path", 300)
+        notes_in = _keep("notes", 500)
+        soak_in = (current["cycle_soak_enabled"] if data.get("cycle_soak_enabled") is None
+                   else _parse_bool(data.get("cycle_soak_enabled")))
+        enabled_in = (current["enabled"] if data.get("enabled") is None
+                      else _parse_bool(data.get("enabled")))
+        adj_in = (current["watering_adjustment_percent"]
+                  if data.get("watering_adjustment_percent") in (None, "")
+                  else _parse_int(data.get("watering_adjustment_percent", 100), "Корректировка %"))
+        # Правка v2 3.1: параметры Cycle&Soak (если отправлены) сохраняются.
+        cycle_in = (current["cycle_minutes"] if data.get("cycle_minutes") in (None, "")
+                    else _parse_int(data.get("cycle_minutes"), "Цикл, мин", 1))
+        soak_in_min = (current["soak_minutes"] if data.get("soak_minutes") in (None, "")
+                       else _parse_int(data.get("soak_minutes"), "Soak, мин", 1))
+        if isinstance(cycle_in, int) and cycle_in > 240:
+            raise ValidationError("Цикл не должен превышать 240 минут")
+        if isinstance(soak_in_min, int) and soak_in_min > 240:
+            raise ValidationError("Soak не должен превышать 240 минут")
+        soak_after_in = (current["soak_after_last"] if data.get("soak_after_last") is None
+                        else _parse_bool(data.get("soak_after_last")))
         with self.conn:
             self.conn.execute(
                 """UPDATE zones SET name=?, enabled=?, icon=?, image_path=?, notes=?,
                    base_duration_minutes=?, watering_adjustment_percent=?,
-                   cycle_soak_enabled=?, updated_at=?
+                   cycle_soak_enabled=?, cycle_minutes=?, soak_minutes=?, soak_after_last=?,
+                   updated_at=?
                    WHERE id=?""",
                 (
                     name,
-                    _parse_bool(data.get("enabled", current["enabled"])),
-                    icon,
-                    image,
-                    _clean_str(data.get("notes"), "Примечания", 500, required=False) or None,
+                    enabled_in,
+                    icon_in,
+                    image_in,
+                    notes_in,
                     duration,
-                    _parse_int(data.get("watering_adjustment_percent", 100), "Корректировка %"),
-                    _parse_bool(data.get("cycle_soak_enabled", current["cycle_soak_enabled"])),
+                    adj_in,
+                    soak_in,
+                    cycle_in,
+                    soak_in_min,
+                    soak_after_in,
                     utcnow_iso(),
                     zone_id,
                 ),

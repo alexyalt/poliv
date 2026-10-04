@@ -12,8 +12,12 @@
     <label>Название *
       <input type="text" name="name" required maxlength="100" value="{{ editing.name if editing else '' }}">
     </label>
-    <label>Box ID (уникальный идентификатор устройства, пусто = сгенерировать автоматически)
-      <input type="text" name="box_id" maxlength="50" value="{{ editing.box_id if editing else '' }}" placeholder="BOX-XXXXXX (авто)">
+    <label>Box ID (постоянный идентификатор устройства)
+      {% if editing %}
+      <input type="text" value="{{ editing.box_id }}" readonly style="background:#f0f0f0">
+      {% else %}
+      <input type="text" name="box_id" maxlength="50" value="" placeholder="BOX-XXXXXX (авто)">
+      {% endif %}
     </label>
     <label>Модель
       <input type="text" name="model" maxlength="50" value="{{ editing.model if editing else '' }}">

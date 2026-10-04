@@ -40,8 +40,25 @@
     <label>Примечания
       <input type="text" name="notes" maxlength="500" value="{{ editing.notes if editing else '' }}">
     </label>
-    <label class="check"><input type="checkbox" name="cycle_soak_enabled" value="on"
+    <label class="check"><input type="checkbox" name="cycle_soak_enabled" value="on" id="cs-toggle"
       {{ 'checked' if editing and editing.cycle_soak_enabled }}> Cycle &amp; Soak</label>
+    <!-- Правка v2 3.1: настройки периодичности видны только при включённом Cycle&Soak -->
+    <fieldset id="cs-settings" class="form-grid" {% if not (editing and editing.cycle_soak_enabled) %}style="display:none"{% endif %}>
+      <legend>Cycle &amp; Soak (настройки периодичности)</legend>
+      <label>Цикл, мин
+        <input type="number" name="cycle_minutes" min="1" max="240" value="{{ editing.cycle_minutes if editing and editing.cycle_minutes else 5 }}">
+      </label>
+      <label>Soak (выдержка), мин
+        <input type="number" name="soak_minutes" min="1" max="240" value="{{ editing.soak_minutes if editing and editing.soak_minutes else 10 }}">
+      </label>
+      <label class="check"><input type="checkbox" name="soak_after_last" value="on"
+        {{ 'checked' if editing and editing.soak_after_last }}> Soak после последнего цикла</label>
+    </fieldset>
+    <script>
+      document.getElementById('cs-toggle').addEventListener('change', function(){
+        document.getElementById('cs-settings').style.display = this.checked ? '' : 'none';
+      });
+    </script>
     <label class="check"><input type="checkbox" name="enabled" value="on"
       {{ 'checked' if (editing and editing.enabled) or not editing }}> Включена</label>
     <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
