@@ -1,36 +1,6 @@
-# === Виртуальные окружения ===
-.venv/
-venv/
-env/
-ENV/
-
-# === Кэш Python ===
+# Python compiled files
 __pycache__/
-*.py[cod]
-*$py.class
-.Python
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
+*.pyc
 
-# === Логи, данные, резервные копии (не коммитим) ===
-logs/
-*.log
-data/
-backups/
-*.db
-*.sqlite
-*.sqlite3
-*.db-wal
-*.db-shm
-
-# === Локальные секреты и конфиги ===
-config/config.local.toml
-.env*
-
-# === IDE и ОС ===
-.vscode/
-.idea/
-*.swp
-.DS_Store
-Thumbs.db
+# Environment variables
+.env

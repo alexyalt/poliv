@@ -50,18 +50,10 @@ def _clean_str(value: Any, name: str, max_len: int = 200, required: bool = True)
     return text
 
 
-def _validate_season(start: Any, end: Any) -> tuple[Optional[str], Optional[str]]:
-    """Сезон задаётся парой MM-DD либо оставляется пустым (весь год)."""
-    s = _clean_str(start, "Начало сезона", 5, required=False)
-    e = _clean_str(end, "Конец сезона", 5, required=False)
-    if bool(s) != bool(e):
-        raise ValidationError("Сезон задаётся парой дат: начало и конец")
-    for v in (s, e):
-        if v:
-            mm, _, dd = v.partition("-")
-            if not (mm.isdigit() and dd.isdigit()) or not (1 <= int(mm) <= 12) or not (1 <= int(dd) <= 31):
-                raise ValidationError(f"Некорректная дата сезона «{v}»: ожидается ММ-ДД")
-    return (s or None), (e or None)
+# Правки Этапа 2 (v1/v2, п. 3.5/3.10/4.1/4.5): сезонность из системы убрана —
+# функции _validate_season больше нет; зоны и программы активны весь год,
+# программа либо включена (enabled), либо выключена. Поля season_start/season_end
+# сохранены в схеме БД только для совместимости со старыми базами и всегда NULL.
 
 
 class CatalogService:
@@ -236,8 +228,8 @@ class CatalogService:
         duration = _parse_int(data.get("base_duration_minutes", 10), "Базовая длительность", 1)
         if duration > 240:
             raise ValidationError("Базовая длительность не должна превышать 240 минут")
-        # Правки 3.5/3.10: сезон у зон убран из UI — всегда «весь год» (None).
-        season_start = season_end = None
+        # Правки 3.5/3.10: сезон у зон убран из системы полностью — колонок
+        # season_start/season_end в схеме больше нет, поле всегда «весь год».
         # Правка v2 3.1: параметры Cycle&Soak сохраняются из формы.
         cycle_minutes = (_parse_int(data.get("cycle_minutes"), "Цикл, мин", 1)
                          if data.get("cycle_minutes") not in (None, "") else None)
@@ -255,8 +247,8 @@ class CatalogService:
                                          image_path, notes, base_duration_minutes,
                                          watering_adjustment_percent, cycle_soak_enabled,
                                          cycle_minutes, soak_minutes, soak_after_last,
-                                         season_start, season_end, created_at, updated_at)
-                       SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                                         created_at, updated_at)
+                       SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                        WHERE EXISTS (SELECT 1 FROM controllers
                                      WHERE id=? AND deleted_at IS NULL)""",
                     (
@@ -273,8 +265,6 @@ class CatalogService:
                         cycle_minutes,
                         soak_minutes,
                         _parse_bool(data.get("soak_after_last", False)),
-                        season_start,
-                        season_end,
                         now,
                         now,
                         controller_id,
@@ -481,16 +471,16 @@ class CatalogService:
         name = _clean_str(data.get("name"), "Название", 100)
         schedule_type, mask, interval = self._validate_schedule(data)
         start_time = self._validate_time(data.get("start_time", "06:00"))
-        # Правки 4.1/4.5: сезон у программ из UI убран — программа либо активна, либо нет.
-        season_start = season_end = None
+        # Правки 4.1/4.5: сезон у программ убран из системы полностью — колонок
+        # season_start/season_end в схеме больше нет; программа либо активна, либо нет.
         now = utcnow_iso()
         try:
             with self.conn:
                 cur = self.conn.execute(
                     """INSERT INTO programs(name, description, enabled, schedule_type,
                                             weekdays_mask, interval_days, start_time,
-                                            season_start, season_end, created_at, updated_at)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                                            created_at, updated_at)
+                       VALUES (?,?,?,?,?,?,?,?,?)""",
                     (
                         name,
                         _clean_str(data.get("description"), "Описание", 500, required=False) or None,
@@ -499,8 +489,6 @@ class CatalogService:
                         mask,
                         interval,
                         start_time,
-                        season_start,
-                        season_end,
                         now,
                         now,
                     ),
@@ -518,7 +506,7 @@ class CatalogService:
         name = _clean_str(data.get("name"), "Название", 100)
         schedule_type, mask, interval = self._validate_schedule(data)
         start_time = self._validate_time(data.get("start_time", "06:00"))
-        # Правка 4.1: сезон из UI убран — поля season_* при обновлении не трогаем.
+        # Правка 4.1: сезон из системы убран полностью — полей season_* больше нет.
         try:
             with self.conn:
                 self.conn.execute(
