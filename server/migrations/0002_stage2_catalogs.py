@@ -2,10 +2,12 @@
 
 Состав:
 - controllers: признак soft-disable (deleted_at) + поле модели устройства;
-- zones: сезонность (сезон start/end), блокировки зон (на уровне таблицы,
+- zones: блокировки зон (на уровне таблицы,
   по ТЗ Этапа 2 «будущие блокировки зон хотя бы на уровне таблицы»);
+  сезонности у зон НЕТ (правки v1/v2 Этапа 2: «убрать дату сезона вообще»,
+  п. 3.5/3.10 — поля season_start/season_end из схемы удалены);
 - programs: программы полива (тип расписания: дни недели или интервал,
-  время старта, сезонность, включение/отключение);
+  время старта, включение/отключение; сезонности нет — п. 4.1/4.5);
 - program_zones: порядок зон внутри программы (нумерация с 1);
 - zone_locks: журнал блокировок (включая ручные поливы как будущие блокировки);
 - settings: ключи корректировок полива (значения задаёт администратор через UI).
@@ -32,8 +34,6 @@ SQL = [
         weekdays_mask  TEXT NOT NULL DEFAULT '0000000',  -- пн..вс, '1' = день активен
         interval_days  INTEGER,                          -- для schedule_type='interval'
         start_time     TEXT NOT NULL DEFAULT '06:00',    -- HH:MM локального времени
-        season_start   TEXT,                             -- 'MM-DD' или NULL = весь год
-        season_end     TEXT,                             -- 'MM-DD' или NULL
         created_at     TEXT NOT NULL,
         updated_at     TEXT NOT NULL
     )
@@ -50,6 +50,9 @@ SQL = [
         UNIQUE (program_id, zone_id)
     )
     """,
+    # Правки v1/v2 Этапа 2 (п. 3.5/3.10, 4.1/4.5): сезонность убрана из системы —
+    # колонок season_start/season_end в новых БД нет; в старых они удаляются
+    # функцией _drop_legacy_season_columns() ниже.
     "CREATE INDEX IF NOT EXISTS idx_pz_zone ON program_zones(zone_id)",
     """
     CREATE TABLE IF NOT EXISTS zone_locks (
@@ -72,11 +75,17 @@ ADDITIONS = [
     # soft-disable: NULL = активная запись, ISO-дата = «удалена» (не удаляется физически)
     ("controllers", "deleted_at", "TEXT"),
     ("zones", "deleted_at", "TEXT"),
-    ("zones", "season_start", "TEXT"),
-    ("zones", "season_end", "TEXT"),
+    # Правки v1/v2 Этапа 2: сезонность (season_start/season_end) НЕ добавляем —
+    # дата сезона убрана из системы по требованию (п. 3.5/3.10, 4.1/4.5).
     # ADR-12: параллельные зоны (для уже существующих БД, созданных до правки)
     ("program_zones", "parallel_group", "TEXT"),
 ]
+
+# Легаси-колонки, которые нужно удалить из старых БД (сезонность упразднена).
+LEGACY_DROP_COLUMNS = {
+    "zones": ("season_start", "season_end"),
+    "programs": ("season_start", "season_end"),
+}
 
 
 def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
@@ -86,6 +95,32 @@ def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
     )
 
 
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+    ).fetchone() is not None
+
+
+def _drop_legacy_season_columns(conn: sqlite3.Connection) -> None:
+    """Удаляет season_start/season_end из старых БД (правка «убрать дату сезона»).
+
+    SQLite >= 3.35 поддерживает ALTER TABLE ... DROP COLUMN; на более старых
+    версиях колонки остаются физически (код их больше не читает и не пишет —
+    без влияния на работу), поэтому миграция не падает.
+    """
+    try:
+        if sqlite3.sqlite_version_info < (3, 35):
+            return
+    except AttributeError:  # pragma: no cover
+        return
+    for table, columns in LEGACY_DROP_COLUMNS.items():
+        if not _table_exists(conn, table):
+            continue
+        for column in columns:
+            if _has_column(conn, table, column):
+                conn.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+
+
 def upgrade(conn: sqlite3.Connection) -> None:
     now = datetime.now(timezone.utc).isoformat()
     for statement in SQL:
@@ -93,6 +128,7 @@ def upgrade(conn: sqlite3.Connection) -> None:
     for table, column, ddl in ADDITIONS:
         if not _has_column(conn, table, column):
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    _drop_legacy_season_columns(conn)
     # Настройки корректировок: значения по умолчанию задаются здесь,
     # дальше управляются администратором из раздела «Настройки».
     for key, value_json, desc in [
