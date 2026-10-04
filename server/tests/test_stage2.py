@@ -69,7 +69,13 @@ def test_migrations_applied():
             "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
         ).fetchone(), f"таблица {table} не создана"
     cols = {c["name"] for c in db.execute("PRAGMA table_info(zones)")}
-    assert {"deleted_at", "season_start", "season_end"} <= cols
+    assert "deleted_at" in cols
+    # Правки v1/v2 Этапа 2: сезонность убрана из схемы — колонок season_* нет.
+    assert not ({"season_start", "season_end"} & cols)
+    cols_p = {c["name"] for c in db.execute("PRAGMA table_info(programs)")}
+    assert not ({"season_start", "season_end"} & cols_p)
+    cols_pz = {c["name"] for c in db.execute("PRAGMA table_info(program_zones)")}
+    assert "parallel_group" in cols_pz  # ADR-12
     cols_c = {c["name"] for c in db.execute("PRAGMA table_info(controllers)")}
     assert {"deleted_at", "model"} <= cols_c
 
@@ -129,8 +135,8 @@ def test_zone_rules():
               "base_duration_minutes": "10", "enabled": "on"},
     )
     assert "error=" in _url(r)
-    # Правки 3.5/3.10: сезон у зон убран — невалид season_start игнорируется,
-    # зона сохраняется (поля season_* всегда NULL)
+    # Правки 3.5/3.10: сезон у зон убран из системы — невалид season_start
+    # игнорируется (колонок season_* в схеме нет), зона сохраняется.
     r = client.post(
         "/zones/save",
         data={"id": str(zid), "controller_id": str(cid), "zone_number": "7",
@@ -138,8 +144,6 @@ def test_zone_rules():
               "enabled": "on"},
     )
     assert "error=" not in _url(r), _url(r)
-    zrow2 = db.execute("SELECT season_start, season_end FROM zones WHERE id=?", (zid,)).fetchone()
-    assert zrow2["season_start"] is None and zrow2["season_end"] is None
     # отключение (soft-delete): физически строка остаётся
     r = client.post(f"/zones/{zid}/delete")
     assert "ok=" in _url(r)
