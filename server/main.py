@@ -19,6 +19,9 @@ import logging
 import sys
 from pathlib import Path
 
+# Единая версия приложения для FastAPI, заголовков страниц и логотипа.
+APP_VERSION = "0.2.0"
+
 # Позволяем запускать и как пакет, и напрямую файлом.
 ROOT = Path(__file__).resolve().parent
 if str(ROOT.parent) not in sys.path:
@@ -60,7 +63,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     catalog = CatalogService(conn)
     users = UserService(conn, auth)
 
-    app = FastAPI(title="Автополив", version="0.2.0-stage2")
+    app = FastAPI(title="Автополив", version=APP_VERSION)
     app.state.cfg = cfg
     app.state.db = conn
     app.state.auth = auth

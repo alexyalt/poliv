@@ -42,6 +42,9 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
     catalog: CatalogService = app.state.catalog
     users: UserService = app.state.users
 
+    # Версия приложения доступна во всех шаблонах (заголовок вкладки и логотип).
+    templates.env.globals["app_version"] = getattr(app, "version", "0.0.0")
+
     def ctx(request: Request, **extra):
         # Новый синтаксис Starlette: request передаётся первым аргументом
         # TemplateResponse(request, name, context), поэтому request здесь не нужен.
