@@ -26,10 +26,7 @@
     </label>
     <label class="check"><input type="checkbox" name="enabled" value="on"
       {{ 'checked' if (editing_user and editing_user.enabled) or not editing_user }}> Активен</label>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary form-btn-save">Сохранить</button>
-      <a class="btn btn-cancel form-btn-cancel" href="/zones" onclick="return hideForm(event)">Отмена</a>
-    </div>
+    <div><button type="submit" class="btn btn-primary">Сохранить</button></div>
   </form>
 </div>
 
