@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Единая версия приложения для FastAPI, заголовков страниц и логотипа.
@@ -24,7 +25,7 @@ from pathlib import Path
 # (например, 0.2.0+fd22a77), чтобы по заголовку вкладки видно, какие изменения
 # реально загружены на локальную машину. Если git недоступен (запуск из копии
 # без .git, продакшен-сборка) — остаётся только базовая версия.
-APP_VERSION_BASE = "0.2.0"
+APP_VERSION_BASE = "0.3.0"
 
 
 def _git_short_hash() -> str:
@@ -58,8 +59,11 @@ from server.app.infra.config import ConfigError, load_config
 from server.app.infra.db import init_db
 from server.app.infra.logging import get_logger, setup_logging
 from server.app.api.routes_stage2 import register_api_routes
+from server.app.api.routes_stage3 import register_api_routes_stage3
+from server.app.infra import mqtt_client as mqtt_infra
 from server.app.services.auth_service import AuthService
 from server.app.services.catalog_service import CatalogService
+from server.app.services.mqtt_command_service import MqttCommandService
 from server.app.services.test_data import seed_test_data
 from server.app.services.user_service import UserService
 from server.app.web.routes import register_web_routes
@@ -86,25 +90,54 @@ def create_app(cfg: Config | None = None) -> FastAPI:
 
     catalog = CatalogService(conn)
     users = UserService(conn, auth)
+    cmd_service = MqttCommandService(cfg, conn, db_path=str(cfg.db_path))
 
-    app = FastAPI(title="Автополив", version=APP_VERSION)
+    app = FastAPI(
+        title="Автополив",
+        version=APP_VERSION,
+        lifespan=_lifespan_mqtt,   # Этап 3: старт/стоп MQTT-клиента (без эффектов при импорте)
+    )
     app.state.cfg = cfg
     app.state.db = conn
     app.state.auth = auth
     app.state.catalog = catalog
     app.state.users = users
+    app.state.command_service = cmd_service
     app.state.app_dir = str(ROOT / "app")
 
     app.mount("/static", StaticFiles(directory=app.state.app_dir + "/static"), name="static")
     templates = register_web_routes(app, cfg, conn, auth)
+    # Порядок важен: routes_stage3 регистрирует GET /api/controllers/live ДО
+    # обобщённого /api/controllers/{controller_id} из routes_stage2 (иначе
+    # "live" парсится как controller_id → 422).
+    register_api_routes_stage3(app, cfg, conn, cmd_service)
     register_api_routes(app, cfg, conn, catalog, users)
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "stage": 2}
+        return {"status": "ok", "stage": 3}
 
     log.info("Сервер готов. Веб-интерфейс: http://%s:%d/", cfg.server_host, cfg.server_port)
     return app
+
+
+@asynccontextmanager
+async def _lifespan_mqtt(app: FastAPI):
+    """Lifespan-обёртка Этапа 3: MQTT-клиент стартует при запуске приложения и
+    останавливается при завершении. Сервер НЕ падает, если брокер недоступен —
+    paho продолжает попытки переподключения в своём фоновом потоке."""
+    cfg = app.state.cfg
+    try:
+        inst = mqtt_infra.start_mqtt(
+            cfg, db_path=str(cfg.db_path),
+            command_service=app.state.command_service,
+        )
+        app.state.mqtt = inst
+    except Exception:
+        log.exception("MQTT: не удалось запустить клиент — сервер работает без брокера")
+    yield
+    mqtt_infra.stop_mqtt()
+    app.state.mqtt = None
 
 
 try:

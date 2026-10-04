@@ -142,15 +142,76 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request):
+        # Этап 3 (Блок 6): плитки контроллеров с живым состоянием из MQTT.
+        from ..api.routes_stage3 import LIVE_SELECT, live_view
+
+        live_rows = conn.execute(
+            LIVE_SELECT + " WHERE deleted_at IS NULL ORDER BY name"
+        ).fetchall()
         return page(
             request,
             "dashboard.html",
             controllers=catalog.list_controllers(),
+            live=[live_view(r) for r in live_rows],
             programs=catalog.list_programs(),
             zones_count=len(catalog.list_zones()),
             logs=auth.recent_logs(20),
-            stage="Этап 2. Базовые справочники и CRUD",
+            stage="Этап 3. Базовый MQTT-обмен и команды",
         )
+
+    # ============================ Этап 3: команды контроллерам ==============
+    # Веб-маршруты-обёртки над mqtt_command_service (Блок 6): формы плиток
+    # дашборда отправляют POST сюда; результат — redirect на / с flash.
+    _WEB_ACTIONS = {"zone_open", "zone_close", "stop_all",
+                    "pause_controller", "resume_controller"}
+
+    @app.post("/controllers/{controller_id}/action/{action}")
+    async def controller_action_web(controller_id: int, action: str,
+                                    request: Request):
+        from urllib.parse import quote
+
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        if action not in _WEB_ACTIONS:
+            return RedirectResponse(
+                "/?error=" + quote(f"Неизвестное действие: {action}"), 302)
+        # Роли: operator+ (viewer — только просмотр). reboot из веба не
+        # доступен (только через API с ролью admin) — вне _WEB_ACTIONS.
+        if {"viewer": 0, "operator": 1, "admin": 2}[user["role"]] < 1:
+            return RedirectResponse(
+                "/?error=" + quote("Действие доступно оператору или админу"), 302)
+        form = await request.form()
+        cmd = app.state.command_service
+        params: dict = {}
+        try:
+            if action == "zone_open":
+                params = {"zone": form.get("zone", ""),
+                          "duration_sec": form.get("duration_sec", "")}
+            elif action == "zone_close":
+                params = {"zone": form.get("zone", "")}
+            elif action == "stop_all":
+                params = {"reason": form.get("reason", "стоп с дашборда")}
+            elif action == "pause_controller":
+                duration = (form.get("duration_sec") or "").strip()
+                if duration:
+                    params = {"duration_sec": duration,
+                              "reason": form.get("reason", "пауза с дашборда")}
+                else:
+                    params = {"until_ts": form.get("until_ts", ""),
+                              "reason": form.get("reason", "пауза с дашборда")}
+            elif action == "resume_controller":
+                params = {"reason": form.get("reason", "продолжение с дашборда")}
+            result = cmd.send_command_async(
+                controller_id, action, params, source="web",
+                user_id=user["id"], username=user["username"])
+        except Exception as exc:  # CommandError/ControllerOffline/MqttUnavailable
+            return RedirectResponse("/?error=" + quote(str(exc)), 302)
+        # Команда опубликована; финальный ack придёт по MQTT и попадёт
+        # в app.log / журнал (опрос дашборда обновит плитки).
+        return RedirectResponse(
+            "/?ok=" + quote(f"{action}: отправлена "
+                             f"(command_id={result[:8]})"), 302)
 
     # ============================== Этап 2: контроллеры ====================
     def redirect(url: str, error: str = "", ok: str = "") -> RedirectResponse:
