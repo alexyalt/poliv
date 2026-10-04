@@ -1,0 +1,11 @@
+# Шаблон локального конфига с секретами.
+# Скопируйте в config/config.local.toml и заполните значения.
+# Файл config/config.local.toml НЕ коммитится (см. .gitignore).
+
+[server]
+# Сгенерируйте: python -c "import secrets; print(secrets.token_hex(32))"
+secret_key = "CHANGE_ME"
+
+[mqtt]
+# Пароль MQTT-пользователя сервера (poliv_server) на брокере.
+password = ""

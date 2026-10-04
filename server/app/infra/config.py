@@ -104,6 +104,57 @@ class Config:
     def test_data_enabled(self) -> bool:
         return bool(self.raw["test_data"].get("enabled", False))
 
+    # --- MQTT (Этап 3, Артефакт 0.7 §17.10) -------------------------------
+    @property
+    def mqtt(self) -> dict[str, Any]:
+        """Раздел [mqtt] целиком (пароль — только из config.local.toml)."""
+        return dict(self.raw.get("mqtt", {}))
+
+    @property
+    def mqtt_host(self) -> str:
+        return str(self.mqtt.get("host", "127.0.0.1"))
+
+    @property
+    def mqtt_port(self) -> int:
+        return int(self.mqtt.get("port", 1883))
+
+    @property
+    def mqtt_keepalive_sec(self) -> int:
+        return int(self.mqtt.get("keepalive_sec", 60))
+
+    @property
+    def mqtt_command_timeout_sec(self) -> float:
+        return float(self.mqtt.get("command_timeout_sec", 10))
+
+    @property
+    def mqtt_command_retries(self) -> int:
+        return int(self.mqtt.get("command_retries", 3))
+
+    @property
+    def mqtt_qos_command(self) -> int:
+        return int(self.mqtt.get("qos_command", 1))
+
+    @property
+    def mqtt_qos_event(self) -> int:
+        return int(self.mqtt.get("qos_event", 1))
+
+    @property
+    def mqtt_status_interval_sec(self) -> int:
+        return int(self.mqtt.get("status_interval_sec", 30))
+
+    @property
+    def mqtt_offline_threshold_min(self) -> int:
+        return int(self.mqtt.get("offline_threshold_min", 30))
+
+    @property
+    def mqtt_username(self) -> str:
+        return str(self.mqtt.get("username", "poliv_server"))
+
+    @property
+    def mqtt_password(self) -> str:
+        # Секрет только из config.local.toml / окружения; в репозитории пусто.
+        return str(self.mqtt.get("password", "")) or os.environ.get("POLIV_MQTT_PASSWORD", "")
+
     def _abs(self, value: str) -> Path:
         p = Path(value)
         return p if p.is_absolute() else self.project_root / p

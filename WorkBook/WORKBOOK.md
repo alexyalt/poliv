@@ -197,3 +197,60 @@ not-an-id, weekdays=3, битый JSON + неизменность БД, value:nu
 - must_change_password enforcement — Этап 5;
 - CSRF-токены и Secure/SameSite cookie — Этап 5 / облачный режим;
 - CI (GitHub Actions) и lock-файлы зависимостей — Этап 6.
+
+
+## Запись 16. stage3_mqtt (05.10.2026) — Этап 3: базовый MQTT и эмулятор контроллеров
+
+**Состав:** requirements.txt (+paho-mqtt 2.x); [mqtt] в config.default.toml по
+Артефакту 0.7 §17.10 (пароль — только в config.local.toml, добавлен
+config.local.toml.example); config/mosquitto.conf.example (listener 1883,
+allow_anonymous false, password_file, инструкция пользователей); отдельный
+логгер logs/mqtt.log с ротацией как app.log; миграция 0004_controller_live_state
+(+ .md): 22 колонок live-state в controllers идемпотентно через _has_column,
+индексы connection_status/last_seen_at (0001–0003 не тронуты).
+
+**Ключевые решения:**
+- **MQTT в фоновом потоке со своим соединением:** server/app/infra/mqtt_client.py —
+  paho loop_start(), собственное sqlite-соединение потока (короткие транзакции),
+  общий коннект FastAPI не трогается (check_same_thread); старт/стоп через lifespan
+  в main.py, побочных эффектов при импорте нет. Подписки poliv/+/{hello,status,lwt,
+  command_ack,schedule_ack,event,flow,schedule_request}; невалидный JSON -> warning,
+  сервер жив; события НЕ пишутся в БД (только mqtt.log + журнал source=mqtt) — до Этапа 6.
+  Офлайн: retained lwt online=false И порог offline_threshold_min (фоновая проверка раз в минуту).
+  Публикации: poliv/{box}/time (при hello + раз в 6 ч), poliv/server/heartbeat (retained, 30 с).
+- **schedule_version=0 как заглушка до Этапа 4:** на schedule_request отвечает
+  poliv/{box}/schedule {version:0, runs:[], source:'auto', даты сегодня..+7};
+  компиляция машинограмм — Этап 4.
+- **Сервис команд** (services/mqtt_command_service.py): command_id=uuid4, QoS из конфига,
+  ожидание ack command_timeout_sec, повторы ТЕМ ЖЕ command_id command_retries раз;
+  offline -> ControllerOffline (API 409 controller_offline), без очереди (очередь позже),
+  факт в журнал; ack-статусы accepted/completed/rejected/error/ignored_duplicate;
+  журнал command.sent/acked/timeout/rejected. send_command_async — неблокирующий путь
+  для веб-форм (фоновый поток ждёт финальный ack).
+- **API routes_stage3.py** (префикс /api): POST /controllers/{id}/actions/{action}
+  (ping/zone_open/zone_close/stop_all/pause/resume/reboot(admin); operator+; 202/409/502/504;
+  строгая валидация 422 {"detail":...}), GET /controllers/{id}/live, GET /controllers/live
+  (view-модель Артефакта 0.6 §4.5). ПОРЯДОК РЕГИСТРАЦИИ: stage3-маршруты ДО stage2 —
+  иначе GET /api/controllers/live перехватывался /api/controllers/{controller_id} (422).
+- **UI (минимально, без редизайна):** плитки дашборда — badge online/offline, mode, phase,
+  active_zones, last_seen; кнопки команд формами POST на веб-обёртки; JS-опрос
+  /api/controllers/live каждые 10 с + баннер «нет связи с сервером»; flash с command_id/ack.
+- **Эмуляторы:** emulator/controller_sim.py (LWT retained, hello/status/flow/event,
+  все команды, локальная машина состояний, дедупликация command_id (последние 50) ->
+  ignored_duplicate, schedule_request/schedule_ack, приём time; CLI --box-id/--broker/
+  --port/--user/--password/--status-interval/--zones/--offline-after; клавиши o/e/w);
+  emulator/fleet_sim.py (--count N, BOX-EMUL-xx). Лог в консоль + logs/emulator.log (не коммитится).
+
+**Тесты:** server/tests/test_stage3.py — FakePahoClient-харнес (мок paho) + TestClient:
+hello/status/lwt/порог/retry-с-тем-же-id/дубль-ack/offline-409/битый-JSON/роли/API-live/
+schedule-заглушка; интеграция с реальным брокером под skipif (env POLIV_TEST_BROKER).
+Итог: python -m pytest server/tests -q -> 37 passed, 1 skipped.
+
+**Исправленные по ходу баги боевого кода:** int() для числовых ts в команде;
+check_same_thread=False убран из MQTT-потока (своё соединение); дублирующий ack не
+перезаписывает статус pending; _touch_seen не ломал offline-порог; write_log —
+отдельное короткое соединение для фоновых потоков; порядок регистрации API-роутеров.
+
+**Санитария коммита:** .gitignore дополнен (logs/, *.log.*, data/, config/config.local.toml);
+из индекса удалены ошибочно добавленные data/poliv.db, logs/*.log, __pycache__/*,
+config/config.local.toml; проверено git check-ignore. В коммите — только исходники и документация.

@@ -79,3 +79,14 @@ code{background:#eef1f4;padding:.1rem .35rem;border-radius:4px;font-size:.85em}
 /* Правка v3: режим зоны (об. / CS) */
 .badge-cs{background:#cfe2ff;color:#084298}.badge-ob{background:#e9edf2;color:#41464b}
 .cs-preview{grid-column:1/-1;font-size:.85rem;margin-top:.25rem}
+
+/* Этап 3: плитки живого состояния на дашборде (минимальные правки, без редизайна) */
+.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem}
+.live-tile{border:1px solid #dee2e6;border-radius:.5rem;padding:.6rem .75rem;background:#fff;display:flex;flex-direction:column;gap:.35rem}
+.live-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.live-tile table.kv{font-size:.85rem}
+.live-tile table.kv td:first-child{color:#6c757d;padding-right:.5rem}
+.live-actions{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.35rem}
+.inline-form{display:flex;gap:.25rem;align-items:center}
+.inline-form input{padding:.15rem .3rem;border:1px solid #ced4da;border-radius:.3rem}
+.small{font-size:.8rem}

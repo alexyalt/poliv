@@ -1,0 +1,40 @@
+# Пример конфигурации Mosquitto для системы «Полив» (Этап 3).
+# Скопируйте в mosquitto.conf и укажите пути к своим файлам паролей.
+#   mosquitto -c config/mosquitto.conf
+#
+# ВАЖНО: пароли в password_file хранятся в bcrypt-хэшах — файл НЕ коммитить.
+
+listener 1883 0.0.0.0
+protocol mqtt
+
+# Аутентификация обязательна (ТЗ Этапа 3, ADR-10: базовая аутентификация MQTT)
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+
+# Ограничения для локальной сети
+persistence false
+log_timestamp true
+log_timestamp_format %Y-%m-%dT%H:%M:%S
+
+# ---------------------------------------------------------------------------
+# Создание пользователей (выполнить один раз, см. docs/ИНСТРУКЦИЯ_ЭТАП3.md):
+#
+#   1) Сервер приложения (логин из [mqtt].username в config.default.toml):
+#        sudo mosquitto_passwd -c /etc/mosquitto/passwd poliv_server
+#      (флаг -c создаёт файл; для второго пользователя уже БЕЗ -c)
+#
+#   2) Каждый контроллер/эмулятор — отдельный пользователь по box_id:
+#        sudo mosquitto_passwd /etc/mosquitto/passwd BOX-EMUL-01
+#        sudo mosquitto_passwd /etc/mosquitto/passwd TESTBOX-0001
+#
+#   3) Перезапустить брокер:  sudo systemctl restart mosquitto
+#      или в отладке:         mosquitto -c config/mosquitto.conf -v
+#
+# Пароль сервера задаётся в config/config.local.toml:
+#        [mqtt]
+#        password = "секрет-из-mosquitto_passwd"
+#
+# Проверка без эмулятора:
+#        mosquitto_pub -h 127.0.0.1 -u poliv_server -P '<пароль>' \
+#                      -t 'poliv/TESTBOX-0001/hello' -m '{}'
+# ---------------------------------------------------------------------------

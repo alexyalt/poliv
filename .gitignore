@@ -27,12 +27,14 @@ backups/
 *.db-wal
 *.db-shm
 *.log
+*.log.*
 
 # === Локальные секреты и конфиги ===
 config/config.local.toml
 .env
 .env.*
 !.env.example
+!config/config.local.toml.example
 
 # === IDE и ОС ===
 .vscode/

@@ -37,6 +37,21 @@ controller_name = "Тестовый контроллер (эмулятор)"
 box_id = "TESTBOX-0001"
 zones = 8
 
+[mqtt]
+# Этап 3: серверный MQTT-клиент (Артефакт 0.7 §17.10).
+# ВНИМАНИЕ: пароль MQTT хранится ТОЛЬКО в config/config.local.toml ([mqtt] password="...")
+# и никогда не попадает в репозиторий.
+host = "127.0.0.1"
+port = 1883
+keepalive_sec = 60                # период keepalive paho
+command_timeout_sec = 10          # ожидание command_ack (ТЗ §6.2)
+command_retries = 3               # повторы команды с тем же command_id
+qos_command = 1                   # QoS команд (ТЗ §2.2)
+qos_event = 1                     # QoS событий/подтверждений
+status_interval_sec = 30          # ожидаемый интервал статусов контроллеров
+offline_threshold_min = 30        # нет status'ов дольше N минут → offline
+username = "poliv_server"         # логин сервера на брокере (mosquitto_passwd)
+
 [deployment]
 # ADR-15: Режим размещения системы — "local" (локальная сеть) или "cloud" (облако/интернет).
 mode = "local"
