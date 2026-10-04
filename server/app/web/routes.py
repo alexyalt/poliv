@@ -9,10 +9,13 @@ from fastapi.staticfiles import StaticFiles  # noqa: F401 (использует�
 from fastapi.templating import Jinja2Templates
 
 from ..infra.config import Config
+from ..infra.logging import get_logger
 from ..services.auth_service import SESSION_COOKIE, AuthService
 from ..services.catalog_service import CatalogService, ValidationError
 from ..services.user_service import UserService
 from .errors import render_error
+
+log = get_logger("poliv.web")
 
 TEMPLATES_DIR = "templates"
 
@@ -523,6 +526,14 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
 
     @app.exception_handler(500)
     async def server_error(request: Request, exc):
+        # hotfix stage2 (блок 2): полный трейсбек пишем в logs/error.log ДО
+        # отрисовки страницы — иначе 500 «немые» и причину найти невозможно.
+        log.exception(
+            "500 Internal Server Error: %s %s",
+            request.method,
+            request.url.path,
+            exc_info=exc,
+        )
         return render_error(templates, request, 500)
 
     return templates

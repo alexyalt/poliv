@@ -42,7 +42,15 @@ def _parse_bool(value: Any) -> int:
 
 
 def _clean_str(value: Any, name: str, max_len: int = 200, required: bool = True) -> str:
-    text = str(value or "").strip()
+    # hotfix stage2 (блок 3): None — это «поля нет в запросе», а не пустая строка.
+    # Ранее str(value or "") превращал None в "", и вызывающий код не мог
+    # отличить «не прислали» от «прислали пусто» — значения (например icon)
+    # терялись при частичном сохранении формы/API.
+    if value is None:
+        if required:
+            raise ValidationError(f"Поле «{name}» обязательно")
+        return ""
+    text = str(value).strip()
     if required and not text:
         raise ValidationError(f"Поле «{name}» обязательно")
     if len(text) > max_len:
@@ -284,8 +292,14 @@ class CatalogService:
         current = self.get_zone(zone_id)
         if not current:
             raise ValidationError("Зона не найдена")
-        name = _clean_str(data.get("name"), "Название", 100)
-        duration = _parse_int(data.get("base_duration_minutes", 10), "Базовая длительность", 1)
+        # stage2_hotfix (блок 3): PUT — частичное обновление. Поле «name» можно
+        # не присылать (например, при очистке icon) — тогда сохраняется текущее.
+        # Пустая строка по-прежнему запрещена (валидация в _clean_str).
+        name_raw = data.get("name")
+        name = current["name"] if name_raw is None else _clean_str(name_raw, "Название", 100)
+        dur_raw = data.get("base_duration_minutes")
+        duration = (current["base_duration_minutes"] if dur_raw in (None, "")
+                    else _parse_int(dur_raw, "Базовая длительность", 1))
         if duration > 240:
             raise ValidationError("Базовая длительность не должна превышать 240 минут")
         # Правки 3.5/3.10: сезон у зон из UI убран — поле не трогаем при обновлении.

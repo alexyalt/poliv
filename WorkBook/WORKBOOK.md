@@ -133,3 +133,30 @@
 **Проверка:** см. ниже (запуск тестов).
 **Проверка (блок 5, 05.10.2026):** удалена старая БД `data/poliv.db*`; миграции 0001+0002 применены с чистой БД; PRAGMA: в `zones`/`programs` колонок season_* нет, в `program_zones` есть `parallel_group`; функционально проверены create→delete→enable для контроллера и зоны, `set_program_zones` с parallel_group="A"; pytest `server/tests/test_stage2.py` — **9 passed**. Для прогонов создан локальный `config/config.local.toml` (в git не попадает). Замечание среды: системный python требовал установки passlib/bcrypt==4.0.x (см. requirements.txt) — на боевой машине пользователя venv уже настроен.
 **Финализация:** при повторной проверке выявлено, что коммиты aa58b1d/88355cf фактически не изменили индекс (git status показал .pyc/.venv/data/logs снова добавленными, а рабочий .gitignore был случайно обнулён) — выполнено корректное удаление из индекса (`git rm --cached`, файлы на диске сохранены), `.gitignore` восстановлен в полной версии, тесты переинициализированы с нуля. Примечание окружения CI: сторонний плагин libtmux несовместим с pytest 9 («Marks cannot be applied to fixtures») — запускать с `-p no:libtmux` (на машине пользователя с venv из requirements проблемы нет).
+
+## Запись 14. stage2_hotfix (05.10.2026) — миграция 0003, логирование 500, иконка зоны, UI parallel_group
+
+**Причина:** на БД, созданных ДО правок before_stage_3, миграция 0002 уже была
+записана в schema_migrations и повторно не запускается — её новые правки
+(ADDITIONS parallel_group, удаление season_start/season_end) на таких базах не
+выполнились, а код ожидал новую схему → ошибки 500/потеря данных. **Править
+применённую миграцию 0002 ЗАПРЕЩЕНО.**
+
+**Вывод:** применённые миграции не редактируем — разрыв схемы закрывается новой
+миграцией 0003_stage2_hotfix (идемпотентной: ADD COLUMN parallel_group через
+_has_column; DROP COLUMN season_* с проверками _table_exists/_has_column, SQLite>=3.35).
+
+Состав hotfix-пакета:
+- Блок 1: server/migrations/0003_stage2_hotfix.py + .md; тесты test_migrations_applied
+  (проверка применения 0003) и test_migration_0003_hotfix_legacy_db (разрыв схемы + идемпотентность).
+- Блок 2: web/routes.py — обработчик @app.exception_handler(500) пишет полный трейсбек
+  (log.exception) в logs/error.log ДО render_error; текст страницы прежний.
+- Блок 3: catalog_service.update_zone — icon/name/base_duration сохраняются при
+  частичном обновлении (None = «не прислали», "" = очистить); _clean_str различает
+  None/""; zones.html — value из editing.icon; тест test_zone_icon_preserved_on_partial_update.
+- Блок 4: program_detail.html — поле «Группа параллельности» name="pg_<zone_id>"
+  с предзаполнением из group_of; пустое = последовательное выполнение.
+
+**Проверка:** pytest server/tests -q → 14 passed; ручной сценарий TestClient:
+GET /programs?edit=<id> → 200 (без 500); POST /programs/<id>/zones с группой "A"
+у двух зон одного контроллера → roundtrip: parallel_group="A" у обеих зон; icon 🌿 сохранён.

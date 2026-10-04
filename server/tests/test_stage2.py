@@ -78,6 +78,60 @@ def test_migrations_applied():
     assert "parallel_group" in cols_pz  # ADR-12
     cols_c = {c["name"] for c in db.execute("PRAGMA table_info(controllers)")}
     assert {"deleted_at", "model"} <= cols_c
+    # stage2_hotfix (блок 1): миграция 0003 должна присутствовать и применяться
+    # (на старых БД добавляет parallel_group и сносит легаси season_*).
+    applied = {r["version"] for r in db.execute("SELECT version FROM schema_migrations")}
+    assert "0003_stage2_hotfix" in applied, applied
+
+
+def test_migration_0003_hotfix_legacy_db():
+    """stage2_hotfix (блок 1): миграция 0003 чинит «старую» БД (0002 применена ДО правок).
+
+    Моделируем разрыв схемы: в базе, где 0002 уже записана в schema_migrations,
+    нет program_zones.parallel_group и остались zones/programs.season_*.
+    Миграция 0003 должна идемпотентно привести схему к ожидаемой; повторный
+    вызов на чистой схеме не падает. Правка самой 0002 запрещена.
+    """
+    import sqlite3 as _sqlite3
+
+    def _loader(path):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("mig0003", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    from pathlib import Path as _P
+
+    mig_path = (_P(__file__).resolve().parents[2]
+                / "server" / "migrations" / "0003_stage2_hotfix.py")
+    upgrade = _loader(mig_path).upgrade
+
+    conn = _sqlite3.connect(":memory:")
+    conn.row_factory = _sqlite3.Row
+    # «Старая» схема: как после первоначальной (до-hotfix) версии 0002
+    conn.execute("CREATE TABLE zones (id INTEGER PRIMARY KEY, name TEXT,"
+                 " season_start TEXT, season_end TEXT)")
+    conn.execute("CREATE TABLE programs (id INTEGER PRIMARY KEY, name TEXT,"
+                 " season_start TEXT, season_end TEXT)")
+    conn.execute("CREATE TABLE program_zones (program_id INTEGER, zone_id INTEGER,"
+                 " seq INTEGER)")
+    conn.execute("CREATE TABLE schema_migrations (version TEXT, applied_at TEXT)")
+    conn.execute("INSERT INTO schema_migrations VALUES ('0001_initial','x')")
+    conn.execute("INSERT INTO schema_migrations VALUES ('0002_stage2_catalogs','x')")
+
+    upgrade(conn)
+
+    pz_cols = {c["name"] for c in conn.execute("PRAGMA table_info(program_zones)")}
+    assert "parallel_group" in pz_cols
+    z_cols = {c["name"] for c in conn.execute("PRAGMA table_info(zones)")}
+    p_cols = {c["name"] for c in conn.execute("PRAGMA table_info(programs)")}
+    assert not ({"season_start", "season_end"} & z_cols)
+    assert not ({"season_start", "season_end"} & p_cols)
+    # идемпотентность: повторный вызов на новой схеме — без падения (no-op)
+    upgrade(conn)
+    conn.close()
 
 
 def test_controller_crud_web():
@@ -329,3 +383,106 @@ def test_logs_recorded_for_crud():
     actions = {l["action"] for l in logs}
     assert {"controller.created", "zone.created", "zone.disabled", "program.created",
             "user.created"} <= actions, actions
+
+
+def test_zone_icon_preserved_on_partial_update():
+    """stage2_hotfix (блок 3): icon не должен теряться при сохранении зоны.
+
+    Сценарий: создать зону с icon="🌿" -> изменить только name (частичный
+    PUT без поля icon) -> сохранить -> icon в БД остаётся "🌿".
+    Также проверяется полный POST формы (поле отправлено) и явная очистка "".
+    """
+    client = _admin_client()
+    db = client.app.state.db
+    r = client.post("/controllers/save", data={"name": "Хотфикс-бокс",
+                                               "box_id": "HOTFIX-BOX-1"})
+    assert "error=" not in _url(r), _url(r)
+    cid = db.execute("SELECT id FROM controllers WHERE box_id='HOTFIX-BOX-1'"
+                     ).fetchone()["id"]
+
+    # 1) создание зоны с иконкой (API, JSON)
+    import json as _json
+    body = {"controller_id": cid, "zone_number": 15, "name": "Газон у дома",
+            "base_duration_minutes": 10, "icon": "\U0001F33F"}
+    r = client.post("/api/zones", content=_json.dumps(body))
+    assert r.status_code in (200, 201), (r.status_code, r.text)
+    zid = r.json()["id"]
+    assert r.json()["icon"] == "\U0001F33F"
+
+    # 2) частичное обновление: меняем только name — icon НЕ пришёл
+    r = client.put(f"/api/zones/{zid}", content=_json.dumps({"name": "Газон перед домом"}))
+    assert r.status_code == 200, (r.status_code, r.text)
+    row = db.execute("SELECT name, icon FROM zones WHERE id=?", (zid,)).fetchone()
+    assert row["name"] == "Газон перед домом"
+    assert row["icon"] == "\U0001F33F", "иконка потерялась при частичном обновлении"
+
+    # 3) веб-форма: сохранение с заполненным icon (полный POST) — значение сохраняется
+    r = client.post("/zones/save", data={
+        "id": str(zid), "controller_id": str(cid), "zone_number": "15",
+        "name": "Газон перед домом", "base_duration_minutes": "12",
+        "icon": "\U0001F33F", "enabled": "on",
+    })
+    assert "error=" not in _url(r), _url(r)
+    row = db.execute("SELECT icon FROM zones WHERE id=?", (zid,)).fetchone()
+    assert row["icon"] == "\U0001F33F"
+
+    # 4) явное очищение: поле прислано пустым -> NULL (намерение пользователя).
+    #    PUT — частичная операция, name не трогаем (он уже проверен шагом 2).
+    r = client.put(f"/api/zones/{zid}", content=_json.dumps({"icon": ""}))
+    assert r.status_code == 200, (r.status_code, r.text)
+    row = db.execute("SELECT icon FROM zones WHERE id=?", (zid,)).fetchone()
+    assert row["icon"] is None
+
+
+def test_program_zones_parallel_group_ui_roundtrip():
+    """stage2_hotfix (блок 4): UI-поля pg_<zone_id> сохраняют группы параллельности.
+
+    Две зоны одного контроллера с группой "A" -> после сохранения состава
+    parallel_group="A" читается из БД; пустая группа -> NULL (последовательно).
+    """
+    client = _admin_client()
+    db = client.app.state.db
+    r = client.post("/controllers/save", data={"name": "PG-бокс", "box_id": "PG-BOX-1"})
+    assert "error=" not in _url(r), _url(r)
+    cid = db.execute("SELECT id FROM controllers WHERE box_id='PG-BOX-1'").fetchone()["id"]
+    zids = []
+    for n in (1, 2, 3):
+        r = client.post("/zones/save", data={
+            "controller_id": str(cid), "zone_number": str(n),
+            "name": f"Зона {n}", "base_duration_minutes": "10", "enabled": "on"})
+        assert "error=" not in _url(r), _url(r)
+        zids.append(db.execute(
+            "SELECT id FROM zones WHERE controller_id=? AND zone_number=?",
+            (cid, n)).fetchone()["id"])
+    r = client.post("/programs/save", data={
+        "name": "PG-программа", "schedule_type": "weekdays",
+        "start_time": "06:00", "weekdays": ["1"], "enabled": "on"})
+    assert "error=" not in _url(r), _url(r)
+    pid = db.execute("SELECT id FROM programs WHERE name='PG-программа'").fetchone()["id"]
+
+    # страница редактирования состава открывается без 500 (блок 2 косвенно);
+    # редактор состава зон живёт на /programs/{id} (program_detail.html)
+    r = client.get(f"/programs?edit={pid}")
+    assert r.status_code == 200, r.status_code
+    r = client.get(f"/programs/{pid}?edit_zones=1")
+    assert r.status_code == 200, r.status_code
+    # редактор содержит текстовые поля Группы параллельности pg_<zone_id>
+    for zid in zids:
+        assert f'name="pg_{zid}"' in r.text, f"нет поля pg_{zid} в program_detail"
+
+    # сохраняем: зоны 1 и 2 — группа "A", зона 3 — без группы (последовательно)
+    r = client.post(f"/programs/{pid}/zones", data={
+        "zone_ids": [str(zids[0]), str(zids[1]), str(zids[2])],
+        f"pg_{zids[0]}": "A", f"pg_{zids[1]}": "A", f"pg_{zids[2]}": "",
+    })
+    assert "error=" not in _url(r), _url(r)
+    rows = db.execute(
+        "SELECT zone_id, seq, parallel_group FROM program_zones WHERE program_id=?"
+        " ORDER BY seq", (pid,)).fetchall()
+    groups = {row["zone_id"]: row["parallel_group"] for row in rows}
+    assert groups[zids[0]] == "A" and groups[zids[1]] == "A"
+    assert groups[zids[2]] is None
+    # предзаполнение полей group_of при повторном открытии редактора
+    r = client.get(f"/programs/{pid}?edit_zones=1")
+    assert r.status_code == 200
+    assert f'value="A"' in r.text
