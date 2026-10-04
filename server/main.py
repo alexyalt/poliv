@@ -20,7 +20,31 @@ import sys
 from pathlib import Path
 
 # Единая версия приложения для FastAPI, заголовков страниц и логотипа.
-APP_VERSION = "0.2.0"
+# К базовой версии автоматически добавляется короткий хэш последнего коммита git
+# (например, 0.2.0+fd22a77), чтобы по заголовку вкладки видно, какие изменения
+# реально загружены на локальную машину. Если git недоступен (запуск из копии
+# без .git, продакшен-сборка) — остаётся только базовая версия.
+APP_VERSION_BASE = "0.2.0"
+
+
+def _git_short_hash() -> str:
+    """Короткий хэш HEAD; пустая строка, если определить не удалось."""
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(Path(__file__).resolve().parent.parent),
+            capture_output=True, text=True, timeout=5,
+        )
+        if out.returncode == 0:
+            return out.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return ""
+
+
+APP_VERSION = f"{APP_VERSION_BASE}+{_git_short_hash()}" if _git_short_hash() else APP_VERSION_BASE
 
 # Позволяем запускать и как пакет, и напрямую файлом.
 ROOT = Path(__file__).resolve().parent
