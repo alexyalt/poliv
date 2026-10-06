@@ -102,6 +102,9 @@ class ControllerSim:
         self._soak_until: float | None = None     # конец фазы замачивания
         self._pending_zone_events: list[tuple[int, int]] = []  # очередь (zone, duration)
         self._current_event: dict | None = None   # незакрытое событие полива
+        # источник текущего прогона: "manual" (клавиша w / zone_open) или
+        # "schedule" (резерв до Этапа 4); сбрасывается в _finish_run().
+        self._run_source: str | None = None
 
         self._seen_commands: list[str] = []       # дедупликация command_id (последние 50)
         self._lock = threading.Lock()
@@ -163,6 +166,10 @@ class ControllerSim:
     def stop(self) -> None:
         self._stop.set()
         if self._client is not None:
+            # Дефект Б: штатный (graceful) disconnect не триггерит волю брокера,
+            # поэтому перед отключением имитируем LWT retained-сообщением.
+            if self.online:
+                self._publish_lwt_offline("shutdown")
             try:
                 self._client.loop_stop()
                 self._client.disconnect()
@@ -180,6 +187,33 @@ class ControllerSim:
         except Exception as exc:
             self.log.warning("[%s] публикация %s не удалась: %s", self.box_id,
                              kind, exc)
+
+    def _publish_lwt_offline(self, reason: str) -> None:
+        """Имитация LWT при ШТАТНОМ (graceful) отключении — Дефект Б.
+
+        Брокер выдаёт will только при аварийном обрыве TCP; корректный
+        disconnect() волю НЕ триггерит, и сервер видел бы «зombie-online» до
+        срабатывания offline_threshold_min. Поэтому перед loop_stop()/disconnect()
+        публикуем в poliv/{box_id}/lwt retained-сообщение online=false — ровно то,
+        что выдал бы брокер от имени контроллера. Публикация идёт напрямую через
+        клиент (в обход _publish и флага online): событие должно уйти даже когда
+        self.online уже выставлен в False.
+        """
+        if self._client is None:
+            return
+        lwt_payload = json.dumps({
+            "protocol_version": PROTOCOL_VERSION,
+            "box_id": self.box_id,
+            "ts": time.time(),
+            "online": False,
+            "reason": reason,          # "lwt-sim" | "shutdown"
+        }, ensure_ascii=False)
+        try:
+            self._client.publish(f"poliv/{self.box_id}/lwt", lwt_payload,
+                                 qos=1, retain=True)
+        except Exception as exc:
+            self.log.warning("[%s] имитация LWT (%s) не удалась: %s",
+                             self.box_id, reason, exc)
 
     # ------------------------------------------------------------- сообщения
     def _on_message(self, client, userdata, msg):
@@ -347,7 +381,8 @@ class ControllerSim:
         self.flow_enabled = True
         self._water_until = time.time() + duration_sec
         self._run_end_ts = self._water_until
-        self._emit_event("started", source="manual", zones=[zone])
+        self._run_source = "manual"     # "schedule" — резерв (Этап 4)
+        self._emit_event("started", source=self._run_source, zones=[zone])
         self._publish_status(force=True)
 
     def _pause_current_run(self) -> None:
@@ -363,8 +398,13 @@ class ControllerSim:
 
     def _finish_run(self, aborted: bool = False, emit_event: bool = True) -> None:
         if self._current_event is not None and emit_event:
-            self._emit_event("finished", zones=self.active_zones, aborted=aborted)
+            # Дефект A (ручная проверка Этапа 3): finished-событие обязано нести
+            # source прогона — без него вызов падал по сигнатуре
+            # _emit_event(status, source, zones, ...).
+            self._emit_event("finished", source=self._run_source or "manual",
+                             zones=self.active_zones, aborted=aborted)
         self._current_event = None
+        self._run_source = None
         self.active_zones = []
         self.display_zones = []
         self.primary_zone = None
@@ -418,7 +458,10 @@ class ControllerSim:
                 self.primary_zone = z
                 self.flow_enabled = True
                 self._water_until = now + max(1, d)
-                self._emit_event("started", source="manual", zones=[z])
+                # прогон продолжается в той же очереди — источник не сменился;
+                # на случай пустого значения (после паузы с внешним сбросом) — manual
+                self._run_source = self._run_source or "manual"
+                self._emit_event("started", source=self._run_source, zones=[z])
                 self._publish_status(force=True)
 
     # --------------------------------------------------------------- события
@@ -541,6 +584,9 @@ class ControllerSim:
             self.online = False
         self.log.warning("[%s] ОФЛАЙН (имитация обрыва связи)", self.box_id)
         if drop_connection and self._client is not None:
+            # Дефект Б: перед разрывом соединения имитируем LWT — брокер при
+            # корректном disconnect волю не выдаёт, публикуем retained-офлайн сами.
+            self._publish_lwt_offline("lwt-sim")
             try:
                 self._client.loop_stop()
                 self._client.disconnect()
