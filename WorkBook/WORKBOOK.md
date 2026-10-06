@@ -254,3 +254,54 @@ check_same_thread=False убран из MQTT-потока (своё соедин
 **Санитария коммита:** .gitignore дополнен (logs/, *.log.*, data/, config/config.local.toml);
 из индекса удалены ошибочно добавленные data/poliv.db, logs/*.log, __pycache__/*,
 config/config.local.toml; проверено git check-ignore. В коммите — только исходники и документация.
+
+---
+
+## Запись: config_robustness_and_emulator_fix (06.10.2026)
+
+**Причина.** Локальный `config/config.local.toml` с дублирующей секцией `[server]`
+уронил и сервер, и все тесты некрасивым трейсбеком `tomllib.TOMLDecodeError`.
+Ручная проверка чек-листа Этапа 3 вскрыла дефекты эмулятора: (A) finished-событие
+полива вызывало `_emit_event` без обязательного `source` — падение по сигнатуре;
+(B) штатный offline/Ctrl+C (graceful disconnect) НЕ триггерит волю брокера —
+сервер не видел offline до срабатывания порога; (C) `fleet_sim.py` не принимал
+`--offline-after`, хотя `controller_sim.py` его поддерживает.
+
+**Сделано.**
+- **Блок 1 (config.py):** оба tomllib.load обёрнуты в `_load_toml()`; битый TOML ->
+  `ConfigError("Файл {path}: ошибка TOML — ...")` с указанием строки/колонки
+  (проверено: «Cannot declare ('server',) twice (at line 8, column 8)»). Сервер
+  падает понятным SystemExit, а не сырым трейсбеком парсера.
+- **Блок 2 (conftest.py):** pytest ВСЕГДА генерирует тестовый config.local.toml во
+  временном каталоге и выставляет POLIV_CONFIG_LOCAL до импорта приложения; локальный
+  конфиг разработчика не читается (кроме явного POLIV_CONFIG_LOCAL извне). Прогон при
+  ЗАВЕДОМО битом config/config.local.toml — зелёный (42 passed, 1 skipped).
+- **Блок 3 (Дефект A):** `self._run_source` ("manual" в _start_manual_water,
+  "schedule" — резерв Этапа 4); `_finish_run()` шлёт finished c
+  `source=self._run_source or "manual"` и сбрасывает источник; все вызовы
+  `_emit_event` соответствуют сигнатуре.
+- **Блок 4 (Дефект B):** `_publish_lwt_offline(reason)` — retained-публикация
+  qos=1 в poliv/{box}/lwt {online:false, reason} напрямую через клиент (в обход
+  флага online); вызывается в go_offline() перед loop_stop/disconnect
+  (reason="lwt-sim") и в stop() при online (reason="shutdown"); go_online() LWT
+  не шлёт — только переподключение + hello.
+- **Блок 5 (fleet_sim.py):** флаг `--offline-after` (float, default None) с
+  проброской в каждый дочерний controller_sim.py; проброс `--status-interval` и
+  `--zones` проверен — корректен.
+- **Блок 6 (docs/ИНСТРУКЦИЯ_ЭТАП3.md):** §4.3 «Методика „офлайн по порогу“»:
+  offline_threshold_min=1 + перезапуск сервера, --offline-after 20, обрыв ~20 с,
+  offline ≤60 с (журнал controller.offline_threshold), вернуть порог 30. Дополнены
+  пункты 7, 8, 11 чек-листа.
+- **Регресс-тесты (новый server/tests/test_emulator_fixes.py, 5 шт., без брокера,
+  мок-publisher):** finished c source="manual" после тиков water/soak, mode=idle,
+  источник сброшен; _finish_run вне прогона — no-op; go_offline -> publish в lwt
+  retain=True/qos=1/reason=lwt-sim; stop -> lwt reason=shutdown; go_online -> lwt
+  не трогает.
+
+**Вывод.** Конфиг-ошибки человекочитаемы (имя файла + позиция в TOML); тесты
+изолированы от состояния локального конфига; эмулятор корректно отражает и
+штатный офлайн (имитация LWT), и завершение полива (finished+source); fleet
+поддерживает --offline-after. Итог: `pytest server/tests -q` -> 42 passed,
+1 skipped (skip — интеграция с реальным брокером, POLIV_TEST_BROKER).
+Серверная MQTT-логика не менялась. Ручные проверки 4/7/8/11 на живом брокере
+выполняются по обновлённой ИНСТРУКЦИЯ_ЭТАП3.md (§4.2–4.3).

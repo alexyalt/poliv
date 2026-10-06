@@ -209,14 +209,28 @@ def validate(cfg_raw: dict) -> list[str]:
     return errors
 
 
+def _load_toml(path: Path) -> dict:
+    """tomllib.load с человекочитаемой ошибкой вместо сырого трейсбека парсера.
+
+    Сервер и тесты должны падать с понятным сообщением (файл + строка),
+    например при дублирующей секции [server] в config.local.toml.
+    """
+    try:
+        with open(path, "rb") as fh:
+            return tomllib.load(fh)
+    except tomllib.TOMLDecodeError as exc:
+        # tomllib сообщает позицию ошибки ("...: line 5 column 1 (char 42)") —
+        # оставляем её в тексте, чтобы было видно проблемную строку файла.
+        raise ConfigError(f"Файл {path}: ошибка TOML — {exc}") from exc
+
+
 def load_config(
     default_file: Path = DEFAULT_FILE,
     local_file: Path | None = LOCAL_FILE,
 ) -> Config:
     if not default_file.exists():
         raise ConfigError(f"Не найден файл конфигурации: {default_file}")
-    with open(default_file, "rb") as fh:
-        merged = tomllib.load(fh)
+    merged = _load_toml(default_file)
 
     if local_file is None:
         local_file = LOCAL_FILE
@@ -224,8 +238,7 @@ def load_config(
     if env_local:
         local_file = Path(env_local)
     if local_file.exists():
-        with open(local_file, "rb") as fh:
-            merged = _deep_merge(merged, tomllib.load(fh))
+        merged = _deep_merge(merged, _load_toml(local_file))
 
     errors = validate(merged)
     if errors:

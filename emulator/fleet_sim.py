@@ -35,6 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--password", default=None)
     ap.add_argument("--status-interval", type=float, default=30.0)
     ap.add_argument("--zones", type=int, default=16)
+    ap.add_argument("--offline-after", type=float, default=None,
+                    help="через N секунд имитировать обрыв связи у каждого "
+                         "эмулятора (пробрасывается в controller_sim.py)")
     return ap
 
 
@@ -49,6 +52,8 @@ def main(argv: list[str] | None = None) -> int:
                "--port", str(args.port),
                "--status-interval", str(args.status_interval),
                "--zones", str(args.zones)]
+        if args.offline_after is not None:
+            cmd += ["--offline-after", str(args.offline_after)]
         if args.user_prefix:
             cmd += ["--user", f"{args.user_prefix}{i:02d}"]
         if args.password:
