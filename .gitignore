@@ -4,5 +4,6 @@ __pycache__/
 
 # Dependencies
 .venv/
-venv/data/
+venv/
+data/
 logs/
