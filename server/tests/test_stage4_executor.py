@@ -166,7 +166,7 @@ def test_run_starts_on_time_and_steps_execute():
     _advance(sim, 16)                          # start_ts+67: всё (65 с) истекло
     assert sim.mode == "idle" and sim.active_zones == []
     fin = rec.of("event")[-1]
-    assert fin["status"] == "completed" and fin["run_id"] == "r-1"
+    assert fin["status"] == "finished" and fin["run_id"] == "r-1"
     assert fin["water_sec"] > 0 and fin["volume_liters"] > 0
     # повторного автоматического старта этого run_id не будет
     _advance(sim, 300)
@@ -189,7 +189,7 @@ def test_catchup_after_offline():
     assert sim.active_zones == []
     evs = rec.of("event")
     started = [e for e in evs if e["status"] == "started"]
-    finished = [e for e in evs if e["status"] == "completed"]
+    finished = [e for e in evs if e["status"] == "finished"]
     assert len(started) == 1 and started[0]["run_id"] == "r-catch"
     assert len(finished) == 1 and finished[0]["run_id"] == "r-catch"
 
@@ -206,7 +206,7 @@ def test_parallel_step_opens_multiple_zones():
     assert sorted(sim.active_zones) == [1, 2, 3]   # ADR-12: один шаг — 3 зоны
     _advance(sim, 26)
     assert sim.mode == "idle"
-    assert rec.of("event")[-1]["status"] == "completed"
+    assert rec.of("event")[-1]["status"] == "finished"
 
 
 def test_late_start_is_skipped_by_max_delay():
@@ -247,7 +247,7 @@ def test_pause_freezes_step_and_resume_continues_same_step():
     assert sim.mode == "schedule"              # ещё идёт (замороженные секунды)
     _advance(sim, 10)                          # +10 → за пределами остатка
     assert sim.mode == "idle"
-    assert rec.of("event")[-1]["status"] == "completed"
+    assert rec.of("event")[-1]["status"] == "finished"
 
 
 def test_stop_all_aborts_schedule_run():
@@ -291,8 +291,7 @@ def test_manual_watering_pauses_schedule_and_returns_to_it():
     events = rec.of("event")
     statuses = [(e["status"], e.get("source")) for e in events]
     assert ("started", "manual") in statuses
-    assert statuses[-1] == ("finished", "schedule") or statuses[-1][0] == "completed" \
-        or events[-1]["status"] == "completed"
+    assert statuses[-1] == ("finished", "schedule")
 
 
 def test_new_version_replaces_running_schedule():
