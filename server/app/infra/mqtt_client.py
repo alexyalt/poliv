@@ -242,6 +242,8 @@ class MqttServerClient:
             log.warning("MQTT: %s от %s — box_id в payload не совпадает (%s)",
                         kind, box_id, p.get("box_id"))
             return False
+        # Этап 4 final (P1-1): aborted/buffered — булевы флаги; bool(False)
+        # проходит проверку «наличие», но не проходит p.get(f) is None.
         missing = [f for f in required if p.get(f) is None]
         if missing:
             log.warning("MQTT: %s от %s — отсутствуют обязательные поля %s",
@@ -424,14 +426,32 @@ class MqttServerClient:
                 log.exception("MQTT: ScheduleService.on_schedule_ack упал для %s",
                               box_id)
 
+    def _validate_event_payload(self, box_id: str, p: dict) -> bool:
+        """Этап 4 final (P1-1): раздельные схемы событий по статусу.
+
+        started:  event_uid, source, start_ts, active_zones, buffered
+                  (end_ts/water_sec/volume_liters НЕ требуются);
+        finished/stopped: event_uid, source, start_ts, end_ts, water_sec,
+                  volume_liters, active_zones, aborted, buffered.
+        """
+        status = p.get("status")
+        if status == "started":
+            required = ("protocol_version", "event_uid", "ts", "box_id",
+                        "source", "start_ts", "active_zones", "buffered")
+        elif status in ("finished", "stopped"):
+            required = ("protocol_version", "event_uid", "ts", "box_id",
+                        "source", "start_ts", "end_ts", "water_sec",
+                        "volume_liters", "active_zones", "aborted", "buffered")
+        else:
+            log.warning("MQTT: event от %s — неизвестный статус %r",
+                        box_id, status)
+            return False
+        return self._validate_common(box_id, "event", p, required)
+
     def _handle_event(self, box_id: str, p: dict) -> None:
         # Этап 3: события НЕ хранятся в БД (Этап 6) — только валидация,
         # лог logs/mqtt.log и журнал (source=mqtt).
-        if not self._validate_common(
-            box_id, "event", p,
-            ("protocol_version", "event_uid", "ts", "box_id", "active_zones",
-             "source", "start_ts", "end_ts", "water_sec", "status", "buffered"),
-        ):
+        if not self._validate_event_payload(box_id, p):
             return
         if not isinstance(_as_list_of_ints(p.get("active_zones")), list):
             log.warning("MQTT: event от %s — active_zones не список целых", box_id)

@@ -1,9 +1,7 @@
-# Compiled and build artifacts
+# Compiled files
 __pycache__/
 *.pyc
 
-# Dependencies
-.venv/
-venv/
-data/
+# Logs
 logs/
+*.log

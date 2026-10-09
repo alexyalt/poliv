@@ -894,7 +894,9 @@ class ControllerSim:
             p = {"protocol_version": PROTOCOL_VERSION, "box_id": self.box_id,
                  "event_uid": self._current_event["event_uid"], "ts": now,
                  "status": "started", "source": source,
-                 "active_zones": list(zones), "start_ts": int(now)}
+                 "active_zones": list(zones), "start_ts": int(now),
+                 # P1-1 (схема started): buffered обязателен
+                 "buffered": False}
             if run_id:
                 p["run_id"] = run_id
             self._publish("event", p)
@@ -904,10 +906,14 @@ class ControllerSim:
             return
         water_sec = max(0, int(now - ev["start_ts"]))
         volume = round(water_sec * LPM_BASE / 60.0, 1)
+        # Этап 4 final (P1-1): у события завершения СВОЙ event_uid —
+        # дублирование uid начала и конца конфликта с будущей дедупликацией
+        # по event_uid (ТЗ §9.2). Привязка событий друг к другу — через run_id.
         payload_ev = {
             "protocol_version": PROTOCOL_VERSION,
             "box_id": self.box_id,
-            "event_uid": ev["event_uid"],
+            "event_uid": str(uuid.uuid4()),
+            "started_event_uid": ev["event_uid"],
             "ts": now,
             "source": ev["source"],
             "active_zones": ev["zones"],
@@ -915,7 +921,12 @@ class ControllerSim:
             "end_ts": int(now),
             "water_sec": water_sec,
             "volume_liters": volume,
-            "status": "stopped" if aborted else "completed",
+            # Этап 4 final (P1-1): сервер валидирует статусы событий по схеме
+            # started | finished | stopped (ТЗ §3.11) — «completed» невалиден.
+            "status": "stopped" if aborted else "finished",
+            # P1-1: обязательные поля схем — aborted (finished/stopped) и
+            # buffered (оба статуса)
+            "aborted": bool(aborted),
             "buffered": False,
         }
         # Этап 4: schedule-прогон несёт run_id машинограммы — сервер связывает

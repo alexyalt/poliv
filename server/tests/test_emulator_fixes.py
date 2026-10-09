@@ -67,12 +67,12 @@ def test_manual_water_finished_event_has_source_manual():
     events = [p for p in sim._client.published if p[0].endswith("/event")]
     # Этап 4: прогон публикует пару событий started/finished (план→факт);
     # проверяем finished-событие (source='manual' — Дефект A)
-    finished = [e for e in events if e[1].get("status") == "completed"]
+    finished = [e for e in events if e[1].get("status") == "finished"]
     assert len(finished) == 1, f"ожидалось 1 finished-событие, есть {events}"
     topic, payload, qos, retain = finished[0]
     assert topic == "poliv/BOX-TEST/event"
     assert payload["source"] == "manual"           # Дефект A: source присутствует
-    assert payload["status"] == "completed"
+    assert payload["status"] == "finished"
     assert payload["active_zones"] == [3]
 
     # После завершения прогона: источник сброшен, состояние idle.

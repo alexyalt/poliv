@@ -1,0 +1,18 @@
+{
+  "protocol_version": "1.0",
+  "box_id": "HOTFIX-BOX-1",
+  "schedule_version": 1,
+  "schedule_hash": "198943e942191bc1d3eec715b9f2ef500efae230694d2dd1e6f689a9725bf82b",
+  "valid_from_date": "2026-10-09",
+  "valid_to_date": "2026-10-16",
+  "timezone_offset_min": 0,
+  "generated_ts": 1791563747,
+  "source": "auto",
+  "options": {
+    "max_catchup_sec": 600,
+    "max_start_delay_sec": 120,
+    "parallel_enabled": false,
+    "soak_display": "display_zones"
+  },
+  "runs": []
+}

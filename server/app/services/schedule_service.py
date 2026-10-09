@@ -284,8 +284,24 @@ class ScheduleService:
                    WHERE controller_id=? AND status='active' LIMIT 1""",
                 (view["controller_id"],)).fetchone()
         if policy == "next_run" and active is not None:
+            # Этап 4 final (P1-2): отложенная доставка — в БД (pending_schedule),
+            # состояние переживает перезапуск сервера; хук on_event отправит
+            # queued-версию при завершении активного прогона.
             log.info("SCHEDULE: %s v%s — публикация отложена (идёт прогон, "
                      "apply_policy=next_run)", box_id, view["schedule_version"])
+            now = utcnow_iso()
+            with self._lock, self.conn:
+                self.conn.execute(
+                    "UPDATE pending_schedule SET status='cancelled', updated_at=?"
+                    " WHERE controller_id=? AND status='queued'",
+                    (now, view["controller_id"]))
+                self.conn.execute(
+                    """INSERT INTO pending_schedule(
+                           controller_id, schedule_id, status, reason,
+                           created_at, updated_at)
+                       VALUES (?,?, 'queued', ?, ?, ?)""",
+                    (view["controller_id"], schedule_id,
+                     "active_run_next_run_policy", now, now))
             self.write_log("schedule.send_deferred", box_id,
                            {"schedule_id": schedule_id,
                             "version": view["schedule_version"],
@@ -301,6 +317,11 @@ class ScheduleService:
             self.conn.execute(
                 "UPDATE controller_schedules SET status='sent', sent_at=? "
                 "WHERE id=?", (now, schedule_id))
+            # P1-2: явная отправка снимает queued-статус этой же версии
+            self.conn.execute(
+                "UPDATE pending_schedule SET status='sent', updated_at=? "
+                "WHERE schedule_id=? AND status IN ('queued','failed')",
+                (now, schedule_id))
         self.write_log("schedule.sent", box_id,
                        {"schedule_id": schedule_id,
                         "version": view["schedule_version"],
@@ -356,39 +377,75 @@ class ScheduleService:
                           box_id)
 
     def on_schedule_ack(self, box_id: str, p: dict) -> None:
-        """schedule_ack: sent→acknowledged/failed + controllers.schedule_*."""
+        """schedule_ack: sent→acknowledged/failed + controllers.schedule_*.
+
+        Этап 4 final (P1-5): валидация ack — не доверяем контроллеру:
+        1. версия должна существовать в controller_schedules этого контроллера;
+        2. status=applied — хеш сверяется с сохранённым (несовпадение → failed);
+        3. status=rejected — запись → failed с причиной (schedule_rejections),
+           controllers.schedule_version/hash НЕ меняются.
+        """
         sv = p.get("schedule_version")
         status = p.get("status")
         if not isinstance(sv, int) or isinstance(sv, bool):
             return
         ok = status in ("applied", "ok")
         with self._lock:
+            ctrl = self.conn.execute(
+                "SELECT id FROM controllers WHERE box_id=?", (box_id,)).fetchone()
             row = self.conn.execute(
-                """SELECT cs.id FROM controller_schedules cs
-                   JOIN controllers c ON c.id = cs.controller_id
-                   WHERE c.box_id=? AND cs.schedule_version=?""",
-                (box_id, sv)).fetchone()
+                """SELECT cs.id, cs.status, cs.schedule_hash FROM controller_schedules cs
+                   WHERE cs.controller_id=? AND cs.schedule_version=?""",
+                ((int(ctrl["id"]) if ctrl else -1), sv)).fetchone()
+            # P1-5, шаг 1: ack по несуществующей версии — игнорируем полностью
+            if ctrl is None or row is None:
+                log.warning("SCHEDULE: ack %s v%s — версия не найдена, "
+                            "игнорируется (P1-5)", box_id, sv)
+                return
+            hash_mismatch = False
+            if ok and status == "applied":
+                # P1-5, шаг 2: сверка хеша с сохранённым (не доверяем клиенту)
+                ack_hash = p.get("schedule_hash")
+                if ack_hash and ack_hash != row["schedule_hash"]:
+                    log.warning("SCHEDULE: ack %s v%s applied, но хеш не "
+                                "совпадает (%s… != %s…) — failed",
+                                box_id, sv, str(ack_hash)[:8],
+                                row["schedule_hash"][:8])
+                    ok, hash_mismatch = False, True
             now = utcnow_iso()
             new_status = "acknowledged" if ok else "failed"
-            if row is not None:
-                self.conn.execute(
-                    "UPDATE controller_schedules SET status=?, acknowledged_at=?"
-                    " WHERE id=?", (new_status, now, row["id"]))
             self.conn.execute(
-                """UPDATE controllers SET schedule_version=?, schedule_hash=?,
-                                          updated_at=?
-                   WHERE box_id=?""",
-                (sv, p.get("schedule_hash"), now, box_id))
+                "UPDATE controller_schedules SET status=?, acknowledged_at=?"
+                " WHERE id=?", (new_status, now, row["id"]))
+            if ok:
+                self.conn.execute(
+                    """UPDATE controllers SET schedule_version=?, schedule_hash=?,
+                                              updated_at=?
+                       WHERE box_id=?""",
+                    (sv, row["schedule_hash"], now, box_id))
+            elif status == "rejected" or hash_mismatch:
+                # P1-5, шаг 3: rejected — история отказов; версия контроллера
+                # остаётся прежней (controllers не трогаем)
+                reason = p.get("reason") or p.get("message") or (
+                    "hash_mismatch" if hash_mismatch else "rejected_by_controller")
+                self.conn.execute(
+                    """INSERT INTO schedule_rejections(controller_id, version,
+                                                       reason, ts)
+                       VALUES (?,?,?,?)""",
+                    (int(ctrl["id"]), sv, reason, now))
             if ok:
                 # Плановые прогоны из принятой машинограммы — в watering_runs
-                self._record_planned_runs(box_id, sv, row["id"] if row else None)
+                self._record_planned_runs(box_id, sv, row["id"],
+                                          protect_run_id=p.get("run_id"))
         self.write_log("schedule.ack", box_id,
                        {"version": sv, "status": status,
-                        "result": new_status})
+                        "result": new_status,
+                        **({"reason": p.get("reason")} if p.get("reason") else {})})
         log.info("SCHEDULE: ack %s v%s -> %s", box_id, sv, new_status)
 
     def _record_planned_runs(self, box_id: str, version: int,
-                             schedule_id: Optional[int]) -> None:
+                             schedule_id: Optional[int],
+                             protect_run_id: Optional[str] = None) -> None:
         """Planned-записи запусков принятой машинограммы (журнал плана)."""
         try:
             ctrl = self.conn.execute(
@@ -403,7 +460,38 @@ class ScheduleService:
             # NB: вызывается из on_schedule_ack уже под self._lock —
             # повторный Lock.acquire() мёртв (не reentrant) → зависание.
             # Транзакционное обёртывание оставляем без захвата блокировки.
+            # Этап 4 final (P2-8): при применении НОВОЙ версии все planned-записи
+            # этого контроллера, отсутствующие в принятой машинограмме,
+            # отменяются («replaced_by_newer_schedule»); совпадающие run_id
+            # получают новую версию/planned_start_ts через UPDATE ниже.
+            new_run_ids = {str(r.get("run_id")) for r in cur.get("runs", [])}
+            # Запущенный/завершённый прогон (active/completed/aborted) — это
+            # ФАКТ исполнения, он не «отменяется»; planned-запись такого
+            # run_id остаётся занятой и не перезаписывается новой версией.
+            busy_rows = self.conn.execute(
+                """SELECT run_id FROM watering_runs
+                   WHERE controller_id=? AND status IN
+                     ('active','completed','aborted','failed')""",
+                (ctrl["id"],)).fetchall()
+            busy_ids = {str(r["run_id"]) for r in busy_rows}
+            # NB: rid активного прогона мог появиться в watering_runs ДО
+            # перехода в active (INSERT OR IGNORE при started) — статус ещё
+            # 'planned'; вызывающий передаёт его в protect_run_id, чтобы
+            # идущий прогон не был отменён как устаревший план.
+            if protect_run_id:
+                busy_ids.add(str(protect_run_id))
             with self.conn:
+                stale = self.conn.execute(
+                    """SELECT run_id FROM watering_runs
+                       WHERE controller_id=? AND status='planned'""",
+                    (ctrl["id"],)).fetchall()
+                for s in stale:
+                    if str(s["run_id"]) not in new_run_ids:
+                        self.conn.execute(
+                            """UPDATE watering_runs SET status='cancelled',
+                                   reason_code=?, updated_at=?
+                               WHERE run_id=? AND status='planned'""",
+                            ("replaced_by_newer_schedule", now, s["run_id"]))
                 for run in cur.get("runs", []):
                     try:
                         rdate = datetime.strptime(run["date"], "%Y-%m-%d").date()
@@ -416,17 +504,36 @@ class ScheduleService:
                         rdate.year, rdate.month, rdate.day,
                         minute // 60, minute % 60,
                         tzinfo=timezone.utc).timestamp()) - tz_off * 60
-                    zones = sorted({z for s in run.get("steps", [])
-                                    for z in (s.get("active_zones") or [])})
-                    self.conn.execute(
-                        """INSERT OR IGNORE INTO watering_runs(
-                               controller_id, box_id, run_id, program_id,
-                               schedule_id, schedule_version, source, status,
-                               planned_start_ts, zones_json, created_at, updated_at)
-                           VALUES (?,?,?,?,?,?, 'schedule', 'planned', ?, ?, ?, ?)""",
-                        (ctrl["id"], box_id, run.get("run_id"),
-                         run.get("program_id"), schedule_id, version,
-                         planned_ts, json.dumps(zones), now, now))
+                    zones = sorted({z for st in run.get("steps", [])
+                                    for z in (st.get("active_zones") or [])})
+                    rid = run.get("run_id")
+                    if str(rid) in busy_ids:
+                        # этот запуск уже исполняется/исполнен — фактическая
+                        # запись не перезаписывается планом новой версии
+                        continue
+                    exists = self.conn.execute(
+                        "SELECT id, status FROM watering_runs WHERE run_id=?",
+                        (rid,)).fetchone()
+                    if exists is None:
+                        self.conn.execute(
+                            """INSERT INTO watering_runs(
+                                   controller_id, box_id, run_id, program_id,
+                                   schedule_id, schedule_version, source, status,
+                                   planned_start_ts, zones_json, created_at, updated_at)
+                               VALUES (?,?,?,?,?,?, 'schedule', 'planned', ?, ?, ?, ?)""",
+                            (ctrl["id"], box_id, rid,
+                             run.get("program_id"), schedule_id, version,
+                             planned_ts, json.dumps(zones), now, now))
+                    elif exists["status"] == "planned":
+                        # P2-8 п.3: совпадающий run_id — обновляем версию и
+                        # плановое время новой машинограммы
+                        self.conn.execute(
+                            """UPDATE watering_runs SET schedule_id=?,
+                                   schedule_version=?, planned_start_ts=?,
+                                   zones_json=?, updated_at=?
+                               WHERE run_id=? AND status='planned'""",
+                            (schedule_id, version, planned_ts,
+                             json.dumps(zones), now, rid))
         except Exception:
             log.exception("SCHEDULE: не удалось записать план прогонов %s v%s",
                           box_id, version)
@@ -451,8 +558,35 @@ class ScheduleService:
             status = p.get("status")
             if status not in ("started", "finished", "stopped"):
                 return
+            # Этап 4 final (P1-1): раздельная валидация обязательных полей
+            # схем события (ТЗ §3.11). started: event_uid, source, start_ts,
+            # active_zones, buffered; finished/stopped: + end_ts, water_sec,
+            # volume_liters, aborted. Эмулятор публикует обе схемы целиком.
+            if not p.get("event_uid"):
+                log.warning("SCHEDULE: event %s без event_uid — отброшен", box_id)
+                return
+            for field in ("start_ts", "active_zones", "buffered"):
+                if field not in p:
+                    log.warning("SCHEDULE: event %s (%s) без обязательного "
+                                "поля %s — отброшен", box_id, status, field)
+                    return
+            if status in ("finished", "stopped"):
+                for field in ("end_ts", "water_sec", "volume_liters", "aborted"):
+                    if field not in p:
+                        log.warning("SCHEDULE: event %s (%s) без обязательного "
+                                    "поля %s — отброшен", box_id, status, field)
+                        return
             src = p.get("source")
             if src not in ("schedule", "manual", "service", "test"):
+                return
+            # Этап 4 final (P1-1): schedule-прогон обязан нести run_id —
+            # только так событие связывается с плановой записью watering_runs
+            # (план→факт). manual-прогон run_id не имеет: идентификатор
+            # прогона на стороне сервера — event_uid события started
+            # (finished/stopped ссылается на него через started_event_uid).
+            if src == "schedule" and not p.get("run_id"):
+                log.warning("SCHEDULE: schedule-event %s без run_id — отброшен",
+                            box_id)
                 return
             ctrl = self.conn.execute(
                 "SELECT id FROM controllers WHERE box_id=?", (box_id,)).fetchone()
@@ -460,11 +594,31 @@ class ScheduleService:
                 return
             cid = int(ctrl["id"])
             zones = p.get("active_zones") or []
-            run_id = p.get("run_id") or p.get("event_uid")
+            if src == "schedule":
+                run_id = str(p["run_id"])
+            elif status == "started":
+                run_id = str(p.get("event_uid"))
+            else:
+                # finished/stopped manual-прогона: привязка к started-событию
+                run_id = str(p.get("started_event_uid") or p.get("event_uid"))
             if not run_id:
                 return
             now = utcnow_iso()
+            ev_run_id = str(p.get("run_id")) if p.get("run_id") else None
+            # Этап 4 final (P2-8): старт прогона — все остальные planned-записи
+            # этого контроллера устарели (новая машинограмма принята / план
+            # пересобран): status='cancelled', reason='replaced_by_newer_schedule'.
+            # Отмена выполняется ВНУТРИ основной транзакции ниже — иначе
+            # незакрытая транзакция блокирует чтение conn в _flush_pending.
+            cancel_stale = status == "started"
             with self._lock, self.conn:
+                if cancel_stale:
+                    self.conn.execute(
+                        """UPDATE watering_runs
+                           SET status='cancelled', reason_code=?, updated_at=?
+                           WHERE controller_id=? AND status='planned'
+                             AND run_id != ?""",
+                        ("replaced_by_newer_schedule", now, cid, str(run_id)))
                 if status == "started":
                     # §3.9/Этап 4: событие несёт зоны, которые реально
                     # поливались в прогоне (ev_zones), а не текущие
@@ -493,11 +647,25 @@ class ScheduleService:
                                actual_start_ts=?, updated_at=?
                            WHERE run_id=? AND status='planned'""",
                         (int(p.get("start_ts") or 0), now, str(run_id)))
+                    # P2-8/final: если плановая запись этого запуска уже
+                    # отменена как устаревшая (applied новой версии во время
+                    # прогона), «догоняем» её до фактического статуса —
+                    # факт важнее отменённого плана той же машины
+                    if ev_run_id:
+                        self.conn.execute(
+                            """UPDATE watering_runs SET status='active',
+                                   actual_start_ts=?, updated_at=?
+                               WHERE run_id=? AND status='cancelled'""",
+                            (int(p.get("start_ts") or 0), now, ev_run_id))
                 else:
                     end_ts = int(p.get("end_ts") or datetime.now().timestamp())
                     new_status = "completed" if status == "finished" else "aborted"
                     cur = self.conn.execute(
-                        "SELECT id FROM watering_runs WHERE run_id=?",
+                        """SELECT id FROM watering_runs
+                           WHERE run_id=? AND status IN
+                             ('planned','active','cancelled')
+                           ORDER BY CASE status WHEN 'active' THEN 0
+                                WHEN 'planned' THEN 1 ELSE 2 END LIMIT 1""",
                         (str(run_id),)).fetchone()
                     if cur is not None:
                         self.conn.execute(
@@ -517,15 +685,121 @@ class ScheduleService:
                              int(p.get("start_ts") or 0), end_ts,
                              int(p.get("water_sec") or 0), json.dumps(zones),
                              now, now))
+            # Этап 4 final (P1-2): прогон завершён — освобождается очередь
+            # отложенных машинограмм этого контроллера.
+            if status in ("finished", "stopped"):
+                self._flush_pending(box_id, cid)
         except Exception:
             log.exception("SCHEDULE: обработка event %s не удалась", box_id)
 
+    def _flush_pending(self, box_id: str, controller_id: int) -> None:
+        """P1-2: после завершения прогона отправить последнюю queued-версию.
+
+        Очередь живёт в БД (pending_schedule) — переживает перезапуск сервера;
+        повторные события (duplicates) безопасны: статус меняется атомарно.
+        Если за время прогона накопилось несколько queued-версий, промежуточные
+        отменяются (replaced_by_newer_pending) — контроллеру нужен только
+        актуальный план; все версии остаются в истории controller_schedules.
+        """
+        try:
+            with self._lock:
+                rows = self.conn.execute(
+                    """SELECT ps.id, ps.schedule_id FROM pending_schedule ps
+                       JOIN controller_schedules cs ON cs.id = ps.schedule_id
+                       WHERE ps.controller_id=? AND ps.status='queued'
+                       ORDER BY cs.schedule_version DESC""",
+                    (controller_id,)).fetchall()
+                if not rows:
+                    return
+                newest = rows[0]
+                now = utcnow_iso()
+                # устаревшие queued записи очереди — отменяем
+                for old in rows[1:]:
+                    self.conn.execute(
+                        "UPDATE pending_schedule SET status='cancelled', "
+                        "updated_at=? WHERE id=?", (now, old["id"]))
+                # помечаем отправленной ДО публикации — защита от реентерабельной
+                # отправки при повторном событии/сбое MQTT
+                self.conn.execute(
+                    "UPDATE pending_schedule SET status='sent', updated_at=? "
+                    "WHERE id=?", (now, newest["id"]))
+            log.info("SCHEDULE: %s — прогон завершён, отправляю отложенную "
+                     "машинограмму (schedule_id=%s)", box_id,
+                     newest["schedule_id"])
+            self.send_schedule(newest["schedule_id"])
+            self.write_log("schedule.pending_flushed", box_id,
+                           {"schedule_id": newest["schedule_id"],
+                            "cancelled_queued": [r["id"] for r in rows[1:]]})
+        except RuntimeError as exc:      # MQTT недоступен → failed, ждём hello
+            with self._lock, self.conn:
+                self.conn.execute(
+                    "UPDATE pending_schedule SET status='failed', updated_at=? "
+                    "WHERE id=?", (utcnow_iso(), row["id"]))
+            log.warning("SCHEDULE: отложенная доставка %s не удалась: %s",
+                        box_id, exc)
+        except Exception:
+            log.exception("SCHEDULE: flush pending_schedule для %s упал", box_id)
+
     # ------------------------------------------------- автокомпиляция (изменения)
+    def controllers_affected_by_program(self, program_id: int) -> list[int]:
+        """Контроллеры, чьи машинограммы зависят от программы.
+
+        Как компилятор (_load_programs): программа применяется ко всем
+        контроллерам, у которых есть живые зоны из program_zones этой
+        программы.
+        """
+        rows = self.conn.execute(
+            """SELECT DISTINCT z.controller_id AS cid
+               FROM program_zones pz
+               JOIN zones z ON z.id = pz.zone_id
+               WHERE pz.program_id=? AND z.deleted_at IS NULL""",
+            (program_id,)).fetchall()
+        return [int(r["cid"]) for r in rows]
+
+    def record_compile_error(self, controller_id: int, reason: str,
+                             error: dict) -> None:
+        """P1-3: ошибка автокомпиляции — в БД (UI различает «настройки
+        сохранены» и «расписание применено»)."""
+        try:
+            with self._lock, self.conn:
+                self.conn.execute(
+                    """INSERT INTO schedule_compile_errors(
+                           controller_id, reason, error_json, ts)
+                       VALUES (?,?,?,?)""",
+                    (controller_id, reason,
+                     json.dumps(error, ensure_ascii=False), utcnow_iso()))
+        except Exception:
+            log.exception("SCHEDULE: не удалось сохранить ошибку компиляции")
+
+    def last_compile_error(self, controller_id: int) -> Optional[dict]:
+        row = self.conn.execute(
+            """SELECT * FROM schedule_compile_errors
+               WHERE controller_id=? ORDER BY id DESC LIMIT 1""",
+            (controller_id,)).fetchone()
+        if row is None:
+            return None
+        try:
+            err = json.loads(row["error_json"])
+        except (TypeError, ValueError):
+            err = {"message": row["error_json"]}
+        return {"id": row["id"], "reason": row["reason"], "ts": row["ts"],
+                "error": err}
+
+    def clear_compile_error(self, controller_id: int) -> None:
+        """Успешная компиляция снимает статус ошибки (для UI)."""
+        with self._lock, self.conn:
+            self.conn.execute(
+                "DELETE FROM schedule_compile_errors WHERE controller_id=?",
+                (controller_id,))
+
     def invalidate_and_recompile(self, controller_id: int, reason: str,
                                  actor: Optional[str] = None) -> None:
         """Вызывается после правок программ/зон/блокировок: компилирует новую
         версию (source=auto) и применяет политику: online-контроллер получает
         публикацию немедленно (с учётом next_run), офлайн — ждёт hello.
+
+        P1-3: ошибка компиляции сохраняется в schedule_compile_errors
+        (CRUD-запрос при этом завершается успешно — настройки применены).
         """
         try:
             stored = self.compile_and_store(controller_id, source="auto",
@@ -533,9 +807,14 @@ class ScheduleService:
         except ScheduleConflict as exc:
             log.warning("SCHEDULE: автокомпиляция %s (%s) — конфликт: %s",
                         controller_id, reason, exc)
+            self.record_compile_error(controller_id, reason, {
+                "code": "schedule_conflict",
+                "message": str(exc),
+                "conflicts": getattr(exc, "conflicts", [])})
             return
         except ValueError:
             return
+        self.clear_compile_error(controller_id)
         ctrl = self.conn.execute(
             "SELECT connection_status FROM controllers WHERE id=?",
             (controller_id,)).fetchone()
@@ -546,6 +825,45 @@ class ScheduleService:
             log.info("SCHEDULE: новая версия %s для контроллера %s (%s) — "
                      "будет отправлена при подключении", stored["id"],
                      controller_id, reason)
+
+    def recompile_for_program(self, program_id: int, reason: str,
+                              actor: Optional[str] = None) -> None:
+        """P1-3: хук CRUD программ — перекомпиляция всех затронутых контроллеров."""
+        for cid in self.controllers_affected_by_program(program_id):
+            self.invalidate_and_recompile(cid, reason, actor)
+
+    def recompile_for_zone(self, zone_id: int, reason: str,
+                           actor: Optional[str] = None) -> None:
+        """P1-3: хук CRUD зон — перекомпиляция контроллера-владельца зоны."""
+        row = self.conn.execute(
+            "SELECT controller_id FROM zones WHERE id=?", (zone_id,)).fetchone()
+        if row is not None:
+            self.invalidate_and_recompile(int(row["controller_id"]), reason, actor)
+
+    def all_active_controller_ids(self) -> list[int]:
+        """P1-3: все контроллеры с включёнными программами (для глобальных
+        настроек: adjustment.*, schedule.apply_policy и т.п.)."""
+        # Единый источник программ — `programs` (миграция 0002); привязка
+        # программы к контроллеру — через program_zones -> zones.controller_id
+        # (в programs колонки controller_id нет; компилятор читает так же).
+        rows = self.conn.execute(
+            """SELECT DISTINCT z.controller_id AS cid
+               FROM program_zones pz
+               JOIN zones z ON z.id = pz.zone_id
+               JOIN programs p ON p.id = pz.program_id
+               WHERE p.enabled = 1 AND z.deleted_at IS NULL"""
+        ).fetchall()
+        return [int(r["cid"]) for r in rows]
+
+    def recompile_all(self, reason: str,
+                      actor: Optional[str] = None) -> None:
+        """P1-3: хук изменения глобальных настроек — перекомпиляция всех
+        затронутых контроллеров (ошибки не поднимаются — сохраняются в БД)."""
+        for cid in self.all_active_controller_ids():
+            try:
+                self.invalidate_and_recompile(cid, reason, actor)
+            except Exception:
+                log.exception("SCHEDULE: автоперекомпиляция контроллера %s упала", cid)
 
 
 _instance: Optional[ScheduleService] = None

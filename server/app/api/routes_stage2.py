@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+import inspect
+import logging
 import sqlite3
 from typing import Any, Optional
 
@@ -16,6 +18,8 @@ from ..infra.config import Config
 from ..services.auth_service import SESSION_COOKIE, AuthService
 from ..services.catalog_service import CatalogService, ValidationError
 from ..services.user_service import UserService
+
+log = logging.getLogger("poliv.api")
 
 ROLE_LEVELS = {"viewer": 0, "operator": 1, "admin": 2}
 
@@ -48,6 +52,55 @@ def register_api_routes(
     def _actor(request: Request) -> str:
         u = _user(request)
         return u["username"] if u else "?"
+
+    # Этап 4 final (P1-3): автоперекомпиляция машинограмм после CRUD.
+    # Сервис расписаний опционален (тесты Этапов 1–3 поднимают API без него);
+    # ошибки перекомпиляции НЕ ломают CRUD-ответ — они сохраняются в
+    # schedule_compile_errors («настройки сохранены, расписание не применено»).
+    def _recompile_program(program_id: int, reason: str, request: Request):
+        try:
+            from ..services.schedule_service import get_schedule_service
+            svc = get_schedule_service()
+            if svc is not None:
+                svc.recompile_for_program(program_id, reason, _actor(request))
+        except Exception:
+            log.exception("API: автоперекомпиляция программы %s упала", program_id)
+
+    def _recompile_zone(zone_id: int, reason: str, request: Request):
+        try:
+            from ..services.schedule_service import get_schedule_service
+            svc = get_schedule_service()
+            if svc is not None:
+                svc.recompile_for_zone(zone_id, reason, _actor(request))
+        except Exception:
+            log.exception("API: автоперекомпиляция зоны %s упала", zone_id)
+
+    def _recompile_controller(controller_id: int, reason: str, request: Request):
+        try:
+            from ..services.schedule_service import get_schedule_service
+            svc = get_schedule_service()
+            if svc is not None:
+                svc.invalidate_and_recompile(controller_id, reason,
+                                             _actor(request))
+        except Exception:
+            log.exception("API: автоперекомпиляция контроллера %s упала",
+                          controller_id)
+
+    # P1-3: глобальные настройки (adjustment.*, schedule.apply_policy,
+    # parallel_enabled_default и т.п.) — перекомпиляция всех затронутых
+    # контроллеров. Только для ключей, влияющих на машинограмму.
+    _SCHEDULE_SETTING_PREFIXES = ("adjustment.", "schedule.")
+
+    def _recompile_settings(key: str, request: Request):
+        if not key.startswith(_SCHEDULE_SETTING_PREFIXES):
+            return
+        try:
+            from ..services.schedule_service import get_schedule_service
+            svc = get_schedule_service()
+            if svc is not None:
+                svc.recompile_all(f"настройка {key}", _actor(request))
+        except Exception:
+            log.exception("API: автоперекомпиляция после настройки %s упала", key)
 
     def _log(request: Request, action: str, obj_type: str, obj_id: Any, details: Any = None):
         app.state.auth.write_log(
@@ -114,12 +167,21 @@ def register_api_routes(
     async def update_controller(request: Request, controller_id: int):
         c = catalog.update_controller(controller_id, await body(request))
         _log(request, "controller.updated", "controller", controller_id)
+        # P1-3: enabled/name влияют на компиляцию — пересобираем расписание
+        _recompile_controller(controller_id, "controller.updated", request)
         return c
 
     async def delete_controller(request: Request, controller_id: int):
         catalog.delete_controller(controller_id)
         _log(request, "controller.deleted", "controller", controller_id)
+        _recompile_controller(controller_id, "controller.disabled", request)
         return {"ok": True}
+
+    async def enable_controller(request: Request, controller_id: int):
+        c = catalog.enable_controller(controller_id)
+        _log(request, "controller.enabled", "controller", controller_id)
+        _recompile_controller(controller_id, "controller.enabled", request)
+        return c
 
     api("GET", "/api/controllers", list_controllers, "viewer")
     api("POST", "/api/controllers", create_controller, "admin")
@@ -147,12 +209,20 @@ def register_api_routes(
     async def update_zone(request: Request, zone_id: int):
         z = catalog.update_zone(zone_id, await body(request))
         _log(request, "zone.updated", "zone", zone_id)
+        _recompile_zone(zone_id, "zone.updated", request)
         return z
 
     async def delete_zone(request: Request, zone_id: int):
         catalog.delete_zone(zone_id)
         _log(request, "zone.disabled", "zone", zone_id)
+        _recompile_zone(zone_id, "zone.disabled", request)
         return {"ok": True}
+
+    async def enable_zone(request: Request, zone_id: int):
+        z = catalog.enable_zone(zone_id)
+        _log(request, "zone.enabled", "zone", zone_id)
+        _recompile_zone(zone_id, "zone.enabled", request)
+        return z
 
     api("GET", "/api/zones", list_zones, "viewer")
     api("POST", "/api/zones", create_zone, "admin")
@@ -178,11 +248,14 @@ def register_api_routes(
     async def update_program(request: Request, program_id: int):
         p = catalog.update_program(program_id, await body(request))
         _log(request, "program.updated", "program", program_id)
+        # P1-3: disable программы -> новая версия расписания автоматически
+        _recompile_program(program_id, "program.updated", request)
         return p
 
     async def delete_program(request: Request, program_id: int):
         catalog.delete_program(program_id)
         _log(request, "program.deleted", "program", program_id)
+        _recompile_program(program_id, "program.deleted", request)
         return {"ok": True}
 
     async def set_program_zones(request: Request, program_id: int):
@@ -216,6 +289,7 @@ def register_api_routes(
                 raise ValidationError(f"Некорректный элемент списка «{field}»")
         p = catalog.set_program_zones(program_id, cleaned)
         _log(request, "program.zones_set", "program", program_id, {"count": len(p["zones"])})
+        _recompile_program(program_id, "program.zones_set", request)
         return p
 
     api("GET", "/api/programs", list_programs, "viewer")
@@ -265,6 +339,7 @@ def register_api_routes(
     async def update_setting(request: Request, key: str):
         data = await body(request)
         catalog.set_setting(key, data.get("value"), _actor(request))
+        _recompile_settings(key, request)  # P1-3
         _log(request, "setting.updated", "setting", key, {"value": data.get("value")})
         return {"ok": True}
 
