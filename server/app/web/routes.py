@@ -45,6 +45,33 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
     catalog: CatalogService = app.state.catalog
     users: UserService = app.state.users
 
+    # Аудит Этап 4 final-fixes (P1-3): веб-формы не должны обходить
+    # автоперекомпиляцию — после CRUD программ/зон перекомпиливаем
+    # затронутые машинограммы, как это делает API-слой (routes_stage2).
+    # Ошибки перекомпиляции НЕ ломают веб-запрос — сохраняются в
+    # schedule_compile_errors («настройки применены, расписание не пересобрано»).
+    def _recompile_program(program_id, reason: str, actor: str | None):
+        try:
+            from ..services.schedule_service import get_schedule_service
+            svc = get_schedule_service()
+            if svc is not None and program_id is not None:
+                pid = int(program_id)
+                if pid > 0:
+                    svc.recompile_for_program(pid, reason, actor)
+        except Exception:
+            log.exception("WEB: автоперекомпиляция программы %s упала", program_id)
+
+    def _recompile_zone(zone_id, reason: str, actor: str | None):
+        try:
+            from ..services.schedule_service import get_schedule_service
+            svc = get_schedule_service()
+            if svc is not None and zone_id is not None:
+                zid = int(zone_id)
+                if zid > 0:
+                    svc.recompile_for_zone(zid, reason, actor)
+        except Exception:
+            log.exception("WEB: автоперекомпиляция зоны %s упала", zone_id)
+
     # Версия приложения доступна во всех шаблонах (заголовок вкладки и логотип).
     templates.env.globals["app_version"] = getattr(app, "version", "0.0.0")
 
@@ -335,10 +362,12 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             if zid and zid.isdigit():
                 catalog.update_zone(int(zid), data)
                 auth.write_log(user["id"], user["username"], "zone.updated", "zone", zid)
+                _recompile_zone(int(zid), "zone.updated", user["username"])
             else:
                 z = catalog.create_zone(data)
                 auth.write_log(user["id"], user["username"], "zone.created", "zone",
                                z["id"], {"number": z["zone_number"]})
+                _recompile_zone(z["id"], "zone.created", user["username"])
         except ValidationError as exc:
             return redirect("/zones", error=str(exc))
         return redirect("/zones", ok="Зона сохранена")
@@ -354,6 +383,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         try:
             catalog.delete_zone(zone_id)
             auth.write_log(user["id"], user["username"], "zone.disabled", "zone", zone_id)
+            _recompile_zone(zone_id, "zone.disabled", user["username"])
         except ValidationError as exc:
             return redirect("/zones", error=str(exc))
         return redirect("/zones", ok="Зона отключена (зоны не удаляются — см. ТЗ)")
@@ -369,6 +399,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         try:
             catalog.enable_zone(zone_id)
             auth.write_log(user["id"], user["username"], "zone.enabled", "zone", zone_id)
+            _recompile_zone(zone_id, "zone.enabled", user["username"])
         except ValidationError as exc:
             return redirect("/zones", error=str(exc))
         return redirect("/zones", ok="Зона включена")
@@ -422,10 +453,12 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
                 catalog.update_program(int(pid), data)
                 auth.write_log(user["id"], user["username"], "program.updated",
                                "program", pid)
+                _recompile_program(int(pid), "program.updated", user["username"])
             else:
                 p = catalog.create_program(data)
                 auth.write_log(user["id"], user["username"], "program.created",
                                "program", p["id"], {"name": p["name"]})
+                _recompile_program(p["id"], "program.created", user["username"])
         except ValidationError as exc:
             return redirect("/programs", error=str(exc))
         return redirect("/programs", ok="Программа сохранена")
@@ -442,6 +475,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             catalog.delete_program(program_id)
             auth.write_log(user["id"], user["username"], "program.deleted",
                            "program", program_id)
+            _recompile_program(program_id, "program.deleted", user["username"])
         except ValidationError as exc:
             return redirect("/programs", error=str(exc))
         return redirect("/programs", ok="Программа удалена")
@@ -485,6 +519,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             catalog.set_program_zones(program_id, spec)
             auth.write_log(user["id"], user["username"], "program.zones_set",
                            "program", program_id, {"zone_ids": raw})
+            _recompile_program(program_id, "program.zones_set", user["username"])
         except ValidationError as exc:
             return redirect(f"/programs/{program_id}", error=str(exc))
         return redirect(f"/programs/{program_id}", ok="Состав зон программы обновлён")

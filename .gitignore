@@ -1,7 +1,35 @@
-# Python bytecode
-__pycache__/
-*.pyc
-
-# Logs
+# Runtime data (создаются автоматически при старте)
+data/
 logs/
-*.log
+backups/
+
+# Python compiled files and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+venv/
+.venv/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
