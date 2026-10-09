@@ -8,9 +8,12 @@
 - входящие сообщения валидируются по контракту; невалидные → log.warning, сервер
   НЕ падает и не меняет состояние;
 - события (event) на Этапе 3 только логируются в logs/mqtt.log и журнал БД
-  (source=mqtt) — хранение в БД появится на Этапе 6;
-- машинограммы не компилируются: schedule_request отвечает заглушкой
-  schedule_version=0, runs=[] (полная компиляция — Этап 4).
+  (source=mqtt) — хранение в БД появится на Этапе 6; с Этапа 4 события полива
+  дополнительно передаются в ScheduleService (журнал watering_runs);
+- Этап 4: schedule_request/hello отвечают НАСТОЯЩЕЙ машинограммой через
+  ScheduleService (компиляция + публикация); если сервис не подключён или
+  компиляция невозможна — сохраняется ответ заглушкой v0 (деградация Этапа 3,
+  контроллер не остаётся без ответа).
 
 Топики подписки: poliv/+/hello, status, lwt, command_ack, schedule_ack, event, flow.
 Публикации: poliv/{box_id}/time (при hello и раз в 6 ч), poliv/server/heartbeat
@@ -90,6 +93,13 @@ class MqttServerClient:
         self.client = None  # paho-клиент или мок (в тестах)
         self.connected = False
         self._sched_seq = 0  # счётчик ответов schedule (для idempotency-логов)
+        # Этап 4: сервис машинограмм (attach из main.py). Без него — деградация
+        # к заглушке v0 (поведение Этапа 3).
+        self.schedule_service = None
+
+    def attach_schedule_service(self, svc) -> None:
+        """Lifespan/DI: подключить ScheduleService для реальной рассылки."""
+        self.schedule_service = svc
 
     # ------------------------------------------------------------------ lifecycle
     def start(self) -> None:
@@ -324,8 +334,9 @@ class MqttServerClient:
         log.info("MQTT: hello от %s — контроллер online", box_id)
         # Синхронизация времени при старте контроллера (ТЗ §9.2)
         self.publish_time(box_id, force=True)
-        # Запрос машинограммы при hello предполагаем — отвечаем заглушкой Этапа 3
-        self._send_schedule_stub(box_id)
+        # Машинограмма при hello: Этап 4 — реальная компиляция/рассылка через
+        # ScheduleService; без сервиса — деградация к заглушке v0 (Этап 3).
+        self.send_schedule(box_id)
 
     def _handle_status(self, box_id: str, p: dict) -> None:
         if not self._require_box(box_id):
@@ -404,7 +415,14 @@ class MqttServerClient:
             return
         log.info("MQTT: schedule_ack от %s: v%s %s", box_id,
                  p.get("schedule_version"), p.get("status"))
-        # Полная обработка машинограмм — Этап 4.
+        # Этап 4: sent→acknowledged/failed + watering_runs(planned) — сервис.
+        svc = self.schedule_service
+        if svc is not None:
+            try:
+                svc.on_schedule_ack(box_id, p)
+            except Exception:
+                log.exception("MQTT: ScheduleService.on_schedule_ack упал для %s",
+                              box_id)
 
     def _handle_event(self, box_id: str, p: dict) -> None:
         # Этап 3: события НЕ хранятся в БД (Этап 6) — только валидация,
@@ -427,6 +445,13 @@ class MqttServerClient:
                         "water_sec": p.get("water_sec"),
                         "volume_liters": p.get("volume_liters"),
                         "active_zones": p.get("active_zones")}, source="mqtt")
+        # Этап 4: журнал прогонов watering_runs (план→факт) из событий полива.
+        svc = self.schedule_service
+        if svc is not None:
+            try:
+                svc.on_event(box_id, p)
+            except Exception:
+                log.exception("MQTT: ScheduleService.on_event упал для %s", box_id)
 
     def _handle_flow(self, box_id: str, p: dict) -> None:
         if not self._require_box(box_id):
@@ -489,6 +514,26 @@ class MqttServerClient:
             "online": True,
         }, qos=1, retain=True)
 
+    def send_schedule(self, box_id: str) -> None:
+        """Ответ контроллеру машинограммой (hello / schedule_request).
+
+        Этап 4: если ScheduleService подключён — реальная компиляция и
+        публикация актуальной версии (с учётом apply_policy). Иначе —
+        деградация к заглушке v0 (поведение Этапа 3): контроллер не остаётся
+        без ответа.
+        """
+        if not self._require_box(box_id):
+            return
+        svc = self.schedule_service
+        if svc is not None:
+            try:
+                svc.on_hello(box_id)
+                return
+            except Exception:
+                log.exception("MQTT: ScheduleService.on_hello упал для %s — "
+                              "деградация к заглушке", box_id)
+        self._send_schedule_stub(box_id)
+
     def send_schedule_stub(self, box_id: str) -> None:
         """Публичный вход для обработчика schedule_request (и тестов)."""
         if not self._require_box(box_id):
@@ -498,10 +543,10 @@ class MqttServerClient:
     def _handle_schedule_request(self, box_id: str, p: dict) -> None:
         # poliv/+/schedule_request не в списке подписок задания, но топик входит
         # в контракт (§2.1) — поддерживаем, если брокер доставит.
-        self.send_schedule_stub(box_id)
+        self.send_schedule(box_id)
 
     def _send_schedule_stub(self, box_id: str) -> None:
-        """Заглушка Этапа 3: пустая машинограмма до полноценной компиляции (Этап 4)."""
+        """Заглушка Этапа 3 (деградация): пустая машинограмма v0."""
         today = date.today()
         self._sched_seq += 1
         payload = {
@@ -608,13 +653,15 @@ def get_mqtt_client() -> Optional[MqttServerClient]:
 
 
 def start_mqtt(cfg: Config, client_factory=None, db_path: Optional[str] = None,
-               command_service=None) -> MqttServerClient:
+               command_service=None, schedule_service=None) -> MqttServerClient:
     """Lifespan-подобный старт: вызывается из main.py, НЕ при импорте модуля."""
     global _instance
     with _instance_lock:
         if _instance is not None:
             return _instance
         inst = MqttServerClient(cfg, client_factory=client_factory, db_path=db_path)
+        if schedule_service is not None:
+            inst.attach_schedule_service(schedule_service)
         inst.start()
         if command_service is not None:
             command_service.attach(inst)
