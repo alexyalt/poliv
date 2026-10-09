@@ -741,7 +741,9 @@ def test_end_to_end_scenario_7_steps(svc_env):
     m = conn.execute("SELECT status FROM watering_runs WHERE run_id='m-1'"
                      ).fetchone()
     assert m["status"] == "completed"
-    # плановый прогон v1 запускается (started) — остальные planned cancelled
+    # плановый прогон v1 запускается (started) — остальные planned НЕ
+    # отменяются (регрессия аудитора №2: старт одного прогона не трогает
+    # future-planned актуальной машинограммы)
     svc.on_event("BOX-S4", {"status": "started", "source": "schedule",
                             "run_id": rid, "active_zones": [1],
                             "start_ts": _now_ts + 60, "event_uid": "s-1",
@@ -787,11 +789,12 @@ def test_end_to_end_scenario_7_steps(svc_env):
                      (rid,)).fetchone()
     assert m is not None and m["status"] == "active", \
         f"активный прогон не должен сниматься при applied новой версии: {m}"
-    # P2-8: planned-записи старой версии v1, отсутствующие в принятой v2,
-    # отменены (кроме занятого rid)
+    # Аудит №2 (исправление P2-8): applied ТОЙ ЖЕ версии v1 не отменяет
+    # planned-записи v1 — future-planned актуальной машинограммы живы.
+    # Отмена устаревших планов произойдёт позже, при applied v3 (шаг 5).
     canc = conn.execute("SELECT count(*) c FROM watering_runs "
                         "WHERE status='cancelled'").fetchone()["c"]
-    assert canc >= 1
+    assert canc == 0, f"applied той же версии не должен ничего отменять: {canc}"
     n_pub = len(fake.published)
     # 4. во время активного прогона: v3 -> deferred (queued поверх v2)
     assert conn.execute("SELECT count(*) c FROM watering_runs "
@@ -867,3 +870,117 @@ def test_programs_single_source_of_truth_settings_hook(svc_env):
     step_zones = [z for st in latest["payload"]["runs"][0]["steps"]
                   for z in st.get("active_zones", [])]
     assert step_zones == [1]
+
+
+# ------------------------- Аудит Этап 4, итерация final-fixes: регрессии ----
+def test_start_one_run_does_not_cancel_future_planned(svc_env):
+    """Регрессия аудитора №2 (P2-8): старт ОДНОГО прогона не должен
+    отменять будущие planned-записи актуальной машинограммы."""
+    svc, conn, cid, fake = svc_env
+    stored = svc.compile_and_store(cid, source="auto")
+    svc.send_schedule(stored["id"])
+    payload = fake.published[-1][1]
+    runs = payload["runs"]
+    assert len(runs) >= 2, "нужно минимум 2 запуска в машинограмме"
+    svc.on_schedule_ack("BOX-S4", {"schedule_version": payload["schedule_version"],
+                                   "schedule_hash": payload["schedule_hash"],
+                                   "status": "applied"})
+    planned_before = conn.execute(
+        "SELECT count(*) c FROM watering_runs WHERE status='planned'"
+    ).fetchone()["c"]
+    assert planned_before == len(runs)
+
+    # старт первого запуска (план -> факт)
+    rid = runs[0]["run_id"]
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    svc.on_event("BOX-S4", {"status": "started", "source": "schedule",
+                            "run_id": rid, "active_zones": [1],
+                            "start_ts": now_ts, "event_uid": "regr-s-1",
+                            "buffered": False})
+
+    active = conn.execute("SELECT count(*) c FROM watering_runs "
+                          "WHERE status='active'").fetchone()["c"]
+    planned = conn.execute("SELECT count(*) c FROM watering_runs "
+                           "WHERE status='planned'").fetchone()["c"]
+    cancelled = conn.execute("SELECT count(*) c FROM watering_runs "
+                             "WHERE status='cancelled'").fetchone()["c"]
+    assert active == 1, f"ожидался 1 active, есть {active}"
+    assert planned == len(runs) - 1, \
+        f"остальные future-planned не должны отменяться: ожидалось " \
+        f"{len(runs) - 1}, есть {planned}"
+    assert cancelled == 0, \
+        f"старт одного запуска не создаёт cancelled-записей, есть {cancelled}"
+
+
+def test_ack_new_version_cancels_only_stale_planned(svc_env):
+    """Аудит Этап 4 (P2-8): ACK новой версии отменяет ТОЛЬКО planned-записи,
+    отсутствующие в принятой машинограмме; совпадающие run_id переносятся
+    на новую версию, а не дублируются/отменяются."""
+    svc, conn, cid, fake = svc_env
+    # v1: базовая машинограмма (программа «Утро» 06:00)
+    s1 = svc.compile_and_store(cid, source="auto")
+    svc.send_schedule(s1["id"])
+    p1 = fake.published[-1][1]
+    svc.on_schedule_ack("BOX-S4", {"schedule_version": p1["schedule_version"],
+                                   "schedule_hash": p1["schedule_hash"],
+                                   "status": "applied"})
+    v1_ids = {r["run_id"] for r in p1["runs"]}
+    planned_v1 = conn.execute("SELECT run_id FROM watering_runs "
+                              "WHERE status='planned'").fetchall()
+    assert {p["run_id"] for p in planned_v1} == v1_ids
+
+    # v2: добавляем вторую программу («Вечер») — старые запуски сохраняются,
+    # появляются новые run_id
+    now_iso = utcnow_iso_test()
+    conn.execute("INSERT INTO programs(name,schedule_type,start_time,"
+                 "weekdays_mask,enabled,created_at,updated_at)"
+                 " VALUES ('Вечер','weekdays','20:00','1111111',1,?,?)",
+                 (now_iso, now_iso))
+    zid = conn.execute("SELECT id FROM zones WHERE zone_number=1").fetchone()["id"]
+    pid2 = conn.execute("SELECT id FROM programs WHERE name='Вечер'").fetchone()["id"]
+    conn.execute("INSERT INTO program_zones(program_id,zone_id,seq) VALUES (?,?,-1)",
+                 (pid2, zid))
+    conn.commit()
+    s2 = svc.compile_and_store(cid, source="auto")
+    svc.send_schedule(s2["id"])
+    p2 = fake.published[-1][1]
+    v2_ids = {r["run_id"] for r in p2["runs"]}
+    assert v1_ids < v2_ids, "новая версия должна содержать старые + новые запуски"
+    new_only = v2_ids - v1_ids
+    assert new_only
+
+    svc.on_schedule_ack("BOX-S4", {"schedule_version": p2["schedule_version"],
+                                   "schedule_hash": p2["schedule_hash"],
+                                   "status": "applied"})
+
+    planned_rows = conn.execute("SELECT run_id, schedule_version FROM watering_runs "
+                                "WHERE status='planned'").fetchall()
+    assert {r["run_id"] for r in planned_rows} == v2_ids, \
+        "planned = ровно запуски принятой версии (старые перенесены, новые созданы)"
+    assert all(r["schedule_version"] == p2["schedule_version"] for r in planned_rows), \
+        "перенесённые planned-записи получают номер новой версии"
+    # ни одна запланированная запись не отменена (устаревших планов нет)
+    cancelled = conn.execute("SELECT count(*) c FROM watering_runs "
+                             "WHERE status='cancelled'").fetchone()["c"]
+    assert cancelled == 0, \
+        f"ACK дополненной версии не отменяет актуальные plans: cancelled={cancelled}"
+
+    # и наоборот: убираем «Вечер» -> v3 без новых запусков -> их plans cancelled
+    conn.execute("UPDATE programs SET enabled=0 WHERE id=?", (pid2,))
+    conn.commit()
+    s3 = svc.compile_and_store(cid, source="auto")
+    svc.send_schedule(s3["id"])
+    p3 = fake.published[-1][1]
+    v3_ids = {r["run_id"] for r in p3["runs"]}
+    assert v3_ids == v1_ids
+    svc.on_schedule_ack("BOX-S4", {"schedule_version": p3["schedule_version"],
+                                   "schedule_hash": p3["schedule_hash"],
+                                   "status": "applied"})
+    canc = conn.execute("SELECT run_id, reason_code FROM watering_runs "
+                        "WHERE status='cancelled'").fetchall()
+    assert {c["run_id"] for c in canc} == new_only, \
+        "отменены ровно те plans, которых нет в новой версии"
+    assert all(c["reason_code"] == "replaced_by_newer_schedule" for c in canc)
+    left = conn.execute("SELECT run_id FROM watering_runs "
+                        "WHERE status='planned'").fetchall()
+    assert {r["run_id"] for r in left} == v1_ids

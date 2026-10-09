@@ -632,20 +632,12 @@ class ScheduleService:
                 return
             now = utcnow_iso()
             ev_run_id = str(p.get("run_id")) if p.get("run_id") else None
-            # Этап 4 final (P2-8): старт прогона — все остальные planned-записи
-            # этого контроллера устарели (новая машинограмма принята / план
-            # пересобран): status='cancelled', reason='replaced_by_newer_schedule'.
-            # Отмена выполняется ВНУТРИ основной транзакции ниже — иначе
-            # незакрытая транзакция блокирует чтение conn в _flush_pending.
-            cancel_stale = status == "started"
+            # Аудит Этап 4 (регрессия P2-8): старт ОДНОГО прогона НЕ отменяет
+            # остальные future-planned записи контроллера — они относятся к
+            # актуальной машинограмме и будут исполнены по расписанию.
+            # Отмена устаревших планов выполняется только в _record_planned_runs
+            # при applied новой версии (ACK).
             with self._lock, self.conn:
-                if cancel_stale:
-                    self.conn.execute(
-                        """UPDATE watering_runs
-                           SET status='cancelled', reason_code=?, updated_at=?
-                           WHERE controller_id=? AND status='planned'
-                             AND run_id != ?""",
-                        ("replaced_by_newer_schedule", now, cid, str(run_id)))
                 if status == "started":
                     # §3.9/Этап 4: событие несёт зоны, которые реально
                     # поливались в прогоне (ev_zones), а не текущие
