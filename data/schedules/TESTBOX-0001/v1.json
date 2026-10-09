@@ -1,0 +1,53 @@
+{
+  "protocol_version": "1.0",
+  "box_id": "TESTBOX-0001",
+  "schedule_version": 1,
+  "schedule_hash": "a494c1457e8fbb13bc6368f5f185e87be047afdded2d56a5c97689e1bf033168",
+  "valid_from_date": "2026-10-09",
+  "valid_to_date": "2026-10-16",
+  "timezone_offset_min": 0,
+  "generated_ts": 1791569207,
+  "source": "auto",
+  "options": {
+    "max_catchup_sec": 600,
+    "max_start_delay_sec": 120,
+    "parallel_enabled": false,
+    "soak_display": "display_zones"
+  },
+  "runs": [
+    {
+      "run_id": "e4b8d577-0a5f-5b23-b560-7c221badbac0",
+      "program_id": 1,
+      "date": "2026-10-13",
+      "start_minute_local": 360,
+      "enabled": true,
+      "mode": "sequential",
+      "steps": [
+        {
+          "seq": 1,
+          "duration_sec": 600,
+          "phase": "water",
+          "active_zones": [
+            3
+          ]
+        },
+        {
+          "seq": 2,
+          "duration_sec": 600,
+          "phase": "water",
+          "active_zones": [
+            2
+          ]
+        },
+        {
+          "seq": 3,
+          "duration_sec": 600,
+          "phase": "water",
+          "active_zones": [
+            1
+          ]
+        }
+      ]
+    }
+  ]
+}

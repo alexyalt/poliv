@@ -1,0 +1,18 @@
+{
+  "protocol_version": "1.0",
+  "box_id": "PG-BOX-1",
+  "schedule_version": 3,
+  "schedule_hash": "06ccf802395ee7dc2ba0fd85fd8d2308ef830d7d0ee516ea22b36c7074bbeeb9",
+  "valid_from_date": "2026-10-09",
+  "valid_to_date": "2026-10-16",
+  "timezone_offset_min": 0,
+  "generated_ts": 1791569214,
+  "source": "auto",
+  "options": {
+    "max_catchup_sec": 600,
+    "max_start_delay_sec": 120,
+    "parallel_enabled": false,
+    "soak_display": "display_zones"
+  },
+  "runs": []
+}

@@ -269,6 +269,53 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             editing=editing,
         )
 
+    @app.get("/controllers/{controller_id}", response_class=HTMLResponse)
+    def controller_detail(controller_id: int, request: Request):
+        """Страница контроллера (ТЗ Этап 5, п.2).
+
+        Первичный рендер — из БД (тот же источник, что у view-API
+        /api/controllers/{id}/view), далее фронтенд опрашивает API каждые
+        10 секунд. Состав: live-состояние, зоны с активностью и остатком
+        времени, кнопки команд (как на дашборде), последние прогоны
+        (план→факт), ошибки компиляции/очередь машинограмм.
+        """
+        from ..api.routes_stage3 import LIVE_SELECT, live_view
+        from ..api.routes_stage5 import _liters_for_controller, zone_activity
+        from datetime import datetime as _dt, timezone as _tz
+
+        row = conn.execute(
+            LIVE_SELECT + " WHERE id=? AND deleted_at IS NULL",
+            (controller_id,)).fetchone()
+        user = current_user(request)
+        if user is None:
+            return RedirectResponse("/login", status_code=302)
+        if row is None:
+            return render_error(templates, request, 404)
+        v = live_view(row)
+        now_ts = int(_dt.now(_tz.utc).timestamp())
+        activity = zone_activity(conn, controller_id, now_ts)
+        zones = []
+        for z in conn.execute(
+            """SELECT id, zone_number, name, enabled, icon,
+                      base_duration_minutes, watering_adjustment_percent,
+                      cycle_soak_enabled, expected_flow_lpm
+               FROM zones WHERE controller_id=? AND deleted_at IS NULL
+               ORDER BY zone_number""", (controller_id,)).fetchall():
+            zd = dict(z)
+            act = activity.get(int(zd["zone_number"]))
+            zd["active"] = act is not None
+            zd["phase"] = act["phase"] if act else None
+            zd["remaining_sec"] = act["remaining_sec"] if act else None
+            zones.append(zd)
+        return page(
+            request,
+            "controller_detail.html",
+            controller=v,
+            zones=zones,
+            today_liters=_liters_for_controller(conn, controller_id)[0],
+            stage="Этап 5. Операторский интерфейс",
+        )
+
     @app.post("/controllers/save")
     async def controllers_save(request: Request):
         user = current_user(request)

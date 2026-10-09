@@ -1,0 +1,53 @@
+{
+  "protocol_version": "1.0",
+  "box_id": "PG-BOX-1",
+  "schedule_version": 4,
+  "schedule_hash": "046b169c1846152c9105206e95c0e4e250af9cf6963d26660b45a83251c3f89a",
+  "valid_from_date": "2026-10-09",
+  "valid_to_date": "2026-10-16",
+  "timezone_offset_min": 0,
+  "generated_ts": 1791569214,
+  "source": "auto",
+  "options": {
+    "max_catchup_sec": 600,
+    "max_start_delay_sec": 120,
+    "parallel_enabled": false,
+    "soak_display": "display_zones"
+  },
+  "runs": [
+    {
+      "run_id": "40cea98e-8b52-590b-b6a4-09d3d1223f07",
+      "program_id": 1,
+      "date": "2026-10-13",
+      "start_minute_local": 360,
+      "enabled": true,
+      "mode": "sequential",
+      "steps": [
+        {
+          "seq": 1,
+          "duration_sec": 600,
+          "phase": "water",
+          "active_zones": [
+            1
+          ]
+        },
+        {
+          "seq": 2,
+          "duration_sec": 600,
+          "phase": "water",
+          "active_zones": [
+            2
+          ]
+        },
+        {
+          "seq": 3,
+          "duration_sec": 600,
+          "phase": "water",
+          "active_zones": [
+            3
+          ]
+        }
+      ]
+    }
+  ]
+}

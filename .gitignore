@@ -1,35 +1,10 @@
-# Runtime data (создаются автоматически при старте)
-data/
-logs/
-backups/
-
-# Python compiled files and caches
+# Compiled and build artifacts
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
+*.pyc
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
+# Logs and temp files
+logs/
+*.log
 
 # Environment
 .env
-.env.local
-venv/
-.venv/
-env/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
