@@ -412,6 +412,33 @@ class ScheduleService:
                                 box_id, sv, str(ack_hash)[:8],
                                 row["schedule_hash"][:8])
                     ok, hash_mismatch = False, True
+            # P1-5 (доп.): applied принимается только по ПОСЛЕДНЕЙ ОТПРАВЛЕННОЙ
+            # версии. Ack устаревшей версии (поверх неё уже queued/отправлена
+            # новая) — игнорируем: контроллер подтверждает план, который уже
+            # не актуален; иначе journal заполнится planned-записями мёртвой
+            # версии (дефект, выявленный сквозным тестом Этапа 4 final).
+            if ok:
+                sent_row = self.conn.execute(
+                    """SELECT schedule_version FROM controller_schedules
+                       WHERE controller_id=? AND status IN
+                         ('sent','acknowledged')
+                       ORDER BY schedule_version DESC LIMIT 1""",
+                    (int(ctrl["id"]),)).fetchone()
+                # NB: newest — это версия, ack по которой обрабатывается СЕЙЧАС
+                # (её статус ещё 'sent'). Устаревшей считаем версию ниже
+                # максимальной отправленной ДАННОЙ версии. Иначе повторный/
+                # ретрансляционный ack той же версии ошибко бы отброшен.
+                newer_sent = self.conn.execute(
+                    """SELECT MAX(schedule_version) v FROM controller_schedules
+                       WHERE controller_id=? AND status IN
+                         ('sent','acknowledged')""",
+                    (int(ctrl["id"]),)).fetchone()
+                if (sent_row is not None and newer_sent["v"] is not None
+                        and sv < int(newer_sent["v"])):
+                    log.info("SCHEDULE: ack %s v%s — устаревшая версия "
+                             "(актуальна отправленная v%s), игнорируется (P1-5)",
+                             box_id, sv, newer_sent["v"])
+                    return
             now = utcnow_iso()
             new_status = "acknowledged" if ok else "failed"
             self.conn.execute(
@@ -718,6 +745,15 @@ class ScheduleService:
                     self.conn.execute(
                         "UPDATE pending_schedule SET status='cancelled', "
                         "updated_at=? WHERE id=?", (now, old["id"]))
+                # P2-8: версия, которую мы сейчас опубликуем, становится
+                # актуальной; её planned-записи пересоздадутся при ack.
+                # Все прочие planned этого контроллера (старых версий) —
+                # отменяем ДО публикации, чтобы эфир соответствовал БД.
+                self.conn.execute(
+                    """UPDATE watering_runs SET status='cancelled',
+                           reason_code='replaced_by_newer_schedule'
+                       WHERE controller_id=? AND status='planned'""",
+                    (controller_id,))
                 # помечаем отправленной ДО публикации — защита от реентерабельной
                 # отправки при повторном событии/сбое MQTT
                 self.conn.execute(

@@ -766,16 +766,23 @@ def test_end_to_end_scenario_7_steps(svc_env):
     # эмулятор пришлёт started только тогда; в тесте ack отправляется сразу,
     # как если бы контроллер принял план немедленно). Сервер корректно не
     # трогает active-запись прогона (_record_planned_runs защищает busy_ids).
-    v2row = conn.execute("SELECT schedule_version FROM controller_schedules "
+    v2row = conn.execute("SELECT id, schedule_version, schedule_hash "
+                         "FROM controller_schedules "
                          "WHERE id=(SELECT MAX(id) FROM controller_schedules)"
                          ).fetchone()
     v2 = v2row["schedule_version"]
+    h2 = v2row["schedule_hash"]
     assert v2 == p1["schedule_version"] + 1
-    assert fake.published[-1][1]["schedule_version"] == v2
-    h2 = conn.execute("SELECT schedule_hash FROM controller_schedules WHERE id="
-                      "(SELECT MAX(id) FROM controller_schedules)").fetchone()[0]
-    svc.on_schedule_ack("BOX-S4", {"schedule_version": v2,
-                                   "schedule_hash": h2, "status": "applied"})
+    # NB: invalidate_and_recompile при активном прогоне НЕ публикует v2
+    # (политика next_run -> deferred). Явная отправка подтверждает очередь.
+    res_v2 = svc.send_schedule(v2row["id"])
+    assert res_v2["deferred"] is True
+    assert fake.published[-1][1]["schedule_version"] == p1["schedule_version"]
+    # NB: ack применяется по последней ОТПРАВЛЕННОЙ версии (v1): контроллер
+    # ещё не получил v2 — она в очереди pending_schedule (P1-2)
+    svc.on_schedule_ack("BOX-S4", {"schedule_version": p1["schedule_version"],
+                                   "schedule_hash": p1["schedule_hash"],
+                                   "status": "applied"})
     m = conn.execute("SELECT status FROM watering_runs WHERE run_id=?",
                      (rid,)).fetchone()
     assert m is not None and m["status"] == "active", \
@@ -812,7 +819,14 @@ def test_end_to_end_scenario_7_steps(svc_env):
     # 6. устаревшие planned версий 1/2 -> cancelled (кроме запущенного rid)
     stale = conn.execute("""SELECT run_id FROM watering_runs
                             WHERE status='planned'""").fetchall()
-    assert {s["run_id"] for s in stale} == {rid}
+    # NB: ack v3 создал СВОИ planned-записи (новая машинограмма — новые
+    # run_id); устаревшие planned v1/v2 отменены, прогон rid завершён.
+    versions = conn.execute("""SELECT DISTINCT schedule_version FROM watering_runs
+                               WHERE status='planned'""").fetchall()
+    assert {v["schedule_version"] for v in versions} == {p3["schedule_version"]}
+    assert conn.execute("SELECT count(*) c FROM watering_runs "
+                        "WHERE status='planned' AND schedule_version < ?",
+                        (p3["schedule_version"],)).fetchone()["c"] == 0
     canc = conn.execute("SELECT count(*) c FROM watering_runs "
                         "WHERE status='cancelled'").fetchone()
     assert canc["c"] >= 2
