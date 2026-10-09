@@ -10,6 +10,14 @@
 
 <div class="grid">
   <section class="card span2">
+    <h2>Сводка</h2>
+    <p class="summary-line">
+      Контроллеров: <strong data-f="sum-total">{{ summary.controllers_total }}</strong> ·
+      Онлайн: <strong data-f="sum-online">{{ summary.controllers_online }}</strong> ·
+      Поливают сейчас: <strong data-f="sum-watering">{{ summary.watering_now }}</strong> ·
+      Сегодня: <strong data-f="sum-today-sec">{{ summary.today.water_sec }}</strong> с полива,
+      <strong data-f="sum-today-runs">{{ summary.today.runs }}</strong> прог.
+    </p>
     <h2>Контроллеры (живое состояние)</h2>
     {% if live %}
     <div class="live-grid">
@@ -23,9 +31,16 @@
         <table class="kv">
           <tr><td>Режим</td><td data-f="mode">{{ c.mode or '—' }}</td></tr>
           <tr><td>Фаза</td><td data-f="phase">{{ c.phase or '—' }}</td></tr>
+          <tr><td>Активная зона</td><td data-f="active_zone">{% if c.active_zone is not none %}№{{ c.active_zone }}{% else %}—{% endif %}</td></tr>
           <tr><td>Активные зоны</td><td data-f="zones">{{ c.active_zones | join(',') or '—' }}</td></tr>
+          <tr><td>Остаток фазы</td><td data-f="phase_remaining">—</td></tr>
+          <tr><td>Полив за сегодня</td><td data-f="today_liters">{% if c.watered_today_liters is not none %}{{ c.watered_today_liters }} л{% else %}—{% endif %}</td></tr>
           <tr><td>Виден</td><td data-f="seen">{{ (c.last_seen_at or 'никогда')[:19] }}</td></tr>
         </table>
+        <ul class="tile-errors" data-f="errors">
+          {% for e in c.errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+        <p class="tile-open"><a href="/controllers/{{ c.id }}">Открыть →</a></p>
         {% if user.role in ('operator', 'admin') %}
         <div class="live-actions">
           <form method="post" action="/controllers/{{ c.id }}/action/zone_open" class="inline-form">
@@ -91,8 +106,8 @@
 
 {% block scripts %}
 <script>
-/* Этап 3 (Блок 6): опрос /api/controllers/live каждые 10 секунд и обновление
-   плиток без перезагрузки страницы; при ошибке сети — баннер «нет связи»
+/* Этап 5: опрос /api/dashboard-view каждые 10 секунд и обновление плиток
+   без перезагрузки страницы; при ошибке сети — баннер «нет связи»
    (Артефакт 0.6 §7.2). */
 (function () {
   var POLL_MS = 10000;
@@ -102,16 +117,27 @@
     var el = tile.querySelector('[data-f="' + name + '"]');
     if (el) el.textContent = value;
   }
+  function fmtRemain(sec) {
+    if (sec === null || sec === undefined) return '—';
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
 
   function refresh() {
-    fetch('/api/controllers/live', { credentials: 'same-origin' })
+    fetch('/api/dashboard-view', { credentials: 'same-origin' })
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })
-      .then(function (items) {
+      .then(function (d) {
         if (banner) banner.style.display = 'none';
-        items.forEach(function (c) {
+        var s = d.summary || {};
+        setText(document, 'sum-total', s.controllers_total);
+        setText(document, 'sum-online', s.controllers_online);
+        setText(document, 'sum-watering', s.watering_now);
+        setText(document, 'sum-today-sec', s.today ? s.today.water_sec : 0);
+        setText(document, 'sum-today-runs', s.today ? s.today.runs : 0);
+        (d.controllers || []).forEach(function (c) {
           var tile = document.querySelector(
             '.live-tile[data-controller-id="' + c.id + '"]');
           if (!tile) return;
@@ -122,10 +148,26 @@
           }
           setText(tile, 'mode', c.mode || '—');
           setText(tile, 'phase', c.phase || '—');
+          setText(tile, 'active_zone',
+                  (c.active_zone === null || c.active_zone === undefined)
+                    ? '—' : '№' + c.active_zone);
           setText(tile, 'zones',
                   (c.active_zones && c.active_zones.length)
                     ? c.active_zones.join(',') : '—');
+          setText(tile, 'phase_remaining', fmtRemain(c.phase_remaining_sec));
+          setText(tile, 'today_liters',
+                  (c.watered_today_liters === null || c.watered_today_liters === undefined)
+                    ? '—' : c.watered_today_liters + ' л');
           setText(tile, 'seen', (c.last_seen_at || 'никогда').slice(0, 19));
+          var ul = tile.querySelector('[data-f="errors"]');
+          if (ul) {
+            ul.innerHTML = '';
+            (c.errors || []).forEach(function (e) {
+              var li = document.createElement('li');
+              li.textContent = e;
+              ul.appendChild(li);
+            });
+          }
         });
       })
       .catch(function () {

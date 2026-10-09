@@ -1,0 +1,18 @@
+{
+  "protocol_version": "1.0",
+  "box_id": "ZONE-TEST-1",
+  "schedule_version": 1,
+  "schedule_hash": "e8efcee28bcadd345c6b297eea83ccefefe7c269309e9eb6629ad632dfd71b3c",
+  "valid_from_date": "2026-10-09",
+  "valid_to_date": "2026-10-16",
+  "timezone_offset_min": 0,
+  "generated_ts": 1791570038,
+  "source": "auto",
+  "options": {
+    "max_catchup_sec": 600,
+    "max_start_delay_sec": 120,
+    "parallel_enabled": false,
+    "soak_display": "display_zones"
+  },
+  "runs": []
+}

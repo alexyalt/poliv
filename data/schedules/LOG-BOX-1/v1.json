@@ -1,0 +1,18 @@
+{
+  "protocol_version": "1.0",
+  "box_id": "LOG-BOX-1",
+  "schedule_version": 1,
+  "schedule_hash": "fcd96bfd9065116af09130962e0e2310914fa52ddc8e4681d4ea15ed0556f1f1",
+  "valid_from_date": "2026-10-09",
+  "valid_to_date": "2026-10-16",
+  "timezone_offset_min": 0,
+  "generated_ts": 1791570045,
+  "source": "auto",
+  "options": {
+    "max_catchup_sec": 600,
+    "max_start_delay_sec": 120,
+    "parallel_enabled": false,
+    "soak_display": "display_zones"
+  },
+  "runs": []
+}

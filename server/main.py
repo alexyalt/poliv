@@ -25,7 +25,7 @@ from pathlib import Path
 # (например, 0.2.0+fd22a77), чтобы по заголовку вкладки видно, какие изменения
 # реально загружены на локальную машину. Если git недоступен (запуск из копии
 # без .git, продакшен-сборка) — остаётся только базовая версия.
-APP_VERSION_BASE = "0.3.0"
+APP_VERSION_BASE = "0.5.0"
 
 
 def _git_short_hash() -> str:
@@ -61,6 +61,7 @@ from server.app.infra.logging import get_logger, setup_logging
 from server.app.api.routes_stage2 import register_api_routes
 from server.app.api.routes_stage3 import register_api_routes_stage3
 from server.app.api.routes_stage4 import register_api_routes_stage4
+from server.app.api.routes_stage5 import register_api_routes_stage5
 from server.app.infra import mqtt_client as mqtt_infra
 from server.app.services.auth_service import AuthService
 from server.app.services.catalog_service import CatalogService
@@ -121,11 +122,16 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # регистрируются следом за stage3.
     register_api_routes_stage3(app, cfg, conn, cmd_service)
     register_api_routes_stage4(app, cfg, conn, schedule_service)
+    # Этап 5: view-эндпоинты операторского интерфейса (/api/dashboard-view,
+    # /api/controllers/{id}/view). Свой путь /api/dashboard-view;
+    # /api/controllers/{id}/view не конфликтует с ранее зарегистрированными
+    # точными путями stage3/stage4 (FastAPI отдаёт приоритет точным маршрутам).
+    register_api_routes_stage5(app, cfg, conn)
     register_api_routes(app, cfg, conn, catalog, users)
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "stage": 4}
+        return {"status": "ok", "stage": 5}
 
     log.info("Сервер готов. Веб-интерфейс: http://%s:%d/", cfg.server_host, cfg.server_port)
     return app

@@ -1,0 +1,18 @@
+{
+  "protocol_version": "1.0",
+  "box_id": "B1",
+  "schedule_version": 1,
+  "schedule_hash": "022a6281a6701a958e9ac6f4d3ea9f6ec6ab4efe76c5bb41a9b3b1f012d982b2",
+  "valid_from_date": "2026-10-09",
+  "valid_to_date": "2026-10-16",
+  "timezone_offset_min": 0,
+  "generated_ts": 1791570056,
+  "source": "auto",
+  "options": {
+    "max_catchup_sec": 600,
+    "max_start_delay_sec": 120,
+    "parallel_enabled": false,
+    "soak_display": "display_zones"
+  },
+  "runs": []
+}

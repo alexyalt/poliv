@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}{{ controller.name }}{% endblock %}
+{% block content %}
+<h1>{{ controller.name }}</h1>
+<p class="muted">{{ stage }} · <a href="/">← Дашборд</a> · <a href="/controllers">Контроллеры</a></p>
+
+<div id="net-banner" class="alert alert-error" style="display:none">
+  ⚠ Нет связи с сервером — данные ниже могли устареть.
+</div>
+
+<div class="grid">
+  <section class="card span2">
+    <h2>Живое состояние</h2>
+    <div class="live-tile" data-controller-id="{{ controller.id }}" id="live-panel">
+      <div class="live-head">
+        <strong>{{ controller.box_id }}</strong>
+        <span class="badge badge-{{ controller.connection_status }}" data-f="status">{{ controller.connection_status }}</span>
+      </div>
+      <table class="kv">
+        <tr><td>Режим</td><td data-f="mode">{{ controller.mode or '—' }}</td></tr>
+        <tr><td>Фаза</td><td data-f="phase">{{ controller.phase or '—' }}</td></tr>
+        <tr><td>Активная зона</td><td data-f="active_zone">—</td></tr>
+        <tr><td>Остаток фазы</td><td data-f="phase_remaining">—</td></tr>
+        <tr><td>Остаток прогона</td><td data-f="run_remaining">—</td></tr>
+        <tr><td>Пауза до</td><td data-f="pause_remaining">—</td></tr>
+        <tr><td>Виден</td><td data-f="seen">{{ (controller.last_seen_at or 'никогда')[:19] }}</td></tr>
+        <tr><td>Полив за сегодня</td><td data-f="today_liters">{% if today_liters is not none %}{{ today_liters }} л{% else %}—{% endif %}</td></tr>
+      </table>
+      <ul class="tile-errors" data-f="errors"></ul>
+      {% if user.role in ('operator', 'admin') %}
+      <div class="live-actions">
+        <form method="post" action="/controllers/{{ controller.id }}/action/zone_open" class="inline-form">
+          <input type="number" name="zone" min="1" max="16" value="1" style="width:4rem" title="Номер зоны">
+          <input type="number" name="duration_sec" min="1" value="60" style="width:5rem" title="Длительность, сек">
+          <button type="submit" class="btn btn-small">Открыть зону</button>
+        </form>
+        <form method="post" action="/controllers/{{ controller.id }}/action/zone_close" class="inline-form">
+          <input type="number" name="zone" min="1" max="16" value="1" style="width:4rem">
+          <button type="submit" class="btn btn-small">Закрыть</button>
+        </form>
+        <form method="post" action="/controllers/{{ controller.id }}/action/stop_all" class="inline-form">
+          <button type="submit" class="btn btn-small btn-danger">Стоп</button>
+        </form>
+        <form method="post" action="/controllers/{{ controller.id }}/action/pause_controller" class="inline-form">
+          <input type="number" name="duration_sec" min="1" value="300" style="width:5rem" title="Пауза, сек">
+          <button type="submit" class="btn btn-small">Пауза</button>
+        </form>
+        <form method="post" action="/controllers/{{ controller.id }}/action/resume_controller" class="inline-form">
+          <button type="submit" class="btn btn-small">Продолжить</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card span2">
+    <h2>Зоны</h2>
+    {% if zones %}
+    <table>
+      <tr><th>№</th><th>Название</th><th>Состояние</th><th>Фаза</th><th>Остаток</th><th>Расход, л/мин</th></tr>
+      {% for z in zones %}
+      <tr class="{{ 'zone-active' if z.active else '' }}" data-zone="{{ z.zone_number }}">
+        <td>{{ z.zone_number }}</td>
+        <td>{{ z.name }}</td>
+        <td>{{ 'вкл.' if z.enabled else 'выкл.' }}</td>
+        <td data-f="phase">{{ z.phase or '—' }}</td>
+        <td data-f="remaining">{% if z.remaining_sec is not none %}{{ z.remaining_sec }} c{% else %}—{% endif %}</td>
+        <td>{{ z.expected_flow_lpm if z.expected_flow_lpm is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">Зон пока нет. <a href="/zones">Создать зону</a>.</p>{% endif %}
+  </section>
+
+  <section class="card span2">
+    <h2>Последние прогоны (план → факт)</h2>
+    {% if runs %}
+    <table>
+      <tr><th>Запуск</th><th>Источник</th><th>Статус</th><th>План</th><th>Факт</th><th>Конец</th><th>Полив</th><th>Зоны</th></tr>
+      {% for r in runs %}
+      <tr>
+        <td>{{ r.run_id[:8] if r.run_id else '—' }}</td>
+        <td>{{ r.source }}</td>
+        <td>{{ r.status }}</td>
+        <td>{{ (r.planned_iso or '—')[11:19] }}</td>
+        <td>{{ (r.actual_iso or '—')[11:19] }}</td>
+        <td>{{ (r.end_iso or '—')[11:19] }}</td>
+        <td>{{ r.water_sec }} c</td>
+        <td>{{ r.zones | join(',') if r.zones else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">Прогонов пока нет.</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Ошибки и очередь</h2>
+    {% if compile_error %}
+    <div class="alert alert-error">Ошибка компиляции расписания: {{ compile_error.message or compile_error.reason }} <span class="muted small">({{ compile_error.ts[:19] }})</span></div>
+    {% endif %}
+    {% if pending_schedules %}
+    <p>Машинограммы в очереди: {% for p in pending_schedules %}{{ p.status }} ({{ p.created_at[:19] }}){{ ', ' if not loop.last }}{% endfor %}</p>
+    {% endif %}
+    {% if not compile_error and not pending_schedules %}<p class="muted">Ошибок нет, очередь пуста.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Этап 5: страница контроллера — опрос /api/controllers/{id}/view каждые
+   10 секунд (без WebSocket), обновление live-панели, зон и ошибок. */
+(function () {
+  var POLL_MS = 10000;
+  var CID = {{ controller.id }};
+  var banner = document.getElementById('net-banner');
+  var panel = document.getElementById('live-panel');
+
+  function fmtRemain(sec) {
+    if (sec === null || sec === undefined) return '—';
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function setText(name, value) {
+    var el = panel.querySelector('[data-f="' + name + '"]');
+    if (el) el.textContent = value;
+  }
+  function refresh() {
+    fetch('/api/controllers/' + CID + '/view', { credentials: 'same-origin' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (banner) banner.style.display = 'none';
+        var v = d.live;
+        var badge = panel.querySelector('[data-f="status"]');
+        if (badge) {
+          badge.textContent = v.connection_status;
+          badge.className = 'badge badge-' + v.connection_status;
+        }
+        setText('mode', v.mode || '—');
+        setText('phase', v.phase || '—');
+        var activeZone = v.primary_zone !== null && v.primary_zone !== undefined
+          ? v.primary_zone
+          : (v.active_zones && v.active_zones.length ? v.active_zones[0] : '—');
+        setText('active_zone', activeZone);
+        setText('phase_remaining', fmtRemain(d.phase_remaining_sec));
+        setText('run_remaining', fmtRemain(d.run_remaining_sec));
+        setText('pause_remaining', fmtRemain(d.pause_remaining_sec));
+        setText('seen', (v.last_seen_at || 'никогда').slice(0, 19));
+        setText('today_liters',
+                d.today_liters === null || d.today_liters === undefined
+                  ? '—' : d.today_liters + ' л');
+        var errs = [];
+        if (v.connection_status !== 'online') errs.push('Нет связи с контроллером');
+        if (!v.time_valid) errs.push('Время контроллера не синхронизировано');
+        if (d.compile_error) errs.push('Расписание: ' + (d.compile_error.message || d.compile_error.reason));
+        if (d.pending_schedules && d.pending_schedules.length) errs.push('Машинограмма в очереди на отправку');
+        var ul = panel.querySelector('[data-f="errors"]');
+        if (ul) {
+          ul.innerHTML = '';
+          errs.forEach(function (e) {
+            var li = document.createElement('li');
+            li.textContent = e;
+            ul.appendChild(li);
+          });
+        }
+        (d.zones || []).forEach(function (z) {
+          var tr = document.querySelector('tr[data-zone="' + z.zone_number + '"]');
+          if (!tr) return;
+          var ph = tr.querySelector('[data-f="phase"]');
+          var rm = tr.querySelector('[data-f="remaining"]');
+          if (ph) ph.textContent = z.phase || '—';
+          if (rm) rm.textContent = z.remaining_sec != null ? z.remaining_sec + ' c' : '—';
+          tr.className = z.active ? 'zone-active' : '';
+        });
+      })
+      .catch(function () {
+        if (banner) banner.style.display = 'block';
+      });
+  }
+  setInterval(refresh, POLL_MS);
+  refresh();
+})();
+</script>
+{% endblock %}
