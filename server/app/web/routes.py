@@ -169,21 +169,72 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request):
-        # Этап 3 (Блок 6): плитки контроллеров с живым состоянием из MQTT.
+        # Этап 5: плитки дашборда с живым состоянием + ошибки/объём за сегодня
+        # (тот же расчёт, что у view-API /api/dashboard-view).
+        from datetime import datetime as _dt, timezone as _tz
         from ..api.routes_stage3 import LIVE_SELECT, live_view
+        from ..api.routes_stage5 import (
+            _local_day_bounds, liters_by_controller, remaining_seconds,
+            today_summary)
 
+        now_ts = int(_dt.now(_tz.utc).timestamp())
+        day_start, day_end = _local_day_bounds()
         live_rows = conn.execute(
             LIVE_SELECT + " WHERE deleted_at IS NULL ORDER BY name"
         ).fetchall()
+        liters = liters_by_controller(conn, day_start, day_end)
+        tiles = []
+        for r in live_rows:
+            v = live_view(r)
+            d = dict(r)
+            errors = []
+            if v["connection_status"] != "online":
+                errors.append("Нет связи с контроллером")
+            if not v["time_valid"]:
+                errors.append("Время контроллера не синхронизировано")
+            lock = v["emergency_lock_until_ts"]
+            if lock and lock > now_ts:
+                errors.append("Аварийная блокировка активна")
+            ce = conn.execute(
+                """SELECT error_json FROM schedule_compile_errors
+                   WHERE controller_id=? ORDER BY id DESC LIMIT 1""",
+                (v["id"],)).fetchone()
+            if ce is not None:
+                errors.append("Ошибка компиляции расписания")
+            pend = conn.execute(
+                """SELECT COUNT(*) c FROM pending_schedule
+                   WHERE controller_id=? AND status='queued'""",
+                (v["id"],)).fetchone()["c"]
+            if pend:
+                errors.append(f"Машинограмма в очереди ({pend})")
+            v["errors"] = errors
+            v["active_zone"] = (v["primary_zone"]
+                                if v["primary_zone"] is not None else
+                                (v["active_zones"][0] if v["active_zones"] else None))
+            v["phase_remaining_sec"] = remaining_seconds(v["phase_end_ts"], now_ts)
+            v["run_remaining_sec"] = remaining_seconds(v["run_end_ts"], now_ts)
+            v["pause_remaining_sec"] = remaining_seconds(v["pause_until_ts"], now_ts)
+            v["watered_today_liters"] = liters.get(d["id"])
+            tiles.append(v)
+        summary = {
+            "controllers_total": len(tiles),
+            "controllers_online": sum(
+                1 for t in tiles if t["connection_status"] == "online"),
+            "watering_now": sum(
+                1 for t in tiles
+                if t["mode"] in ("watering", "manual") or t["active_zones"]),
+            "today": today_summary(conn, day_start, day_end),
+        }
         return page(
             request,
             "dashboard.html",
             controllers=catalog.list_controllers(),
-            live=[live_view(r) for r in live_rows],
+            live=tiles,
+            summary=summary,
             programs=catalog.list_programs(),
             zones_count=len(catalog.list_zones()),
             logs=auth.recent_logs(20),
-            stage="Этап 3. Базовый MQTT-обмен и команды",
+            stage="Этап 5. Операторский интерфейс",
         )
 
     # ============================ Этап 3: команды контроллерам ==============

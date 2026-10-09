@@ -36,6 +36,12 @@ class _Harness5(_Harness):
         super().__init__()
         # порядок как в create_app: stage3 (уже в _Harness) → stage5
         register_api_routes_stage5(self.app, self.cfg, self.conn)
+        # веб-страница /controllers/{id} живёт в web/routes.py — регистрируем
+        # её так же, как это делает create_app (server/main.py).
+        from pathlib import Path as _Path
+        from server.app.web.routes import register_web_routes
+        self.app.state.app_dir = str(_Path(__file__).resolve().parents[1] / "app")
+        register_web_routes(self.app, self.cfg, self.conn, self.auth)
 
     # ------------------------------------------------------------ helpers
     def set_live(self, box_id: str, **extra):
@@ -305,6 +311,20 @@ def test_web_controller_page_redirect_and_ok(h):
     # web/routes.py (её проверяет следующий тест через create_app-подобную
     # сборку). Здесь убеждаемся, что API-маршрут не перехватил путь страницы.
     assert h.app.routes is not None
+
+
+def test_web_controller_page_renders_for_admin(h):
+    """GET /controllers/{id} под admin рендерит страницу контроллера (200)."""
+    c = h.controller("BOX-WEB-2")
+    h.add_zone(c["id"], 1)
+    h.add_zone(c["id"], 2)
+    h.add_run(c, water_sec=600, zones=(1,))
+    admin = h.login_as("admin")
+    r = admin.get(f"/controllers/{c['id']}")
+    assert r.status_code == 200
+    assert "controller_detail" in r.text or "Зона" in r.text
+    # чужого/несуществующего id — 404
+    assert admin.get("/controllers/99999").status_code == 404
 
 
 def test_dashboard_view_poll_contract_stable(h):

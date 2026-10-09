@@ -57,6 +57,7 @@
           <button type="submit" class="btn btn-small btn-primary">Включить</button>
         </form>
         {% else %}
+        <a class="btn btn-small" href="/controllers/{{ c.id }}">Открыть</a>
         <a class="btn btn-small" href="/controllers?edit={{ c.id }}">Ред.</a>
         <form method="post" action="/controllers/{{ c.id }}/delete" style="display:inline"
               onsubmit="return confirm('Отключить контроллер (soft-delete)? Физическое удаление запрещено ТЗ.')">
