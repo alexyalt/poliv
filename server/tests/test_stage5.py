@@ -248,10 +248,9 @@ def test_controller_view_active_run_gives_zone_activity(h):
     with h.conn:
         h.conn.execute(
             """INSERT INTO watering_runs(controller_id, box_id, run_id, source,
-                   status, planned_start_ts, actual_start_ts, run_end_placeholder,
+                   status, planned_start_ts, actual_start_ts, end_ts,
                    water_sec, zones_json, details_json, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""".replace(
-                "run_end_placeholder,", "end_ts,"),
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (c["id"], c["box_id"], "run-active-1", "schedule", "active",
              now - 60, now - 60, now + 540, 0, json.dumps([3]),
              json.dumps({"zones": [3]}), "", ""))

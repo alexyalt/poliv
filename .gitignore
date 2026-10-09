@@ -1,10 +1,6 @@
-# Compiled and build artifacts
+# Python cache files
 __pycache__/
 *.pyc
 
-# Logs and temp files
+# Log files
 logs/
-*.log
-
-# Environment
-.env

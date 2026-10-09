@@ -125,7 +125,7 @@ def zone_activity(conn: sqlite3.Connection, controller_id: int,
                 zones = [details["zone"]]
         if not zones:
             zones = _json_list(rd.get("zones_json"))
-        rem = remaining_seconds(rd.get("run_end_ts"), now_ts)
+        rem = remaining_seconds(rd.get("end_ts"), now_ts)
         for z in zones:
             try:
                 zn = int(z)
@@ -136,7 +136,7 @@ def zone_activity(conn: sqlite3.Connection, controller_id: int,
                 out[zn] = {
                     "phase": "water",
                     "remaining_sec": rem,
-                    "run_end_ts": rd.get("run_end_ts"),
+                    "run_end_ts": rd.get("end_ts"),
                 }
     return out
 
@@ -234,6 +234,20 @@ def liters_by_controller(conn: sqlite3.Connection,
     return {k: round(v, 1) for k, v in totals.items()}
 
 
+def today_summary(conn: sqlite3.Connection,
+                  day_start: int, day_end: int) -> dict:
+    """Сводка «сегодня» по системе: секунды полива и число прогонов."""
+    row = conn.execute(
+        """SELECT COALESCE(SUM(water_sec),0) sec, COUNT(*) cnt
+           FROM watering_runs
+           WHERE status IN ('completed','aborted','active')
+             AND COALESCE(actual_start_ts, planned_start_ts) >= ?
+             AND COALESCE(actual_start_ts, planned_start_ts) < ?""",
+        (day_start, day_end),
+    ).fetchone()
+    return {"water_sec": int(row["sec"]), "runs": int(row["cnt"])}
+
+
 def today_liters_for_controller(conn: sqlite3.Connection,
                                 controller_id: int) -> tuple[float | None, dict]:
     """(литры за сегодня для контроллера, сводка «сегодня» по системе).
@@ -243,15 +257,7 @@ def today_liters_for_controller(conn: sqlite3.Connection,
     """
     day_start, day_end = _local_day_bounds()
     liters = liters_by_controller(conn, day_start, day_end)
-    row = conn.execute(
-        """SELECT COALESCE(SUM(water_sec),0) sec, COUNT(*) cnt
-           FROM watering_runs
-           WHERE status IN ('completed','aborted','active')
-             AND COALESCE(actual_start_ts, planned_start_ts) >= ?
-             AND COALESCE(actual_start_ts, planned_start_ts) < ?""",
-        (day_start, day_end),
-    ).fetchone()
-    summary = {"water_sec": int(row["sec"]), "runs": int(row["cnt"])}
+    summary = today_summary(conn, day_start, day_end)
     return liters.get(controller_id), summary
 
 
@@ -276,7 +282,7 @@ def register_api_routes_stage5(app: FastAPI, cfg, conn: sqlite3.Connection):
         day_start, day_end = _local_day_bounds()
         rows = conn.execute(
             LIVE_SELECT + " WHERE deleted_at IS NULL ORDER BY name").fetchall()
-        liters = _liters_by_controller(day_start, day_end)
+        liters = liters_by_controller(conn, day_start, day_end)
         tiles = [dashboard_tile(conn, r, now_ts, liters.get(dict(r)["id"]))
                  for r in rows]
         online = sum(1 for t in tiles if t["connection_status"] == "online")
@@ -289,7 +295,7 @@ def register_api_routes_stage5(app: FastAPI, cfg, conn: sqlite3.Connection):
                 "controllers_total": len(tiles),
                 "controllers_online": online,
                 "watering_now": len(watering),
-                "today": _today_water_summary(),
+                "today": today_summary(conn, day_start, day_end),
             },
             "controllers": tiles,
         }
@@ -362,7 +368,7 @@ def register_api_routes_stage5(app: FastAPI, cfg, conn: sqlite3.Connection):
             """SELECT version, reason, ts FROM schedule_rejections
                WHERE controller_id=? ORDER BY id DESC LIMIT 1""",
             (controller_id,)).fetchone()
-        liters = _liters_by_controller(day_start, day_end)
+        liters = liters_by_controller(conn, day_start, day_end)
         return {
             "live": v,
             "now_ts": now_ts,
@@ -374,7 +380,7 @@ def register_api_routes_stage5(app: FastAPI, cfg, conn: sqlite3.Connection):
             "pending_schedules": [dict(p) for p in pending],
             "last_rejection": dict(rejection) if rejection else None,
             "today_liters": liters.get(controller_id),
-            "today_water_sec": _today_water_summary()["water_sec"],
+            "today_water_sec": today_summary(conn, day_start, day_end)["water_sec"],
         }
 
     # ------------------------------------------------------------ регистрация

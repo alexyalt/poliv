@@ -280,19 +280,22 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         (план→факт), ошибки компиляции/очередь машинограмм.
         """
         from ..api.routes_stage3 import LIVE_SELECT, live_view
-        from ..api.routes_stage5 import _liters_for_controller, zone_activity
+        from ..api.routes_stage5 import (
+            _iso_utc, _json_list, _local_day_bounds, liters_by_controller,
+            remaining_seconds, zone_activity)
         from datetime import datetime as _dt, timezone as _tz
 
-        row = conn.execute(
-            LIVE_SELECT + " WHERE id=? AND deleted_at IS NULL",
-            (controller_id,)).fetchone()
         user = current_user(request)
         if user is None:
             return RedirectResponse("/login", status_code=302)
+        row = conn.execute(
+            LIVE_SELECT + " WHERE id=? AND deleted_at IS NULL",
+            (controller_id,)).fetchone()
         if row is None:
             return render_error(templates, request, 404)
         v = live_view(row)
         now_ts = int(_dt.now(_tz.utc).timestamp())
+        day_start, day_end = _local_day_bounds()
         activity = zone_activity(conn, controller_id, now_ts)
         zones = []
         for z in conn.execute(
@@ -307,12 +310,53 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             zd["phase"] = act["phase"] if act else None
             zd["remaining_sec"] = act["remaining_sec"] if act else None
             zones.append(zd)
+        # Последние прогоны (план→факт) — таблица watering_runs (миграция 0005)
+        runs = []
+        for r in conn.execute(
+            """SELECT run_id, source, status, planned_start_ts, actual_start_ts,
+                      end_ts, water_sec, zones_json, program_id
+               FROM watering_runs
+               WHERE controller_id=?
+               ORDER BY COALESCE(actual_start_ts, planned_start_ts) DESC, id DESC
+               LIMIT 20""", (controller_id,)).fetchall():
+            rd = dict(r)
+            rd["planned_iso"] = _iso_utc(rd["planned_start_ts"])
+            rd["actual_iso"] = _iso_utc(rd["actual_start_ts"])
+            rd["end_iso"] = _iso_utc(rd["end_ts"])
+            rd["zones"] = _json_list(rd.pop("zones_json"))
+            runs.append(rd)
+        ce = conn.execute(
+            """SELECT reason, error_json, ts FROM schedule_compile_errors
+               WHERE controller_id=? ORDER BY id DESC LIMIT 1""",
+            (controller_id,)).fetchone()
+        compile_error = None
+        if ce is not None:
+            try:
+                payload = json.loads(ce["error_json"])
+            except (TypeError, ValueError):
+                payload = {"message": ce["error_json"]}
+            compile_error = {"reason": ce["reason"], "ts": ce["ts"],
+                             "message": payload.get("message")
+                             or payload.get("code") or ""} \
+                if isinstance(payload, dict) else \
+                {"reason": ce["reason"], "ts": ce["ts"], "message": str(payload)}
+        pending = [dict(p) for p in conn.execute(
+            """SELECT ps.status, ps.reason, ps.created_at
+               FROM pending_schedule ps WHERE ps.controller_id=?
+                 AND ps.status='queued' ORDER BY ps.id DESC LIMIT 5""",
+            (controller_id,)).fetchall()]
         return page(
             request,
             "controller_detail.html",
             controller=v,
             zones=zones,
-            today_liters=_liters_for_controller(conn, controller_id)[0],
+            runs=runs,
+            compile_error=compile_error,
+            pending_schedules=pending,
+            phase_remaining_sec=remaining_seconds(v["phase_end_ts"], now_ts),
+            run_remaining_sec=remaining_seconds(v["run_end_ts"], now_ts),
+            pause_remaining_sec=remaining_seconds(v["pause_until_ts"], now_ts),
+            today_liters=liters_by_controller(conn, day_start, day_end).get(controller_id),
             stage="Этап 5. Операторский интерфейс",
         )
 
