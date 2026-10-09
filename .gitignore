@@ -1,52 +1,8 @@
-# === Python ===
+# Compiled and build artifacts
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-*.egg-info/
-*.egg
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
+*.pyc
 
-# === Виртуальные окружения ===
+# Dependencies
 .venv/
-venv/
-env/
-ENV/
-
-# === Данные и логи (НЕ КОММИТИМ) ===
-data/
+venv/data/
 logs/
-backups/
-*.db
-*.sqlite
-*.sqlite3
-*.db-wal
-*.db-shm
-*.log
-*.log.*
-
-# === Локальные секреты и конфиги ===
-config/config.local.toml
-.env
-.env.*
-!.env.example
-!config/config.local.toml.example
-
-# === IDE и ОС ===
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# === Прочее ===
-*.bak
-*.tmp
-node_modules/

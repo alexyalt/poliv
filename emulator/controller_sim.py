@@ -12,9 +12,19 @@
 - flow: во время полива раз в 10 с (имитация lpm и суммарного литража),
   в простое раз в 30 с;
 - event: старт/остановка полива (event_uid=uuid4, source=manual|schedule,
-  water_sec, volume_liters) — сервер Этапа 3 только логирует события;
+  water_sec, volume_liters) — сервер Этапа 3 только логирует события; с Этапа 4
+  события schedule-прогонов формируют watering_runs на сервере;
 - schedule_request при старте (и по клавише 's'); после получения schedule
   отвечает schedule_ack;
+- ЭТАП 4 — исполнение машинограммы (_on_schedule + _tick_schedule): запуски
+  (runs) стартуют по date+start_minute_local (с учётом timezone_offset_min),
+  шаги (steps) исполняются последовательно: phase=water открывает active_zones,
+  phase=soak — реле выключены, показывается display_zones (§3.9); параллельные
+  шаги с parallel_allowed открывают несколько зон одним шагом; ручной прогон
+  ставит график на паузу и возобновляется после его завершения (ТЗ п.5);
+  stop_all/pause_controller останавливают schedule-прогон (run_id сохраняется
+  для журнала planned→active); max_start_delay_sec — опоздавший запуск
+  пропускается, max_catchup_sec — ограничение догона;
 - time: принимает poliv/{box_id}/time и логирует расхождение с локальным временем.
 
 Интерактивные клавиши (при запуске в терминале):
@@ -42,7 +52,7 @@ import sys
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,8 +113,18 @@ class ControllerSim:
         self._pending_zone_events: list[tuple[int, int]] = []  # очередь (zone, duration)
         self._current_event: dict | None = None   # незакрытое событие полива
         # источник текущего прогона: "manual" (клавиша w / zone_open) или
-        # "schedule" (резерв до Этапа 4); сбрасывается в _finish_run().
+        # "schedule" (Этап 4 — исполнение машинограммы); сбрасывается в _finish_run().
         self._run_source: str | None = None
+
+        # --- Этап 4: исполнение машинограммы ---------------------------------
+        self.schedule_runs: list[dict] = []      # runs из последней машинограммы
+        self.schedule_options: dict = {}         # options (§3.2): max_start_delay_sec...
+        self.schedule_tz_offset_min: int = 0     # timezone_offset_min машинограммы
+        self._sched_state: dict | None = None    # активный schedule-прогон:
+        #   {run, run_idx, step_idx, started_wall, paused, pause_saved_until,
+        #    skipped_reason}
+        self._sched_done_run_ids: set[str] = set()   # выполненные/пропущенные run_id
+        self._sim_now: float | None = None       # инъекция времени для тестов
 
         self._seen_commands: list[str] = []       # дедупликация command_id (последние 50)
         self._lock = threading.Lock()
@@ -178,7 +198,10 @@ class ControllerSim:
 
     def _publish(self, kind: str, payload: dict, qos: int = 1,
                  retain: bool = False) -> None:
-        if self._client is None or not self.online:
+        # online=False имитирует обрыв связи: сообщения НЕ должны уходить
+        # на брокер. В тестах с инъекцией времени (_sim_now) допустима
+        # «симуляция офлайна» без реального клиента — публикуем перехватчику.
+        if self._client is None or (not self.online and self._sim_now is None):
             return
         try:
             self._client.publish(f"poliv/{self.box_id}/{kind}",
@@ -242,21 +265,87 @@ class ControllerSim:
                           self.box_id, drift, "ок" if abs(drift) < 5 else "ПРОБЛЕМА")
             self.time_valid = abs(drift) < 60
 
+    def _now(self) -> float:
+        """Текущее время: wall-clock или инъекция (детерминированные тесты)."""
+        return time.time() if self._sim_now is None else float(self._sim_now)
+
+    def _local_minute(self, ts: float) -> int:
+        """Минута локальных суток контроллера по unix-ts (с учётом смещения §3.2)."""
+        shifted = ts + self.schedule_tz_offset_min * 60
+        d = datetime.fromtimestamp(shifted, tz=timezone.utc)
+        return d.hour * 60 + d.minute
+
+    def _local_date(self, ts: float) -> str:
+        shifted = ts + self.schedule_tz_offset_min * 60
+        return datetime.fromtimestamp(shifted, tz=timezone.utc).date().isoformat()
+
     def _on_schedule(self, p: dict) -> None:
+        """Этап 4: приём и ИСПОЛНЕНИЕ машинограммы (ТЗ: «эмулятор реально
+        выполняет расписание»).
+
+        apply_policy (на стороне контроллера, ТЗ п.4): версия всегда принимается
+        и запоминается; если прямо сейчас идёт schedule-прогон той же версии —
+        ничего не трогаем; активного прогона нет — график подменяется целиком
+        (текущий run_id помечается отменённым, planned-записи новых прогонов
+      создаёт сервер при ack). Ручной/ставший на паузу прогон новой версией
+        НЕ прерывается — он продолжится, а график стартует после его завершения.
+        """
         sv = p.get("schedule_version")
         runs = p.get("runs") or []
-        self.schedule_version = sv if isinstance(sv, int) else 0
-        self.schedule_hash = str(p.get("schedule_hash", ""))
-        self.log.info("[%s] получена машинограмма v%s (runs=%d) — компиляция с Этапа 4,"
-                      " эмулятор исполнять не будет", self.box_id, sv, len(runs))
+        opts = p.get("options") or {}
+        with self._lock:
+            self.schedule_version = sv if isinstance(sv, int) else 0
+            self.schedule_hash = str(p.get("schedule_hash", ""))
+            self.schedule_runs = [r for r in runs if isinstance(r, dict)]
+            self.schedule_options = opts if isinstance(opts, dict) else {}
+            tz = p.get("timezone_offset_min")
+            self.schedule_tz_offset_min = tz if isinstance(tz, int) else 0
+            active = self._sched_state
+            replaced = (active is not None
+                        and active.get("run") is not None
+                        and active["run"].get("schedule_version") != self.schedule_version)
+            if replaced and not active.get("manual_active"):
+                # новая версия до завершения прогона старой: текущий запуск
+                # отменяется (не выполняется), остальные planned остаются в БД
+                self._cancel_run(active["run"]["run_id"], "replaced_by_new_version")
+                if active.get("event_open"):
+                    # §3.11: прерванный schedule-прогон обязан породить
+                    # finished(aborted) с run_id — сервер закроет planned-запись
+                    ev = active.pop("sched_event", None) or self._current_event
+                    if ev is not None:
+                        self._current_event = ev
+                        self._emit_event("finished", source="schedule",
+                                         zones=ev.get("zones") or [],
+                                         aborted=True,
+                                         run_id=str(active["run"].get("run_id")))
+                    self._current_event = None
+                self._sched_state = None
+                if self.mode == "schedule":
+                    # прогон прерван заменой версии — контроллер обязан
+                    # вернуться в idle и немедленно сканировать новые runs
+                    # (next_wait_ts=0), иначе остаток старого 300-секундного
+                    # окна удерживал бы старт r-new до конца «виртуальных» суток
+                    self.mode, self.phase = "idle", "idle"
+                    self.active_zones, self.display_zones = [], []
+                    self.primary_zone, self.flow_enabled = None, False
+            elif replaced:
+                # идёт ручной прогон поверх графика — замену применим позже
+                active["pending_new"] = True
+            if self._sched_state is None and self.mode in ("idle", "paused"):
+                self._sched_state = {"run": None, "started_wall": None,
+                                     "manual_active": False, "skipped_reason": None}
+        self.log.info("[%s] машинограмма v%s принята к ИСПОЛНЕНИЮ (runs=%d, "
+                      "tz=%+d мин, заменa прогона: %s)", self.box_id,
+                      self.schedule_version, len(self.schedule_runs),
+                      self.schedule_tz_offset_min, "да" if replaced else "нет")
         self._publish("schedule_ack", {
             "protocol_version": PROTOCOL_VERSION,
             "box_id": self.box_id,
-            "ts": time.time(),
+            "ts": self._now(),
             "schedule_version": self.schedule_version,
             "schedule_hash": self.schedule_hash,
             "status": "applied",
-            "message": "принято (заглушка Этапа 3)",
+            "message": "машинограмма принята, исполнение активно (Этап 4)",
         })
 
     # -------------------------------------------------------------- команды
@@ -326,6 +415,16 @@ class ControllerSim:
                 return True, f"зона {zone} не была открыта"
             if command == "stop_all":
                 stopped = bool(self.active_zones)
+                sched_running = (self._sched_state is not None
+                                 and self._sched_state.get("run") is not None)
+                if sched_running:
+                    # Этап 4: остановка работает и для schedule-прогона —
+                    # запуск завершается прерыванием, остальные по графику
+                    # остаются в planned (повторного автоматического старта
+                    # этого run_id не будет — ТЗ «остановка работает»)
+                    self._finish_schedule_run(self._sched_state, self._now(),
+                                              aborted=True)
+                    stopped = True
                 self._finish_run(aborted=True)
                 self.mode, self.phase = "idle", "idle"
                 self.pause_until_ts = None
@@ -337,10 +436,24 @@ class ControllerSim:
                 if dur is None and until is None:
                     return False, "нужен duration_sec или until_ts"
                 if isinstance(dur, int) and dur >= 1:
-                    self.pause_until_ts = int(time.time()) + dur
+                    self.pause_until_ts = int(self._now()) + dur
                 elif isinstance(until, int):
                     self.pause_until_ts = until
-                if self.active_zones:
+                if self.mode == "schedule" and self._sched_state \
+                        and self._sched_state.get("run") is not None:
+                    # Этап 4: пауза контроллера ставит на паузу график —
+                    # реле закрываются, остаток шага замораживается; после
+                    # resume/истечения паузы прогон продолжается с того же шага
+                    st = self._sched_state
+                    if st.get("step_remaining") is None:
+                        st["step_remaining"] = max(0.0, st["wall_ts"]
+                                                   + st["step"]["duration_sec"]
+                                                   - self._now())
+                    self.mode, self.phase = "paused", "paused"
+                    self.active_zones = []
+                    self.flow_enabled = False
+                    self.instant_lpm = 0.0
+                elif self.active_zones:
                     self._pause_current_run()
                 else:
                     self.mode, self.phase = "paused", "paused"
@@ -350,11 +463,28 @@ class ControllerSim:
                 if self.mode != "paused":
                     return True, "контроллер не был на паузе"
                 self.pause_until_ts = None
-                if self._pending_zone_events or self._run_end_ts:
+                st = self._sched_state
+                if st is not None and st.get("run") is not None \
+                        and st.get("step_remaining") is not None:
+                    # возврат к графику (ТЗ п.3): продолжаем тот же шаг
+                    self.mode, self.phase = "schedule", st["step"].get(
+                        "phase", "water") or "water"
+                    if self.phase == "water":
+                        self.active_zones = list(
+                            st["step"].get("active_zones") or [])
+                        self.display_zones = list(self.active_zones)
+                        self.primary_zone = (self.active_zones[0]
+                                             if self.active_zones else None)
+                        self.flow_enabled = True
+                    else:
+                        self.display_zones = list(
+                            st["step"].get("display_zones") or [])
+                        self.flow_enabled = False
+                    st["wall_ts"] = self._now()
+                elif self._pending_zone_events or self._run_end_ts:
                     self.mode, self.phase = "manual", "water"
-                    if self._water_until:
-                        self._water_until = max(time.time(),
-                                                time.time())  # возобновление полива
+                    # возобновление ручного прогона: остаток таймера сохраняем
+                    # (пауза его не расходовала — см. _pause_current_run)
                 else:
                     self.mode, self.phase = "idle", "idle"
                 self._publish_status(force=True)
@@ -373,24 +503,53 @@ class ControllerSim:
 
     # ------------------------------------------------------- машина состояний
     def _start_manual_water(self, zone: int, duration_sec: int) -> None:
-        self._finish_run(aborted=True, emit_event=False)
+        # Этап 4 (ТЗ п.3): если прямо сейчас идёт schedule-прогон — он
+        # ставится на паузу (заморозка остатка шага) и продолжится после
+        # завершения ручного полива; свой finished-aborted-событие уже
+        # отправит _finish_schedule_run. Иначе — завершаем незакрытый
+        # manual-прогон без события (как в Этапе 3).
+        st = self._sched_state
+        sched_running = (st is not None and st.get("run") is not None
+                         and self.mode == "schedule")
+        if sched_running:
+            if st.get("step_remaining") is None and st.get("step") is not None:
+                st["step_remaining"] = max(0.0, st["wall_ts"]
+                                           + st["step"]["duration_sec"]
+                                           - self._now())
+            st["manual_active"] = True
+            # открытое schedule-событие прячем в стейт прогона: manual-прогон
+            # использует общий слот _current_event; при завершении ручного
+            # полива его finished-событие уходит как aborted с run_id (план→факт),
+            # а schedule-событие возобновляется — у него сохранён ev_zones/run_id
+            st["sched_event"] = self._current_event
+            self._current_event = None     # manual-прогон начнёт своё событие
+            self._run_source = None
+        else:
+            self._finish_run(aborted=True, emit_event=False)
         self.mode, self.phase = "manual", "water"
         self.active_zones = [zone]
         self.display_zones = [zone]
         self.primary_zone = zone
         self.flow_enabled = True
-        self._water_until = time.time() + duration_sec
+        self._water_until = self._now() + duration_sec
         self._run_end_ts = self._water_until
         self._run_source = "manual"     # "schedule" — резерв (Этап 4)
         self._emit_event("started", source=self._run_source, zones=[zone])
         self._publish_status(force=True)
 
     def _pause_current_run(self) -> None:
+        now = self._now()
         if self._water_until is not None:
-            remaining = max(0.0, self._water_until - time.time())
+            remaining = max(0.0, self._water_until - now)
             self._pending_zone_events.append((self.primary_zone or 1,
                                               int(remaining)))
-        self._water_until = None
+            self._water_until = None
+        st = self._sched_state
+        if st is not None and st.get("run") is not None \
+                and st.get("step_remaining") is None:
+            # заморозка остатка шага графика (возврат — в resume/по истечении)
+            st["step_remaining"] = max(0.0, st["wall_ts"]
+                                       + st["step"]["duration_sec"] - now)
         self.mode, self.phase = "paused", "paused"
         self.active_zones = []
         self.flow_enabled = False
@@ -403,6 +562,7 @@ class ControllerSim:
             # _emit_event(status, source, zones, ...).
             self._emit_event("finished", source=self._run_source or "manual",
                              zones=self.active_zones, aborted=aborted)
+        manual_was_running = self.mode == "manual"
         self._current_event = None
         self._run_source = None
         self.active_zones = []
@@ -414,12 +574,31 @@ class ControllerSim:
         self._soak_until = None
         self._run_end_ts = None
         self._pending_zone_events.clear()
-        if self.mode not in ("error", "paused"):
+        # Возврат к графику (ТЗ п.3 «после ручного режима график продолжается»):
+        # если на время ручного прогона шаг машинограммы был заморожен —
+        # размораживаем и продолжаем исполнение с того же шага.
+        st = self._sched_state
+        if manual_was_running and not aborted and st is not None \
+                and st.get("run") is not None:
+            # возврат к прерванному ручным поливом schedule-прогону (ТЗ п.3):
+            # размораживаем остаток шага и продолжаем с того же шага;
+            # возобновляем открытое schedule-событие (оно «пережидало» в st)
+            st["manual_active"] = False
+            if st.get("sched_event") is not None:
+                self._current_event = st.pop("sched_event")
+            if st.get("step_remaining") is not None:
+                # Возврат к графику (вывод аудитора, проблема А): зоны
+                # замороженного шага открываем СРАЗУ, не дожидаясь
+                # следующего тика — иначе активные реле «пропадают» на тик.
+                self.mode = "schedule"
+                self._begin_step(st, self._now())
+                return
+        if self.mode not in ("error", "paused", "schedule"):
             self.mode, self.phase = "idle", "idle"
 
     def _tick_state(self) -> None:
         """Продвижение таймеров (вызывается из главного цикла)."""
-        now = time.time()
+        now = self._now()
         with self._lock:
             if self.mode == "error":
                 return
@@ -437,6 +616,10 @@ class ControllerSim:
                         self.mode, self.phase = "idle", "idle"
                         self.pause_until_ts = None
                     self._publish_status(force=True)
+                self._tick_schedule(now)   # график на паузе (заморозка шага)
+                return
+            if self.mode == "schedule":
+                self._tick_schedule(now)
                 return
             if self.mode == "manual" and self.active_zones:
                 if self._water_until and now >= self._water_until:
@@ -463,25 +646,265 @@ class ControllerSim:
                 self._run_source = self._run_source or "manual"
                 self._emit_event("started", source=self._run_source, zones=[z])
                 self._publish_status(force=True)
+            self._tick_schedule(now)
+
+    # ============================================ ЭТАП 4: исполнение графика
+    def _cancel_run(self, run_id: str, reason: str) -> None:
+        """Run отменён (замена версии/остановка): больше не стартует."""
+        self._sched_done_run_ids.add(run_id)
+        self.log.info("[%s] запуск %s… отменён: %s", self.box_id,
+                      run_id[:8], reason)
+
+    def _schedule_marked(self, run_id: str) -> bool:
+        return run_id in self._sched_done_run_ids
+
+    def _run_start_ts(self, run: dict) -> float:
+        """Unix-ts старта запуске по дате+минуте локальных суток (§3.2)."""
+        try:
+            d = datetime.strptime(str(run["date"]), "%Y-%m-%d")
+        except (KeyError, TypeError, ValueError):
+            return 0.0
+        minute = int(run.get("start_minute_local") or 0)
+        naive = d.replace(hour=minute // 60, minute=minute % 60)
+        aware = naive.replace(tzinfo=timezone(
+            timedelta(minutes=self.schedule_tz_offset_min)))
+        return aware.timestamp()
+
+    def _find_due_run(self, now: float) -> tuple[dict | None, float]:
+        """Первый не выполненный запуск сегодняшних суток, до которого дошло время.
+
+        Возвращает (run|None, ts_следующего_ожидания). Опоздание сверх
+        options.max_start_delay_sec → пропуск (run_id помечается skipped).
+        """
+        today = self._local_date(now)
+        nxt_wait = now + 60.0
+        best: dict | None = None
+        best_ts = 0.0
+        for run in self.schedule_runs:
+            rid = str(run.get("run_id") or "")
+            if not rid or self._schedule_marked(rid):
+                continue
+            if str(run.get("date")) != today or not run.get("enabled", True):
+                continue
+            ts = self._run_start_ts(run)
+            if ts <= now:
+                # Опоздание сверх max_start_delay_sec → пропуск (run помечается
+                # done, событий нет). Проверка на этом месте, а НЕ после
+                # выбора best: иначе при одновременном скане нескольких
+                # просроченных runs опоздавший (самый ранний) «съедал» бы
+                # допустимый запуск с более поздним стартом.
+                if now - ts > float(self.schedule_options.get(
+                        "max_start_delay_sec", 120)):
+                    self._cancel_run(rid, f"опоздание {now - ts:.0f} c")
+                    continue
+                if best is None or ts < best_ts:      # earliest first (FIFO)
+                    best, best_ts = run, ts
+            else:
+                nxt_wait = min(nxt_wait, ts)
+        if best is not None:
+            return best, now
+        return None, nxt_wait
+
+    def _step_end_ts(self, st: dict) -> float:
+        """Момент окончания текущего шага с «заморозкой» при паузах (ТЗ п.3):
+        пока контроллер на паузе или идёт ручной полив, остаток шага хранится
+        в step_remaining и не расходуется."""
+        if st.get("step_remaining") is not None:
+            return st["wall_ts"] + st["step_remaining"]
+        return st["wall_ts"] + st["step"]["duration_sec"]
+
+    def _step_paused(self, st: dict, now: float) -> bool:
+        return self.mode == "paused" or st.get("manual_active")
+
+    def _begin_step(self, st: dict, now: float) -> None:
+        steps = st["run"].get("steps") or []
+        i = st["step_idx"]
+        if i >= len(steps):
+            return
+        step = steps[i]
+        st["step"] = step
+        st["wall_ts"] = now
+        st["step_remaining"] = None
+        dur = max(0, int(step.get("duration_sec") or 0))
+        phase = step.get("phase") or "water"
+        zones = [int(z) for z in (step.get("active_zones") or [])
+                 if isinstance(z, int)]
+        dzones = [int(z) for z in (step.get("display_zones") or [])
+                  if isinstance(z, int)] or list(zones)
+        if phase == "soak":
+            # §3.9: реле выключены, активные зоны пусты — показываем замачивание
+            self.active_zones = []
+            self.display_zones = dzones
+            self.primary_zone = dzones[0] if dzones else None
+            self.phase = "soak"
+            self.flow_enabled = False
+            self.instant_lpm = 0.0
+        else:
+            self.active_zones = zones
+            self.display_zones = zones
+            self.primary_zone = zones[0] if zones else None
+            self.phase = "water"
+            self.flow_enabled = True
+            if not st.get("event_open"):
+                st["event_open"] = True
+                st["ev_zones"] = list(zones)
+                self._emit_event("started", source="schedule", zones=zones,
+                                 run_id=str(st["run"].get("run_id")))
+        self.log.info("[%s] график v%s: шаг %s/%s (%s) зоны=%s show=%s %d c",
+                      self.box_id, st["run"].get("schedule_version"),
+                      step.get("seq", i + 1), len(steps), phase,
+                      zones or "-", dzones, dur)
+        self._publish_status(force=True)
+
+    def _finish_step(self, st: dict, now: float) -> None:
+        """Закрыть истёкший шаг: сдвинуть step_idx. Следующий шаг открывает
+        вызывающий тик (_tick_schedule) — иначе «сгоревший» на этом тике шаг
+        тут же открылся бы с тем же now и весь прогон съедался за один тик."""
+        st["step_remaining"] = None
+        st["step_idx"] += 1
+
+    def _finish_schedule_run(self, st: dict, now: float, aborted: bool) -> None:
+        run = st.get("run") or {}
+        rid = str(run.get("run_id") or "")
+        if rid:
+            self._sched_done_run_ids.add(rid)
+        if st.get("event_open"):
+            # §3.9: на момент завершения прогона реле закрыты — событие несёт
+            # зоны, которые реально поливались в этом прогоне (ev_zones),
+            # а не текущие active_zones (после soak они пусты)
+            self._emit_event("finished", source="schedule",
+                             zones=st.get("ev_zones") or [],
+                             run_id=rid or None, aborted=aborted)
+        st["event_open"] = False
+        st["run"] = None
+        st["started_wall"] = None
+        st["step_idx"] = 0
+        st["step_remaining"] = None
+        st["manual_active"] = False
+        st["next_wait_ts"] = now + 30.0
+        if self.mode == "schedule":
+            self.mode, self.phase = "idle", "idle"
+            self.active_zones = []
+            self.display_zones = []
+            self.primary_zone = None
+            self.flow_enabled = False
+            self.instant_lpm = 0.0
+        self.log.info("[%s] график: запуск %s… %s", self.box_id, rid[:8],
+                      "остановлен" if aborted else "завершён")
+        self._publish_status(force=True)
+
+    def _tick_schedule(self, now: float) -> None:
+        """Продвижение исполнения машинограммы (вызывается из _tick_state под
+        блокировкой). Режимы error/service — график стоит (аварийная
+        блокировка); в paused/manual прогон ставится на паузу и продолжается
+        после возврата (ТЗ п.3: «пауза при ручном режиме / возврат к графику»)."""
+        if self.mode in ("error", "service", "provisioning"):
+            return
+        st = self._sched_state
+        if st is None:
+            if self.schedule_runs and self.mode == "idle":
+                self._sched_state = st = {"run": None, "started_wall": None,
+                                          "manual_active": False,
+                                          "next_wait_ts": now}
+            else:
+                return
+        if st.get("run") is not None:
+            steps = st["run"].get("steps") or []
+            if st["step_idx"] >= len(steps):
+                # гонка не должна оставаться открытой (шаги могли измениться
+                # при замене версии) — закрываем прогон штатно
+                self._finish_schedule_run(st, now, aborted=False)
+                return
+            st["step"] = steps[st["step_idx"]]
+            if self.mode == "paused":
+                # пауза контроллера: фиксируем остаток шага (один раз),
+                # таймер останавливается до resume/истечения паузы
+                if st.get("step_remaining") is None:
+                    st["step_remaining"] = max(0.0,
+                                               st["wall_ts"]
+                                               + st["step"]["duration_sec"] - now)
+                return
+            if self.mode == "manual" and st.get("manual_active") \
+                    and self._run_source == "manual":
+                # идёт ручной полив поверх графика — ждём его завершения
+                # (возврат к графику сделает _finish_run)
+                return
+            # Продвигаемся по истёкшим шагам. Ключевое правило: следующий шаг
+            # открывается строго на следующем тике (см. конец функции) —
+            # _finish_step только закрывает таймер текущего шага и двигает
+            # step_idx. Иначе «сгоревший» на этом тике шаг тут же открывался
+            # бы с тем же now и его dur тоже считался истёкшим — весь прогон
+            # съедался за один тик (дефект, из-за которого soak-шаг никогда
+            # не наблюдался, а активная зона оказывалась из последнего шага).
+            advanced = False
+            while st.get("run") is not None \
+                    and st["step_idx"] < len(st["run"].get("steps") or []) \
+                    and self._step_end_ts(st) <= now:
+                self._finish_step(st, now)      # только сдвиг step_idx
+                advanced = True
+                if st["step_idx"] >= len(st["run"].get("steps") or []):
+                    self._finish_schedule_run(st, now, aborted=False)
+                    break
+                # следующий шаг открывается СРАЗУ, но уже от текущего now:
+                # если и он истёк (длинная пауза тиков/опоздание на старт) —
+                # цикл догонит его на этой же итерации; в штатном 1-секундном
+                # тике за один проход сгорает не более одного шага
+                self._begin_step(st, now)
+            if advanced and st.get("run") is not None and self.mode == "schedule":
+                self.phase = st["step"].get("phase") or "water"
+                self._publish_status(force=True)
+            return
+        if self.mode in ("manual", "paused"):
+            # график ждёт завершения ручного/приостановленного прогона
+            st["next_wait_ts"] = now + 5.0
+            return
+        if now < st.get("next_wait_ts", 0):
+            return
+        run, nxt = self._find_due_run(now)
+        st["next_wait_ts"] = nxt
+        if run is None:
+            return
+        st["run"] = dict(run, schedule_version=self.schedule_version)
+        st["step_idx"] = 0
+        st["started_wall"] = self._run_start_ts(run)
+        st["mode_before_run"] = self.mode
+        self.mode, self.phase = "schedule", "waiting"
+        self.log.info("[%s] график: СТАРТ запуска %s… (программа %s, %s %02d:%02d,"
+                      " шагов=%d)", self.box_id, str(run.get("run_id"))[:8],
+                      run.get("program_id"), run.get("date"),
+                      int(run.get("start_minute_local") or 0) // 60,
+                      int(run.get("start_minute_local") or 0) % 60,
+                      len(run.get("steps") or []))
+        self._begin_step(st, now)
 
     # --------------------------------------------------------------- события
     def _emit_event(self, status: str, source: str, zones: list[int],
-                    aborted: bool = False) -> None:
-        now = time.time()
+                    aborted: bool = False, run_id: str | None = None) -> None:
+        now = self._now()
         if status == "started":
             self._current_event = {
                 "event_uid": str(uuid.uuid4()),
                 "source": source,
                 "start_ts": int(now),
                 "zones": list(zones),
+                "run_id": run_id,
             }
+            # ТЗ §3.11 / Этап 4: сервер переводит planned→active в
+            # watering_runs только по событию started — публикуем его сразу.
+            p = {"protocol_version": PROTOCOL_VERSION, "box_id": self.box_id,
+                 "event_uid": self._current_event["event_uid"], "ts": now,
+                 "status": "started", "source": source,
+                 "active_zones": list(zones), "start_ts": int(now)}
+            if run_id:
+                p["run_id"] = run_id
+            self._publish("event", p)
             return
         ev = self._current_event
         if ev is None:
             return
         water_sec = max(0, int(now - ev["start_ts"]))
         volume = round(water_sec * LPM_BASE / 60.0, 1)
-        self._publish("event", {
+        payload_ev = {
             "protocol_version": PROTOCOL_VERSION,
             "box_id": self.box_id,
             "event_uid": ev["event_uid"],
@@ -494,9 +917,15 @@ class ControllerSim:
             "volume_liters": volume,
             "status": "stopped" if aborted else "completed",
             "buffered": False,
-        })
-        self.log.info("[%s] event %s: зоны %s, полив %d с, %.1f л",
-                      self.box_id, status, ev["zones"], water_sec, volume)
+        }
+        # Этап 4: schedule-прогон несёт run_id машинограммы — сервер связывает
+        # событие с плановой записью watering_runs (план→факт).
+        if ev.get("run_id"):
+            payload_ev["run_id"] = ev["run_id"]
+        self._publish("event", payload_ev)
+        self.log.info("[%s] event %s: зоны %s, полив %d с, %.1f л%s",
+                      self.box_id, status, ev["zones"], water_sec, volume,
+                      f", run={ev['run_id'][:8]}…" if ev.get("run_id") else "")
         self._current_event = None
 
     # ------------------------------------------------------------ публикации

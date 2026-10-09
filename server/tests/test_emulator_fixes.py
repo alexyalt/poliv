@@ -65,8 +65,11 @@ def test_manual_water_finished_event_has_source_manual():
     sim._tick_state()                              # soak -> finished
 
     events = [p for p in sim._client.published if p[0].endswith("/event")]
-    assert len(events) == 1, f"ожидалось 1 событие, есть {events}"
-    topic, payload, qos, retain = events[0]
+    # Этап 4: прогон публикует пару событий started/finished (план→факт);
+    # проверяем finished-событие (source='manual' — Дефект A)
+    finished = [e for e in events if e[1].get("status") == "completed"]
+    assert len(finished) == 1, f"ожидалось 1 finished-событие, есть {events}"
+    topic, payload, qos, retain = finished[0]
     assert topic == "poliv/BOX-TEST/event"
     assert payload["source"] == "manual"           # Дефект A: source присутствует
     assert payload["status"] == "completed"
