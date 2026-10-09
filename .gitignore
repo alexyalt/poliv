@@ -1,0 +1,7 @@
+# Compiled files
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log

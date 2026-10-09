@@ -1,0 +1,346 @@
+Этап 2 выполнен на 90% хорошо. Базовый каркас CRUD, веб-интерфейс, soft-delete (отключение вместо удаления) и валидация уникальности номера зоны реализованы корректно и соответствуют ТЗ.
+Однако выявлен один критический пробел, который необходимо устранить до перехода к Этапу 3, чтобы не ломать логику компиляции машинограмм на Этапе 4.
+✅ Что сделано отлично
+Soft-delete: Для зон и контроллеров корректно используется поле deleted_at (физическое удаление запрещено).
+Уникальность номера зоны: В catalog_service.py реализована корректная проверка и перехват IntegrityError, запрещающий повторное использование номера зоны на одном контроллере (даже если она отключена).
+Веб-интерфейс: Добавлены шаблоны controllers.html, zones.html, programs.html, settings.html, users.html для ручного управления.
+REST API: Эндпоинты защищены проверкой ролей (viewer/operator/admin) и возвращают корректные коды ошибок (422 для валидации).
+Модель данных: Таблицы programs, program_zones, zone_locks и настройки корректировок созданы. Поля icon и image_path для зон уже были заложены в миграции 0001.
+❌ Пробел (Требует исправления)
+Отсутствует поддержка параллельных зон (parallel_group).
+Согласно "Сводке корректировок для финального документа Этапа 0" (ADR-12), в таблицу program_zones должно быть добавлено поле parallel_group TEXT для опционального параллельного запуска зон.
+В текущей реализации:
+В миграции 0002_stage2_catalogs.py таблица program_zones создается без поля parallel_group.
+Эндпоинт PUT /api/programs/{program_id}/zones принимает только плоский список zone_ids, не позволяя задать порядок (seq) и группу параллельного выполнения для каждой зоны.
+🛠️ Рекомендации по исправлению (Займет 15 минут)
+Обновить миграцию 0002_stage2_catalogs.py:
+Добавить в определение таблицы program_zones:
+sql
+1
+Обновить catalog_service.py и routes_stage2.py:
+Изменить метод привязки зон к программе, чтобы он принимал список объектов, а не просто ID:
+json
+123456789
+Это критично, так как компилятор машинограмм (Этап 4) будет опираться именно на эту структуру для группировки шагов.
+
+
+
+
+
+
+
+
+
+
+
+
+
+результаты ручного тестирования
+1 верхняя панель навигации работает
+2 Новый контроллер создался
+2.1 Добавление сделать раскрывающимся и скрывающимся блоком, он занимает слишком много места в начале страниц
+2.2 генерировать автоматиески box_id
+2.3 надпись контроллер сохранен появилась, контроллер добавился в нижнйи список
+2.4. кнопка редактирования работает, название изменилось 
+2.5. при отключении контроллера его невозможно включить обратно, оставь включение.
+2.6. в логе app.log есть данные о добавлении и удалении, нет данных о редактировании
+3 вкладка зоны открылась
+3.1. внизу где списко зон сделать фильтры по столбцам с возможностью поиска и автоматического формировани списка, например над столбцом контроллер пишем в поле 12 и он зоны для контроллеров СК12 и КП12 + выпадающий автодополняемый спсиок с поиском, чтобы можно было щелкнуть мышью по СК12 и тогда вывелись бы все зоны для СК12
+3.2 регистрировать сразу все 16 зон для нового контроллера, скрывать/показывать по флагу "показывать неактивные", а там уже по кнопки редактирования открывается зона над таблицей где можно редактировать зону
+3.3 корректировка полива должна иметь сезонный характер, при нажатии на флаг корректировка полива открывается зона с месяцами и для каждого месяца нужно выставить свой процент от 50 до 200 (можно ползунками с указанием цифры
+3.4. для изображения сделать файловый пикер для поиска через встроенный в ОС проводник
+3.5. что такое сезон: конец (ММ-ДД) и сезон начало не ясно. нужно уточнить нужно ли оно здесь. Если это начало и окончание сезона полива то это не нужно. При окончании сезона все отключается физически
+3.6. номер зоны задаем заранее
+3.7. базовая длительность - окончание
+3.8. при нажатии на сайкл соак должны появляться меню для установления режима сколько поливать и сколько ждать
+3.9. отключенные зоны должна быть возможность включить, сейчас кнопки включить нет
+3.10. при первичном создании зоны нет ошибки дата сезона, если её не вводить, при редактировании ошибка появляется. убрать дату сезона вообще
+3.11. при редактиваронии сбрасывается в NONE иконка эмодзи
+3.12 ошибка дублирования номера зоны срабатывает, но как написал регистрируем заранее, просто делаем их неактивными
+4 Вкладка программы открывается
+4.1. сезон начала и окончания убираем, программа или активна или неактивна
+4.2. в режиме дней недели активная строка интервала, скрыть в этом режиме
+4.3. программа создается и удаляется
+4.4. при типе интервал убрать убрать активность дней недели (серыми нередактируемыми) и устанавливать галочки которые покажут при заданной периодичности по каким дням недели будет полив (для визуализации просто)
+4.5 при первичном сохранее нет ошибки об отсутствии значений в начало и конец сезона.
+4.6. как писал выше в составе программ сделать фильтрацию с автодополнением и поиском, чтобы можно было легко находить нужные контроллеры и зоны к которым добавить программу, когда будет 300 зон, сложно что-то найти
+4.7. окно новая программа активно только при нажатии на кнопку добавить, иначе скрыто, чтобы не занимало место
+4.8.Зоны программы (порядок выолнения): добавить возможность перемещения для сортировки порядка выполнения, добавить возможность удаления по кнопке (не только галочка внизу)
+4.9. менб состав зон отображать только при нажатии на кнопку "добавить зону", иначе скрыто, чтобы не занимать место.
+4.10. в лог добавлять данные о каждом изменении, сейчас только о создании зоны, но не о редактировании, удалении, изменении и пр.
+5 Окно пользователи открылось
+5.1. Логин добавить подсказку, что нужно с нижним подчеркиванием вместо пробела
+5.2. дать возможность указать свой пароль при сбросе в режиме редактирования, отдельную кнопку на сброс в список не нужно.
+5.3. зону создания пользователя по умолчанию скрыть, показывать при нажатии на кнопку добавить пользователя.
+00. выпадающие меню некрасивые (там где выбор типа оператора, выбор типа дня недели и пр. сделать их в одном стиле с остальными пунктами меню)
+00. журнал действий на дашборде отражать только относящееся к поливу, логины, создание зон и пр не нужно. МОжно сделать блок с вкладками и там несколько журналов разметсить в т.ч. по логинам. вообще на дашборде должны быть плашки со статусами контроллеров, погода и другой мониторинг. Журналы лучше на лист отчетов вывести
+5.4. логин оператора прошел, разлогин при сбросе пароля работает
+5.5 логин и разлогин вьюера работает
+5.6. не работает снятие галочки активен с пользователя, ничего не происходит
+5.7. удаление пользователей рабоатет
+6 настройки открываются, но они вообще непонятные и ненужные некоторые. тут видимо дорабатываться будет потом.
+00 при перезапуске сервера данные сохранились.
+
+
+
+(.venv) C:\Users\Зам. директора\Downloads\КОНТРОЛЛЕР\proj\poliv>.venv\Scripts\python.exe server\main.py
+2026-10-03 21:42:19 INFO     [poliv.main] Конфигурация загружена и проверена: C:\Users\Зам. директора\Downloads\КОНТРОЛЛЕР\proj\poliv\config
+2026-10-03 21:42:19 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+[32mINFO[0m:     Started server process [[36m5660[0m]
+[32mINFO[0m:     Waiting for application startup.
+[32mINFO[0m:     Application startup complete.
+[32mINFO[0m:     Uvicorn running on [1mhttp://0.0.0.0:8080[0m (Press CTRL+C to quit)
+[32mINFO[0m:     127.0.0.1:50644 - "[1mGET / HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50644 - "[1mGET /login HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50644 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50644 - "[1mGET /favicon.ico HTTP/1.1[0m" [31m404 Not Found[0m
+[32mINFO[0m:     127.0.0.1:50645 - "[1mPOST /login HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50645 - "[1mGET / HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50645 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /users HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /settings HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /users HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50655 - "[1mGET / HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50656 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50656 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+2026-10-03 21:45:57 INFO     [poliv.catalog] Создан контроллер 5665665 (id=5)
+[32mINFO[0m:     127.0.0.1:50664 - "[1mPOST /controllers/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50664 - "[1mGET /controllers?ok=%D0%9A%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D0%BB%D0%B5%D1%80%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50664 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50665 - "[1mGET /controllers?edit=5 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50665 - "[1mPOST /controllers/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50665 - "[1mGET /controllers?ok=%D0%9A%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D0%BB%D0%B5%D1%80%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50665 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+2026-10-03 21:46:52 INFO     [poliv.catalog] Контроллер id=5 отключён (soft-delete)
+[32mINFO[0m:     127.0.0.1:50668 - "[1mPOST /controllers/5/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50668 - "[1mGET /controllers?ok=%D0%9A%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D0%BB%D0%B5%D1%80%20%D0%BE%D1%82%D0%BA%D0%BB%D1%8E%D1%87%D1%91%D0%BD%20%28soft-delete%29 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50680 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50680 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50681 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50681 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50681 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 21:49:46 INFO     [poliv.catalog] Создан контроллер 654 (id=6)
+[32mINFO[0m:     127.0.0.1:50682 - "[1mPOST /controllers/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50682 - "[1mGET /controllers?ok=%D0%9A%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D0%BB%D0%B5%D1%80%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50683 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50684 - "[1mGET /zones?deleted=1 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50684 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50684 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 21:59:22 INFO     [poliv.catalog] Создана зона №1 контроллера id=6
+[32mINFO[0m:     127.0.0.1:50716 - "[1mPOST /zones/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50716 - "[1mGET /zones?ok=%D0%97%D0%BE%D0%BD%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50716 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50717 - "[1mGET /zones?edit=9 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50717 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 21:59:44 INFO     [poliv.catalog] Зона id=1 отключена (soft-delete), убрана из программ
+[32mINFO[0m:     127.0.0.1:50719 - "[1mPOST /zones/1/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50719 - "[1mGET /zones?ok=%D0%97%D0%BE%D0%BD%D0%B0%20%D0%BE%D1%82%D0%BA%D0%BB%D1%8E%D1%87%D0%B5%D0%BD%D0%B0%20%28%D0%B7%D0%BE%D0%BD%D1%8B%20%D0%BD%D0%B5%20%D1%83%D0%B4%D0%B0%D0%BB%D1%8F%D1%8E%D1%82%D1%81%D1%8F%20%E2%80%94%20%D1%81%D0%BC.%20%D0%A2%D0%97%29 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50719 - "[1mGET /zones?deleted=1 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:00:34 INFO     [poliv.catalog] Создана зона №2 контроллера id=6
+[32mINFO[0m:     127.0.0.1:50720 - "[1mPOST /zones/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50720 - "[1mGET /zones?ok=%D0%97%D0%BE%D0%BD%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50722 - "[1mGET /zones?edit=10 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50722 - "[1mPOST /zones/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50722 - "[1mGET /zones?error=%D0%9D%D0%B5%D0%BA%D0%BE%D1%80%D1%80%D0%B5%D0%BA%D1%82%D0%BD%D0%B0%D1%8F%20%D0%B4%D0%B0%D1%82%D0%B0%20%D1%81%D0%B5%D0%B7%D0%BE%D0%BD%D0%B0%20%C2%ABNone%C2%BB%3A%20%D0%BE%D0%B6%D0%B8%D0%B4%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%9C%D0%9C-%D0%94%D0%94 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50725 - "[1mGET /zones?edit=10 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50725 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50725 - "[1mPOST /zones/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50725 - "[1mGET /zones?error=%D0%9D%D0%B5%D0%BA%D0%BE%D1%80%D1%80%D0%B5%D0%BA%D1%82%D0%BD%D0%B0%D1%8F%20%D0%B4%D0%B0%D1%82%D0%B0%20%D1%81%D0%B5%D0%B7%D0%BE%D0%BD%D0%B0%20%C2%ABNone%C2%BB%3A%20%D0%BE%D0%B6%D0%B8%D0%B4%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%9C%D0%9C-%D0%94%D0%94 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50725 - "[1mGET /zones?edit=10 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50726 - "[1mPOST /zones/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50726 - "[1mGET /zones?ok=%D0%97%D0%BE%D0%BD%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50727 - "[1mGET /zones?edit=9 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50728 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50730 - "[1mPOST /zones/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50730 - "[1mGET /zones?error=%D0%97%D0%BE%D0%BD%D0%B0%20%E2%84%961%20%D1%83%D0%B6%D0%B5%20%D1%81%D1%83%D1%89%D0%B5%D1%81%D1%82%D0%B2%D1%83%D0%B5%D1%82%20%D0%BD%D0%B0%20%D1%8D%D1%82%D0%BE%D0%BC%20%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D0%BB%D0%B5%D1%80%D0%B5%20%28%D0%BD%D0%BE%D0%BC%D0%B5%D1%80%D0%B0%20%D0%BD%D0%B5%20%D0%BF%D0%B5%D1%80%D0%B5%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D1%83%D1%8E%D1%82%D1%81%D1%8F%2C%20%D0%B4%D0%B0%D0%B6%D0%B5%20%D1%83%20%D0%BE%D1%82%D0%BA%D0%BB%D1%8E%D1%87%D1%91%D0%BD%D0%BD%D1%8B%D1%85%20%D0%B7%D0%BE%D0%BD%29 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50751 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50751 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50757 - "[1mPOST /programs/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50757 - "[1mGET /programs?ok=%D0%9F%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50757 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50758 - "[1mGET /programs/1 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50762 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50764 - "[1mGET /programs?edit=1 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50764 - "[1mPOST /programs/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50764 - "[1mGET /programs?ok=%D0%9F%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:07:09 INFO     [poliv.catalog] Удалена программа id=1
+[32mINFO[0m:     127.0.0.1:50765 - "[1mPOST /programs/1/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50765 - "[1mGET /programs?ok=%D0%9F%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0%20%D1%83%D0%B4%D0%B0%D0%BB%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50766 - "[1mPOST /programs/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50766 - "[1mGET /programs?ok=%D0%9F%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50774 - "[1mPOST /programs/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50774 - "[1mGET /programs?ok=%D0%9F%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50775 - "[1mGET /programs?edit=3 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50775 - "[1mPOST /programs/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50775 - "[1mGET /programs?error=%D0%9D%D0%B5%D0%BA%D0%BE%D1%80%D1%80%D0%B5%D0%BA%D1%82%D0%BD%D0%B0%D1%8F%20%D0%B4%D0%B0%D1%82%D0%B0%20%D1%81%D0%B5%D0%B7%D0%BE%D0%BD%D0%B0%20%C2%ABNone%C2%BB%3A%20%D0%BE%D0%B6%D0%B8%D0%B4%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%9C%D0%9C-%D0%94%D0%94 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50775 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50778 - "[1mGET /programs?edit=2 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50778 - "[1mPOST /programs/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50778 - "[1mGET /programs?ok=%D0%9F%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50778 - "[1mGET /programs?edit=3 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50780 - "[1mPOST /programs/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50780 - "[1mGET /programs?ok=%D0%9F%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5%D0%BD%D0%B0 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50789 - "[1mGET /programs/2 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:11:14 INFO     [poliv.catalog] Программа id=2: установлено зон: 3
+[32mINFO[0m:     127.0.0.1:50789 - "[1mPOST /programs/2/zones HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50789 - "[1mGET /programs/2?ok=%D0%A1%D0%BE%D1%81%D1%82%D0%B0%D0%B2%20%D0%B7%D0%BE%D0%BD%20%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D1%8B%20%D0%BE%D0%B1%D0%BD%D0%BE%D0%B2%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:12:38 INFO     [poliv.catalog] Программа id=2: установлено зон: 2
+[32mINFO[0m:     127.0.0.1:50795 - "[1mPOST /programs/2/zones HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50795 - "[1mGET /programs/2?ok=%D0%A1%D0%BE%D1%81%D1%82%D0%B0%D0%B2%20%D0%B7%D0%BE%D0%BD%20%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D1%8B%20%D0%BE%D0%B1%D0%BD%D0%BE%D0%B2%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50795 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50795 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/2 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:12:51 INFO     [poliv.catalog] Программа id=2: установлено зон: 4
+[32mINFO[0m:     127.0.0.1:50796 - "[1mPOST /programs/2/zones HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/2?ok=%D0%A1%D0%BE%D1%81%D1%82%D0%B0%D0%B2%20%D0%B7%D0%BE%D0%BD%20%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D1%8B%20%D0%BE%D0%B1%D0%BD%D0%BE%D0%B2%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/3 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:12:57 INFO     [poliv.catalog] Программа id=3: установлено зон: 3
+[32mINFO[0m:     127.0.0.1:50796 - "[1mPOST /programs/3/zones HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/3?ok=%D0%A1%D0%BE%D1%81%D1%82%D0%B0%D0%B2%20%D0%B7%D0%BE%D0%BD%20%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D1%8B%20%D0%BE%D0%B1%D0%BD%D0%BE%D0%B2%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/2 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:13:04 INFO     [poliv.catalog] Программа id=2: установлено зон: 5
+[32mINFO[0m:     127.0.0.1:50796 - "[1mPOST /programs/2/zones HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/2?ok=%D0%A1%D0%BE%D1%81%D1%82%D0%B0%D0%B2%20%D0%B7%D0%BE%D0%BD%20%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D1%8B%20%D0%BE%D0%B1%D0%BD%D0%BE%D0%B2%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/3 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:13:09 INFO     [poliv.catalog] Программа id=3: установлено зон: 5
+[32mINFO[0m:     127.0.0.1:50796 - "[1mPOST /programs/3/zones HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/3?ok=%D0%A1%D0%BE%D1%81%D1%82%D0%B0%D0%B2%20%D0%B7%D0%BE%D0%BD%20%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D1%8B%20%D0%BE%D0%B1%D0%BD%D0%BE%D0%B2%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/2 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs/3 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50796 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50800 - "[1mGET /programs/2 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50806 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50807 - "[1mGET /users HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50807 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50813 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50813 - "[1mGET /users?error=%D0%9B%D0%BE%D0%B3%D0%B8%D0%BD%3A%20%D1%82%D0%BE%D0%BB%D1%8C%D0%BA%D0%BE%20%D0%B1%D1%83%D0%BA%D0%B2%D1%8B%2C%20%D1%86%D0%B8%D1%84%D1%80%D1%8B%2C%20%D0%B4%D0%B5%D1%84%D0%B8%D1%81%2C%20%D0%BF%D0%BE%D0%B4%D1%87%D1%91%D1%80%D0%BA%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:16:12 INFO     [poliv.users] Пользователь оператор создан администратором admin
+[32mINFO[0m:     127.0.0.1:50814 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50814 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%2C%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%204VeKLSNKdJPYWQZ8%20%28%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B8%D1%82%D0%B5%2C%20%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:16:18 INFO     [poliv.users] Пользователь 578рао создан администратором admin
+[32mINFO[0m:     127.0.0.1:50815 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50815 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%2C%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%204cKNgc3PYP48cQ6h%20%28%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B8%D1%82%D0%B5%2C%20%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50816 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50816 - "[1mGET /users?error=%D0%9B%D0%BE%D0%B3%D0%B8%D0%BD%3A%20%D1%82%D0%BE%D0%BB%D1%8C%D0%BA%D0%BE%20%D0%B1%D1%83%D0%BA%D0%B2%D1%8B%2C%20%D1%86%D0%B8%D1%84%D1%80%D1%8B%2C%20%D0%B4%D0%B5%D1%84%D0%B8%D1%81%2C%20%D0%BF%D0%BE%D0%B4%D1%87%D1%91%D1%80%D0%BA%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:16:33 INFO     [poliv.users] Пользователь Иванов_Иван создан администратором admin
+[32mINFO[0m:     127.0.0.1:50817 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50817 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%2C%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%20Z7heUgP454aVdQRY%20%28%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B8%D1%82%D0%B5%2C%20%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:17:15 INFO     [poliv.users] Пользователь оператор удалён администратором admin
+[32mINFO[0m:     127.0.0.1:50818 - "[1mPOST /users/2/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50818 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%83%D0%B4%D0%B0%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:17:17 INFO     [poliv.users] Пользователь Иванов_Иван удалён администратором admin
+[32mINFO[0m:     127.0.0.1:50818 - "[1mPOST /users/4/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50818 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%83%D0%B4%D0%B0%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:17:19 INFO     [poliv.users] Пользователь 578рао удалён администратором admin
+[32mINFO[0m:     127.0.0.1:50818 - "[1mPOST /users/3/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50818 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%83%D0%B4%D0%B0%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:17:26 INFO     [poliv.users] Пользователь оператор создан администратором admin
+[32mINFO[0m:     127.0.0.1:50821 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50821 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%2C%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%20aZLLa94W8h8hfebM%20%28%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B8%D1%82%D0%B5%2C%20%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:18:33 INFO     [poliv.users] Сброс пароля пользователя оператор (выполнен admin)
+[32mINFO[0m:     127.0.0.1:50824 - "[1mPOST /users/5/reset_password HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50824 - "[1mGET /users?ok=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%20S549ch7PV9Q4PQY4%20%28%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:18:43 INFO     [poliv.users] Сброс пароля пользователя оператор (выполнен admin)
+[32mINFO[0m:     127.0.0.1:50825 - "[1mPOST /users/5/reset_password HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50825 - "[1mGET /users?ok=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%204Tgb36Q9584W9gXf%20%28%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50828 - "[1mGET /users?edit=5 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50829 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50829 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50831 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50831 - "[1mGET /users?error=%D0%9B%D0%BE%D0%B3%D0%B8%D0%BD%3A%20%D1%82%D0%BE%D0%BB%D1%8C%D0%BA%D0%BE%20%D0%B1%D1%83%D0%BA%D0%B2%D1%8B%2C%20%D1%86%D0%B8%D1%84%D1%80%D1%8B%2C%20%D0%B4%D0%B5%D1%84%D0%B8%D1%81%2C%20%D0%BF%D0%BE%D0%B4%D1%87%D1%91%D1%80%D0%BA%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:19:17 INFO     [poliv.users] Пользователь оператор_2 создан администратором admin
+[32mINFO[0m:     127.0.0.1:50833 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50833 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50833 - "[1mGET /users?edit=6 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50833 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50833 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50833 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:19:29 INFO     [poliv.users] Сброс пароля пользователя оператор_2 (выполнен admin)
+[32mINFO[0m:     127.0.0.1:50833 - "[1mPOST /users/6/reset_password HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50833 - "[1mGET /users?ok=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%204PXQY6QVNRVQWaTb%20%28%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:21:51 INFO     [poliv.users] Пользователь оператор_2 удалён администратором admin
+[32mINFO[0m:     127.0.0.1:50841 - "[1mPOST /users/6/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50841 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%83%D0%B4%D0%B0%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:21:53 INFO     [poliv.users] Пользователь оператор удалён администратором admin
+[32mINFO[0m:     127.0.0.1:50841 - "[1mPOST /users/5/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50841 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%83%D0%B4%D0%B0%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:22:02 INFO     [poliv.users] Пользователь op1 создан администратором admin
+[32mINFO[0m:     127.0.0.1:50842 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50842 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:22:12 INFO     [poliv.users] Пользователь vi1 создан администратором admin
+[32mINFO[0m:     127.0.0.1:50843 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50843 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50864 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50864 - "[1mGET /login HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50864 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50864 - "[1mPOST /login HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50864 - "[1mGET / HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /settings HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /programs/2 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /programs/3 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50872 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50876 - "[1mGET /programs?edit=2 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50876 - "[1mPOST /programs/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50876 - "[1mGET /programs?error=%D0%94%D0%B5%D0%B9%D1%81%D1%82%D0%B2%D0%B8%D0%B5%20%D0%B4%D0%BE%D1%81%D1%82%D1%83%D0%BF%D0%BD%D0%BE%20%D1%82%D0%BE%D0%BB%D1%8C%D0%BA%D0%BE%20%D0%B0%D0%B4%D0%BC%D0%B8%D0%BD%D0%B8%D1%81%D1%82%D1%80%D0%B0%D1%82%D0%BE%D1%80%D1%83 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50878 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50878 - "[1mGET /zones?edit=9 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50878 - "[1mPOST /zones/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50878 - "[1mGET /zones?error=%D0%94%D0%B5%D0%B9%D1%81%D1%82%D0%B2%D0%B8%D0%B5%20%D0%B4%D0%BE%D1%81%D1%82%D1%83%D0%BF%D0%BD%D0%BE%20%D1%82%D0%BE%D0%BB%D1%8C%D0%BA%D0%BE%20%D0%B0%D0%B4%D0%BC%D0%B8%D0%BD%D0%B8%D1%81%D1%82%D1%80%D0%B0%D1%82%D0%BE%D1%80%D1%83 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50879 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50879 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50879 - "[1mGET / HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50879 - "[1mGET /settings HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:25:51 INFO     [poliv.users] Сброс пароля пользователя op1 (выполнен admin)
+[32mINFO[0m:     127.0.0.1:50881 - "[1mPOST /users/7/reset_password HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50881 - "[1mGET /users?ok=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%209ZQKbaf49PMZ9QJd%20%28%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50881 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+[32mINFO[0m:     127.0.0.1:50883 - "[1mGET /programs HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50883 - "[1mGET /login HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50884 - "[1mPOST /login HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50884 - "[1mGET / HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50884 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50884 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50884 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50884 - "[1mGET /zones HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50884 - "[1mGET /programs HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50884 - "[1mGET / HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50888 - "[1mGET /users?edit=8 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50888 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50888 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50888 - "[1mGET /users?edit=8 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50888 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50888 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:27:27 INFO     [poliv.users] Сброс пароля пользователя vi1 (выполнен admin)
+[32mINFO[0m:     127.0.0.1:50889 - "[1mPOST /users/8/reset_password HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50889 - "[1mGET /users?ok=%D0%9D%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%BF%D0%B0%D1%80%D0%BE%D0%BB%D1%8C%3A%208VSYJecaTccMKJWh%20%28%D0%BF%D0%BE%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D1%82%D1%81%D1%8F%20%D0%BE%D0%B4%D0%B8%D0%BD%20%D1%80%D0%B0%D0%B7%29 HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50891 - "[1mGET /controllers HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50891 - "[1mGET /login HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50891 - "[1mGET /static/themes/default.css HTTP/1.1[0m" [33m304 Not Modified[0m
+2026-10-03 22:27:39 INFO     [poliv.users] Пользователь vi1 удалён администратором admin
+[32mINFO[0m:     127.0.0.1:50890 - "[1mPOST /users/8/delete HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50890 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%83%D0%B4%D0%B0%D0%BB%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50890 - "[1mGET /controllers HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50890 - "[1mGET /users HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50892 - "[1mGET /settings HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50901 - "[1mGET /users HTTP/1.1[0m" [32m200 OK[0m
+2026-10-03 22:29:41 INFO     [poliv.users] Пользователь admin2 создан администратором admin
+[32mINFO[0m:     127.0.0.1:50902 - "[1mPOST /users/save HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50902 - "[1mGET /users?ok=%D0%9F%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%20%D1%81%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D1%91%D0%BD HTTP/1.1[0m" [32m200 OK[0m
+[32mINFO[0m:     127.0.0.1:50902 - "[1mPOST /logout HTTP/1.1[0m" [33m302 Found[0m
+[32mINFO[0m:     127.0.0.1:50902 - "[1mGET /login HTTP/1.1[0m" [32m200 OK[0m

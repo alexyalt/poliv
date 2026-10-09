@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block content %}
+<h1>Настройки</h1>
+<p class="muted">Значения хранятся в таблице settings (JSON), редактируются только администратором. Настройки не хардкодятся в коде.</p>
+
+<div class="card">
+  <form method="post" action="/settings/save">
+    <table>
+      <tr><th>Ключ</th><th>Описание</th><th>Значение</th><th>Изменено</th></tr>
+      {% for s in settings %}
+      <tr>
+        <td><code>{{ s.key }}</code></td>
+        <td>{{ s.description or '—' }}</td>
+        <td><input type="text" name="setting:{{ s.key }}" value="{{ s.value_json }}"></td>
+        <td class="muted">{{ (s.updated_at or '')[:16] }}<br>{{ s.updated_by or '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% if user.role == 'admin' %}
+    <button type="submit" class="btn btn-primary">Сохранить настройки</button>
+    {% else %}
+    <p class="muted">Просмотр значений. Изменение доступно администратору.</p>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

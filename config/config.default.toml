@@ -1,0 +1,69 @@
+# Конфигурация по умолчанию (Этап 1).
+# Локальные и секретные значения переопределяются в config/config.local.toml
+# (этот файл не попадает в репозиторий).
+
+[server]
+host = "0.0.0.0"
+port = 8080
+secret_key = "CHANGE-ME-IN-CONFIG-LOCAL"   # ключ подписи сессионных cookie
+session_timeout_min = 60                    # тайм-аут сессии, минуты
+login_rate_limit = 10                       # максимум попыток входа с одного IP в минуту
+
+[paths]
+data_dir = "data"
+logs_dir = "logs"
+backups_dir = "backups"
+db_file = "data/poliv.db"
+
+[logging]
+level = "INFO"          # DEBUG / INFO / WARNING / ERROR
+max_bytes = 5242880     # 5 МБ на файл перед ротацией
+backup_count = 10       # сколько ротированных файлов хранить
+
+[database]
+wal = true              # режим WAL для SQLite
+foreign_keys = true     # включать внешние ключи
+
+[admin]
+# Первый администратор создаётся при старте сервера из этого раздела.
+username = "admin"
+password = ""           # если пусто — пароль генерируется и печатается в лог один раз
+must_change_password = true
+
+[test_data]
+# Тестовый контроллер и тестовые данные (Этап 1). Заменятся CRUD на Этапе 2.
+enabled = true
+controller_name = "Тестовый контроллер (эмулятор)"
+box_id = "TESTBOX-0001"
+zones = 8
+
+[mqtt]
+# Этап 3: серверный MQTT-клиент (Артефакт 0.7 §17.10).
+# ВНИМАНИЕ: пароль MQTT хранится ТОЛЬКО в config/config.local.toml ([mqtt] password="...")
+# и никогда не попадает в репозиторий.
+host = "127.0.0.1"
+port = 1883
+keepalive_sec = 60                # период keepalive paho
+command_timeout_sec = 10          # ожидание command_ack (ТЗ §6.2)
+command_retries = 3               # повторы команды с тем же command_id
+qos_command = 1                   # QoS команд (ТЗ §2.2)
+qos_event = 1                     # QoS событий/подтверждений
+status_interval_sec = 30          # ожидаемый интервал статусов контроллеров
+offline_threshold_min = 30        # нет status'ов дольше N минут → offline
+username = "poliv_server"         # логин сервера на брокере (mosquitto_passwd)
+
+[deployment]
+# ADR-15: Режим размещения системы — "local" (локальная сеть) или "cloud" (облако/интернет).
+mode = "local"
+
+# Для облачного режима: публичный URL сервера (для генерации ссылок в UI)
+# Пример: "https://poliv.example.com" или "http://ваш-внешний-ip:8080"
+public_url = ""
+
+# Для облачного режима: настройки MQTT-брокера
+# Если пусто, используется локальный брокер
+mqtt_cloud_host = ""
+mqtt_cloud_port = 8883
+mqtt_cloud_use_tls = true
+mqtt_cloud_username = ""
+# Пароль MQTT хранится в config.local.toml

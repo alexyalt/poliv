@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Дашборд{% endblock %}
+{% block content %}
+<h1>Дашборд</h1>
+<p class="muted">{{ stage }}. Живое состояние контроллеров обновляется автоматически (каждые 10 секунд).</p>
+
+<div id="net-banner" class="alert alert-error" style="display:none">
+  ⚠ Нет связи с сервером — данные ниже могли устареть.
+</div>
+
+<div class="grid">
+  <section class="card span2">
+    <h2>Контроллеры (живое состояние)</h2>
+    {% if live %}
+    <div class="live-grid">
+      {% for c in live %}
+      <div class="live-tile" data-controller-id="{{ c.id }}" data-box="{{ c.box_id }}">
+        <div class="live-head">
+          <strong>{{ c.name }}</strong>
+          <span class="badge badge-{{ c.connection_status }}" data-f="status">{{ c.connection_status }}</span>
+        </div>
+        <div class="muted small" data-f="box">{{ c.box_id }}</div>
+        <table class="kv">
+          <tr><td>Режим</td><td data-f="mode">{{ c.mode or '—' }}</td></tr>
+          <tr><td>Фаза</td><td data-f="phase">{{ c.phase or '—' }}</td></tr>
+          <tr><td>Активные зоны</td><td data-f="zones">{{ c.active_zones | join(',') or '—' }}</td></tr>
+          <tr><td>Виден</td><td data-f="seen">{{ (c.last_seen_at or 'никогда')[:19] }}</td></tr>
+        </table>
+        {% if user.role in ('operator', 'admin') %}
+        <div class="live-actions">
+          <form method="post" action="/controllers/{{ c.id }}/action/zone_open" class="inline-form">
+            <input type="number" name="zone" min="1" max="16" value="1" style="width:4rem" title="Номер зоны">
+            <input type="number" name="duration_sec" min="1" value="60" style="width:5rem" title="Длительность, сек">
+            <button type="submit" class="btn btn-small">Открыть зону</button>
+          </form>
+          <form method="post" action="/controllers/{{ c.id }}/action/zone_close" class="inline-form">
+            <input type="number" name="zone" min="1" max="16" value="1" style="width:4rem">
+            <button type="submit" class="btn btn-small">Закрыть</button>
+          </form>
+          <form method="post" action="/controllers/{{ c.id }}/action/stop_all" class="inline-form">
+            <button type="submit" class="btn btn-small btn-danger">Стоп</button>
+          </form>
+          <form method="post" action="/controllers/{{ c.id }}/action/pause_controller" class="inline-form">
+            <input type="number" name="duration_sec" min="1" value="300" style="width:5rem" title="Пауза, сек">
+            <button type="submit" class="btn btn-small">Пауза</button>
+          </form>
+          <form method="post" action="/controllers/{{ c.id }}/action/resume_controller" class="inline-form">
+            <button type="submit" class="btn btn-small">Продолжить</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="muted">Контроллеров пока нет. <a href="/controllers">Создать</a>.</p>{% endif %}
+    <p><a class="btn btn-small" href="/controllers">Управление контроллерами</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Программы полива</h2>
+    {% if programs %}
+    <table>
+      <tr><th>Название</th><th>Зон</th><th>Состояние</th></tr>
+      {% for p in programs %}
+      <tr>
+        <td><a href="/programs/{{ p.id }}">{{ p.name }}</a></td>
+        <td>{{ p.zone_count }}</td>
+        <td>{{ 'вкл.' if p.enabled else 'выкл.' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">Программ пока нет. <a href="/programs">Создать</a>.</p>{% endif %}
+    <p>Зон в системе: {{ zones_count }} · <a class="btn btn-small" href="/zones">Зоны</a></p>
+  </section>
+
+  <section class="card span2">
+    <h2>Журнал действий (последние 20)</h2>
+    <table>
+      <tr><th>Время (UTC)</th><th>Пользователь</th><th>Действие</th><th>Объект</th></tr>
+      {% for l in logs %}
+      <tr>
+        <td>{{ l.ts[:19] }}</td><td>{{ l.username or '—' }}</td>
+        <td>{{ l.action }}</td>
+        <td>{{ (l.object_type ~ ' #' ~ l.object_id) if l.object_type else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Этап 3 (Блок 6): опрос /api/controllers/live каждые 10 секунд и обновление
+   плиток без перезагрузки страницы; при ошибке сети — баннер «нет связи»
+   (Артефакт 0.6 §7.2). */
+(function () {
+  var POLL_MS = 10000;
+  var banner = document.getElementById('net-banner');
+
+  function setText(tile, name, value) {
+    var el = tile.querySelector('[data-f="' + name + '"]');
+    if (el) el.textContent = value;
+  }
+
+  function refresh() {
+    fetch('/api/controllers/live', { credentials: 'same-origin' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (items) {
+        if (banner) banner.style.display = 'none';
+        items.forEach(function (c) {
+          var tile = document.querySelector(
+            '.live-tile[data-controller-id="' + c.id + '"]');
+          if (!tile) return;
+          var badge = tile.querySelector('[data-f="status"]');
+          if (badge) {
+            badge.textContent = c.connection_status;
+            badge.className = 'badge badge-' + c.connection_status;
+          }
+          setText(tile, 'mode', c.mode || '—');
+          setText(tile, 'phase', c.phase || '—');
+          setText(tile, 'zones',
+                  (c.active_zones && c.active_zones.length)
+                    ? c.active_zones.join(',') : '—');
+          setText(tile, 'seen', (c.last_seen_at || 'никогда').slice(0, 19));
+        });
+      })
+      .catch(function () {
+        if (banner) banner.style.display = 'block';
+      });
+  }
+
+  setInterval(refresh, POLL_MS);
+  refresh();
+})();
+</script>
+{% endblock %}
