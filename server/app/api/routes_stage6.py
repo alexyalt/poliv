@@ -157,7 +157,9 @@ def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> N
         sql = ("SELECT f.*, c.name AS controller_name, z.name AS zone_name "
                "FROM flow_daily f "
                "JOIN controllers c ON c.id = f.controller_id "
-               "LEFT JOIN zones z ON z.id = f.zone_id WHERE 1=1")
+               # схема 0008: zone_id = -1 означает агрегат по контроллеру
+               "LEFT JOIN zones z ON z.id = f.zone_id AND f.zone_id != -1 "
+               "WHERE 1=1")
         params: list[Any] = []
         controller_id = request.query_params.get("controller_id")
         date_from = request.query_params.get("from")

@@ -200,11 +200,14 @@ class FlowService:
     def _upsert_daily(self, date: str, controller_id: int, zone_id: Optional[int],
                       attribution: str, volume: float, water_sec: int,
                       anomaly: int) -> None:
+        # Схема 0008: zone_id NOT NULL DEFAULT -1 (-1 = агрегат по контроллеру),
+        # поэтому в запросе сравниваем нормализованное значение напрямую.
+        zone_key = -1 if zone_id is None else int(zone_id)
         existing = self.conn.execute(
             """SELECT id FROM flow_daily
                WHERE date=? AND controller_id=?
-                 AND COALESCE(zone_id,-1)=COALESCE(?,-1) AND attribution=?""",
-            (date, controller_id, zone_id, attribution)).fetchone()
+                 AND zone_id=? AND attribution=?""",
+            (date, controller_id, zone_key, attribution)).fetchone()
         if existing:
             self.conn.execute(
                 """UPDATE flow_daily SET
@@ -221,7 +224,7 @@ class FlowService:
                        attribution, total_volume_l, watering_count, water_sec,
                        anomaly_count)
                    VALUES (?,?,?,?,?,?,?,?)""",
-                (date, controller_id, zone_id, attribution, volume, 1,
+                (date, controller_id, zone_key, attribution, volume, 1,
                  water_sec, anomaly))
 
     # ------------------------------------------------------------------ аварии

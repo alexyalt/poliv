@@ -79,7 +79,7 @@ SQL = [
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
         controller_id INTEGER NOT NULL,
-        zone_id INTEGER,
+        zone_id INTEGER NOT NULL DEFAULT -1,   -- -1 = агрегат по контроллеру (SQLite не допускает выражения в UNIQUE)
         attribution TEXT NOT NULL DEFAULT 'controller',
         total_volume_l REAL NOT NULL DEFAULT 0,
         watering_count INTEGER NOT NULL DEFAULT 0,
@@ -87,7 +87,7 @@ SQL = [
         anomaly_count INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        UNIQUE(date, controller_id, COALESCE(zone_id, -1), attribution)
+        UNIQUE(date, controller_id, zone_id, attribution)
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_flow_daily_date ON flow_daily(date)",
