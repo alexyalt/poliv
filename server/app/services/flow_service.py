@@ -75,6 +75,9 @@ EMERGENCY_SEVERITY = {
 class FlowService:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+        # Аудит 06.10 (P1-6): «наблюдение» нулевого потока — состояние ЭКЗЕМПЛЯРА,
+        # а не атрибут класса: два приложения/сервиса не должны делить watch.
+        self._no_flow_watch: dict[str, dict[str, Any]] = {}
 
     # ------------------------------------------------------------------ настройки
     def thresholds(self) -> dict[str, Any]:
