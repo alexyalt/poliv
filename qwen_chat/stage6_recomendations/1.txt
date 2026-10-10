@@ -1,0 +1,1287 @@
+**Вывод:** Начинаем Этап 6 («События, расход и аварии»). Ниже — контракт работ и готовый код бэкенда (миграция + сервисы + API + тесты) целыми файлами. Код написан по паттернам Этапов 1–5 (виден в репозитории), но есть 3 точки интеграции, которые нужно сверить с текущим кодом (указаны в конце). Эмулятор и фронтенд-уведомления дам второй частью после подтверждения, так как они зависят от точной структуры текущих `emulator/` и `base.html`.
+
+---
+
+## Контракт Этапа 6 (что реализуем)
+
+| Блок | Что делаем | Критерий из ТЗ |
+|---|---|---|
+| События | Приём `poliv/{box_id}/event`, дедупликация по `event_uid`, запись в БД | события попадают в БД, дубли не создают мусор |
+| Расход | Приём `poliv/{box_id}/flow`, агрегаты `flow_daily`, расчёт объёма по зонам | объём воды считается |
+| Аварии | Обработка `no_flow` / `over_flow` / `under_flow`, установка `emergency_lock_until_ts`, блокировка автозапуска | авария останавливает эмулятор |
+| Настройки | Пороги потока, задержки, время блокировки — в `settings` | пороги в настройках |
+| Уведомления | Уровни `info / warning / error / critical`, дедупликация, звук для критических | уведомление появляется |
+
+---
+
+## Файл 1. Миграция
+
+**`server/app/infra/migrations/0008_stage6_events_flow_notifications.py`**
+
+> ⚠ Проверь имя каталога миграций и сигнатуру функции (`migrate(conn)` / `up(conn)`) по существующим миграциям 0001–0007.
+
+```python
+"""Миграция 0008 — Этап 6: события полива, расход, аварии, уведомления.
+
+Таблицы:
+- watering_events        — события полива (дедупликация по event_uid)
+- watering_event_zones   — связь событий с зонами (параллельные группы)
+- flow_daily             — дневные агрегаты расхода
+- notifications          — уведомления системы
+- аварийные настройки в settings (если таблица существует)
+
+Не удаляет и не меняет существующие таблицы Этапов 1–5.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+
+
+DEFAULT_FLOW_SETTINGS = {
+    "flow.enabled_default": True,
+    "flow.no_flow_delay_sec": 10,
+    "flow.overflow_percent": 150,
+    "flow.underflow_percent": 70,
+    "flow.stable_delay_sec": 15,
+    "flow.emergency_lock_min": 30,
+    "flow.min_samples_for_expected": 3,
+}
+
+DEFAULT_NOTIFICATION_SETTINGS = {
+    "ui.sound_notifications_enabled": True,
+}
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS watering_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_uid TEXT NOT NULL UNIQUE,
+            run_id INTEGER,
+            controller_id INTEGER NOT NULL,
+            primary_zone_id INTEGER,
+            parallel INTEGER NOT NULL DEFAULT 0,
+            source TEXT NOT NULL,
+            start_ts INTEGER NOT NULL,
+            end_ts INTEGER NOT NULL,
+            water_sec INTEGER NOT NULL DEFAULT 0,
+            wall_sec INTEGER,
+            volume_liters REAL,
+            expected_flow_lpm REAL,
+            status TEXT NOT NULL,
+            reason_code INTEGER,
+            schedule_version INTEGER,
+            buffered INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            archived_at TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_events_controller
+            ON watering_events(controller_id);
+        CREATE INDEX IF NOT EXISTS idx_events_start
+            ON watering_events(start_ts);
+        CREATE INDEX IF NOT EXISTS idx_events_status
+            ON watering_events(status);
+
+        CREATE TABLE IF NOT EXISTS watering_event_zones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL REFERENCES watering_events(id),
+            zone_id INTEGER NOT NULL,
+            water_sec INTEGER,
+            volume_liters REAL,
+            expected_flow_lpm REAL,
+            UNIQUE(event_id, zone_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS flow_daily (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            controller_id INTEGER NOT NULL,
+            zone_id INTEGER,
+            attribution TEXT NOT NULL DEFAULT 'controller',
+            total_volume_l REAL NOT NULL DEFAULT 0,
+            watering_count INTEGER NOT NULL DEFAULT 0,
+            water_sec INTEGER NOT NULL DEFAULT 0,
+            avg_lpm REAL,
+            min_lpm REAL,
+            max_lpm REAL,
+            anomaly_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(date, controller_id, zone_id, attribution)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_flow_daily_date
+            ON flow_daily(date);
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            controller_id INTEGER,
+            zone_id INTEGER,
+            run_id INTEGER,
+            event_id INTEGER,
+            message TEXT NOT NULL,
+            details_json TEXT,
+            dedupe_key TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            read_at TEXT,
+            resolved_at TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_notifications_created
+            ON notifications(created_at);
+        CREATE INDEX IF NOT EXISTS idx_notifications_severity
+            ON notifications(severity);
+        CREATE INDEX IF NOT EXISTS idx_notifications_read
+            ON notifications(read_at);
+        """
+    )
+
+    # Настройки по умолчанию (если таблица settings есть)
+    try:
+        for key, value in DEFAULT_FLOW_SETTINGS.items():
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO settings (key, value_json, description, updated_at)
+                VALUES (?, ?, ?, datetime('now'))
+                """,
+                (key, json.dumps(value), f"Этап 6: {key}"),
+            )
+        for key, value in DEFAULT_NOTIFICATION_SETTINGS.items():
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO settings (key, value_json, description, updated_at)
+                VALUES (?, ?, ?, datetime('now'))
+                """,
+                (key, json.dumps(value), f"Этап 6: {key}"),
+            )
+    except sqlite3.OperationalError:
+        # таблица настроек может называться иначе — не роняем миграцию
+        pass
+
+    conn.commit()
+```
+
+---
+
+## Файл 2. Сервис событий
+
+**`server/app/services/event_service.py`**
+
+```python
+"""Этап 6: приём, дедупликация и запись событий полива.
+
+Контракт входа (сообщение из topica poliv/{box_id}/event, Артефакт 0.5 §7):
+- event_uid — уникальный идентификатор события (обязателен);
+- дубликаты по event_uid игнорируются;
+- при статусах аварий вызывается обработка аварии (см. flow_service).
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from typing import Any
+
+from ..infra.logging import get_logger
+
+log = get_logger("poliv.event")
+
+# Статусы, которые считаются авариями (Артефакт 0.5 §7.3)
+EMERGENCY_STATUSES = {
+    "no_flow",
+    "over_flow",
+    "under_flow",
+    "stopped_emergency",
+}
+
+
+class EventService:
+    """Приём и сохранение событий полива с дедупликацией."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    # ------------------------------------------------------------------
+    # Публичный метод: обработка входящего события (из MQTT-хендлера)
+    # ------------------------------------------------------------------
+    def handle_event(self, payload: dict[str, Any]) -> bool:
+        """Возвращает True, если событие сохранено; False — дубликат/ошибка."""
+        event_uid = payload.get("event_uid")
+        if not event_uid:
+            log.warning("EVENT: нет event_uid, событие отклонено: %s", payload)
+            return False
+
+        # Дедупликация
+        exists = self.conn.execute(
+            "SELECT 1 FROM watering_events WHERE event_uid = ?", (event_uid,)
+        ).fetchone()
+        if exists:
+            log.info("EVENT: дубликат %s проигнорирован", event_uid)
+            return False
+
+        controller_id = self._resolve_controller(payload.get("box_id"))
+        if controller_id is None:
+            log.warning("EVENT: неизвестный box_id=%s", payload.get("box_id"))
+            return False
+
+        try:
+            cur = self.conn.execute(
+                """
+                INSERT INTO watering_events (
+                    event_uid, run_id, controller_id, primary_zone_id, parallel,
+                    source, start_ts, end_ts, water_sec, wall_sec,
+                    volume_liters, expected_flow_lpm, status, reason_code,
+                    schedule_version, buffered
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_uid,
+                    payload.get("run_id"),
+                    controller_id,
+                    self._resolve_primary_zone(payload, controller_id),
+                    1 if len(payload.get("active_zones", [])) > 1 else 0,
+                    payload.get("source", "schedule"),
+                    int(payload.get("start_ts", 0)),
+                    int(payload.get("end_ts", 0)),
+                    int(payload.get("water_sec", 0)),
+                    payload.get("wall_sec"),
+                    payload.get("volume_liters"),
+                    payload.get("expected_flow_lpm"),
+                    payload.get("status", "ok"),
+                    payload.get("reason_code"),
+                    payload.get("schedule_version"),
+                    1 if payload.get("buffered") else 0,
+                ),
+            )
+            event_id = cur.lastrowid
+
+            # Связь с зонами
+            for zone_num in payload.get("active_zones", []):
+                zone_id = self._resolve_zone(controller_id, zone_num)
+                if zone_id is not None:
+                    self.conn.execute(
+                        """
+                        INSERT OR IGNORE INTO watering_event_zones
+                            (event_id, zone_id, water_sec, volume_liters, expected_flow_lpm)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            event_id,
+                            zone_id,
+                            payload.get("water_sec"),
+                            payload.get("volume_liters"),
+                            payload.get("expected_flow_lpm"),
+                        ),
+                    )
+
+            self.conn.commit()
+            log.info(
+                "EVENT: сохранено id=%s uid=%s status=%s",
+                event_id, event_uid, payload.get("status"),
+            )
+
+            # Обновление дневного расхода
+            from .flow_service import get_flow_service
+            flow = get_flow_service()
+            if flow is not None:
+                flow.apply_event_to_daily(event_id)
+
+            # Обработка аварии
+            status = payload.get("status", "ok")
+            if status in EMERGENCY_STATUSES:
+                self._handle_emergency(controller_id, status, payload, event_id)
+
+            return True
+
+        except Exception:
+            self.conn.rollback()
+            log.exception("EVENT: ошибка записи события %s", event_uid)
+            return False
+
+    # ------------------------------------------------------------------
+    # Аварии
+    # ------------------------------------------------------------------
+    def _handle_emergency(
+        self,
+        controller_id: int,
+        status: str,
+        payload: dict[str, Any],
+        event_id: int,
+    ) -> None:
+        from .flow_service import get_flow_service
+
+        flow = get_flow_service()
+        if flow is None:
+            return
+        flow.register_emergency(controller_id, status, payload, event_id)
+
+    # ------------------------------------------------------------------
+    # Хелперы разрешения идентификаторов
+    # ------------------------------------------------------------------
+    def _resolve_controller(self, box_id: str | None) -> int | None:
+        if not box_id:
+            return None
+        row = self.conn.execute(
+            "SELECT id FROM controllers WHERE box_id = ?", (box_id,)
+        ).fetchone()
+        return row["id"] if row else None
+
+    def _resolve_zone(self, controller_id: int, zone_num: Any) -> int | None:
+        try:
+            num = int(zone_num)
+        except (TypeError, ValueError):
+            return None
+        row = self.conn.execute(
+            """
+            SELECT id FROM zones
+            WHERE controller_id = ? AND zone_number = ? AND deleted_at IS NULL
+            """,
+            (controller_id, num),
+        ).fetchone()
+        return row["id"] if row else None
+
+    def _resolve_primary_zone(
+        self, payload: dict[str, Any], controller_id: int
+    ) -> int | None:
+        primary = payload.get("primary_zone")
+        if primary is None:
+            zones = payload.get("active_zones", [])
+            primary = zones[0] if zones else None
+        if primary is None:
+            return None
+        return self._resolve_zone(controller_id, primary)
+
+
+# ----------------------------------------------------------------------
+# Singleton-доступ (паттерн Этапа 4: get_schedule_service)
+# ----------------------------------------------------------------------
+_instance: EventService | None = None
+
+
+def init_event_service(conn: sqlite3.Connection) -> EventService:
+    global _instance
+    _instance = EventService(conn)
+    return _instance
+
+
+def get_event_service() -> EventService | None:
+    return _instance
+```
+
+---
+
+## Файл 3. Сервис расхода и аварий
+
+**`server/app/services/flow_service.py`**
+
+```python
+"""Этап 6: расход воды, дневные агрегаты, аварии потока.
+
+Отвечает за:
+- приём показаний расходомера (topic flow) — мгновенные значения НЕ пишем в БД;
+- пересчёт дневных агрегатов по событиям (источник истины — события);
+- регистрацию аварий и установку аварийной блокировки контроллера.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from datetime import datetime
+from typing import Any
+
+from ..infra.logging import get_logger
+
+log = get_logger("poliv.flow")
+
+
+def get_setting(conn: sqlite3.Connection, key: str, default: Any) -> Any:
+    """Читает настройку из таблицы settings (ключ/JSON-значение)."""
+    try:
+        row = conn.execute(
+            "SELECT value_json FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+        if row is None:
+            return default
+        return json.loads(row["value_json"])
+    except Exception:
+        return default
+
+
+class FlowService:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    # ------------------------------------------------------------------
+    # Приём показаний расходомера (не сохраняем сырые данные)
+    # ------------------------------------------------------------------
+    def handle_flow(self, payload: dict[str, Any]) -> None:
+        """Показания из топика flow. Обновляем живое состояние контроллера."""
+        box_id = payload.get("box_id")
+        if not box_id:
+            return
+        row = self.conn.execute(
+            "SELECT id FROM controllers WHERE box_id = ?", (box_id,)
+        ).fetchone()
+        if row is None:
+            return
+
+        self.conn.execute(
+            """
+            UPDATE controllers
+            SET flow_total_liters = ?,
+                instant_lpm = ?
+            WHERE id = ?
+            """,
+            (
+                payload.get("total_liters"),
+                payload.get("instant_lpm"),
+                row["id"],
+            ),
+        )
+        self.conn.commit()
+
+    # ------------------------------------------------------------------
+    # Дневные агрегаты (источник — события)
+    # ------------------------------------------------------------------
+    def apply_event_to_daily(self, event_id: int) -> None:
+        event = self.conn.execute(
+            "SELECT * FROM watering_events WHERE id = ?", (event_id,)
+        ).fetchone()
+        if event is None:
+            return
+
+        date = datetime.utcfromtimestamp(event["start_ts"]).strftime("%Y-%m-%d")
+        controller_id = event["controller_id"]
+        volume = event["volume_liters"] or 0.0
+        water_sec = event["water_sec"] or 0
+        is_anomaly = 1 if event["status"] in (
+            "no_flow", "over_flow", "under_flow", "stopped_emergency"
+        ) else 0
+
+        # Атрибуция по зонам
+        zones = self.conn.execute(
+            "SELECT zone_id FROM watering_event_zones WHERE event_id = ?",
+            (event_id,),
+        ).fetchall()
+
+        if zones:
+            per_zone_volume = volume / len(zones) if volume else None
+            for z in zones:
+                self._upsert_daily(
+                    date, controller_id, z["zone_id"], "zone",
+                    per_zone_volume or 0.0, water_sec, is_anomaly,
+                )
+        else:
+            self._upsert_daily(
+                date, controller_id, None, "controller",
+                volume, water_sec, is_anomaly,
+            )
+
+        self.conn.commit()
+
+    def _upsert_daily(
+        self,
+        date: str,
+        controller_id: int,
+        zone_id: int | None,
+        attribution: str,
+        volume: float,
+        water_sec: int,
+        anomaly: int,
+    ) -> None:
+        existing = self.conn.execute(
+            """
+            SELECT id, total_volume_l, watering_count, water_sec, anomaly_count
+            FROM flow_daily
+            WHERE date = ? AND controller_id = ?
+              AND COALESCE(zone_id, -1) = COALESCE(?, -1)
+              AND attribution = ?
+            """,
+            (date, controller_id, zone_id, attribution),
+        ).fetchone()
+
+        if existing:
+            self.conn.execute(
+                """
+                UPDATE flow_daily
+                SET total_volume_l = total_volume_l + ?,
+                    watering_count = watering_count + 1,
+                    water_sec = water_sec + ?,
+                    anomaly_count = anomaly_count + ?,
+                    updated_at = datetime('now')
+                WHERE id = ?
+                """,
+                (volume, water_sec, anomaly, existing["id"]),
+            )
+        else:
+            self.conn.execute(
+                """
+                INSERT INTO flow_daily
+                    (date, controller_id, zone_id, attribution,
+                     total_volume_l, watering_count, water_sec, anomaly_count)
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                """,
+                (date, controller_id, zone_id, attribution, volume, water_sec, anomaly),
+            )
+
+    # ------------------------------------------------------------------
+    # Аварии
+    # ------------------------------------------------------------------
+    def register_emergency(
+        self,
+        controller_id: int,
+        status: str,
+        payload: dict[str, Any],
+        event_id: int,
+    ) -> None:
+        """Регистрирует аварию: блокировка контроллера + уведомление."""
+        lock_minutes = get_setting(
+            self.conn, "flow.emergency_lock_min", 30
+        )
+        lock_until = int(datetime.now().timestamp()) + int(lock_minutes) * 60
+
+        self.conn.execute(
+            """
+            UPDATE controllers
+            SET emergency_lock_until_ts = ?, status = 'error'
+            WHERE id = ?
+            """,
+            (lock_until, controller_id),
+        )
+        self.conn.commit()
+
+        log.warning(
+            "FLOW: авария %s на контроллере %s, блокировка до %s",
+            status, controller_id, lock_until,
+        )
+
+        # Уведомление
+        from .notification_service import get_notification_service
+        notif = get_notification_service()
+        if notif is not None:
+            zone_num = None
+            zones = payload.get("active_zones", [])
+            if zones:
+                zone_num = zones[0]
+
+            notif.create(
+                type="flow_emergency",
+                severity="critical",
+                message=self._emergency_message(status),
+                controller_id=controller_id,
+                zone_number=zone_num,
+                event_id=event_id,
+                dedupe_key=f"flow:{status}:{controller_id}:{payload.get('event_uid')}",
+                details={"status": status, "payload": payload},
+            )
+
+    def _emergency_message(self, status: str) -> str:
+        return {
+            "no_flow": "Авария: нет потока воды",
+            "over_flow": "Авария: поток выше нормы",
+            "under_flow": "Внимание: поток ниже нормы",
+            "stopped_emergency": "Аварийная остановка полива",
+        }.get(status, f"Авария потока: {status}")
+
+
+# ----------------------------------------------------------------------
+# Singleton
+# ----------------------------------------------------------------------
+_instance: FlowService | None = None
+
+
+def init_flow_service(conn: sqlite3.Connection) -> FlowService:
+    global _instance
+    _instance = FlowService(conn)
+    return _instance
+
+
+def get_flow_service() -> FlowService | None:
+    return _instance
+```
+
+---
+
+## Файл 4. Сервис уведомлений
+
+**`server/app/services/notification_service.py`**
+
+```python
+"""Этап 6: уведомления с уровнями и дедупликацией."""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from typing import Any
+
+from ..infra.logging import get_logger
+
+log = get_logger("poliv.notify")
+
+SEVERITIES = ("info", "warning", "error", "critical")
+
+
+class NotificationService:
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def create(
+        self,
+        type: str,
+        severity: str,
+        message: str,
+        controller_id: int | None = None,
+        zone_id: int | None = None,
+        zone_number: int | None = None,
+        run_id: int | None = None,
+        event_id: int | None = None,
+        dedupe_key: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> int | None:
+        if severity not in SEVERITIES:
+            severity = "info"
+
+        # Дедупликация: если есть ключ и такое уведомление уже есть — не создаём
+        if dedupe_key:
+            exists = self.conn.execute(
+                "SELECT id FROM notifications WHERE dedupe_key = ?",
+                (dedupe_key,),
+            ).fetchone()
+            if exists:
+                return exists["id"]
+
+        # Разрешаем zone_id по номеру, если передан номер
+        if zone_id is None and zone_number is not None and controller_id is not None:
+            row = self.conn.execute(
+                """
+                SELECT id FROM zones
+                WHERE controller_id = ? AND zone_number = ? AND deleted_at IS NULL
+                """,
+                (controller_id, zone_number),
+            ).fetchone()
+            if row:
+                zone_id = row["id"]
+
+        try:
+            cur = self.conn.execute(
+                """
+                INSERT INTO notifications
+                    (type, severity, controller_id, zone_id, run_id, event_id,
+                     message, details_json, dedupe_key)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    type,
+                    severity,
+                    controller_id,
+                    zone_id,
+                    run_id,
+                    event_id,
+                    message,
+                    json.dumps(details) if details else None,
+                    dedupe_key,
+                ),
+            )
+            self.conn.commit()
+            notif_id = cur.lastrowid
+            log.info("NOTIFY: [%s] %s (id=%s)", severity, message, notif_id)
+            return notif_id
+        except Exception:
+            self.conn.rollback()
+            log.exception("NOTIFY: ошибка создания уведомления")
+            return None
+
+    # ------------------------------------------------------------------
+    def list(
+        self,
+        unread_only: bool = False,
+        severity: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT * FROM notifications WHERE 1=1"
+        params: list[Any] = []
+        if unread_only:
+            sql += " AND read_at IS NULL"
+        if severity:
+            sql += " AND severity = ?"
+            params.append(severity)
+        sql += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        return [dict(r) for r in self.conn.execute(sql, params).fetchall()]
+
+    def unread_count(self) -> int:
+        row = self.conn.execute(
+            "SELECT COUNT(*) c FROM notifications WHERE read_at IS NULL"
+        ).fetchone()
+        return row["c"] if row else 0
+
+    def mark_read(self, notif_id: int) -> bool:
+        cur = self.conn.execute(
+            """
+            UPDATE notifications SET read_at = datetime('now')
+            WHERE id = ? AND read_at IS NULL
+            """,
+            (notif_id,),
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def mark_all_read(self) -> int:
+        cur = self.conn.execute(
+            "UPDATE notifications SET read_at = datetime('now') WHERE read_at IS NULL"
+        )
+        self.conn.commit()
+        return cur.rowcount
+
+
+# ----------------------------------------------------------------------
+# Singleton
+# ----------------------------------------------------------------------
+_instance: NotificationService | None = None
+
+
+def init_notification_service(conn: sqlite3.Connection) -> NotificationService:
+    global _instance
+    _instance = NotificationService(conn)
+    return _instance
+
+
+def get_notification_service() -> NotificationService | None:
+    return _instance
+```
+
+---
+
+## Файл 5. REST API Этапа 6
+
+**`server/app/api/routes_stage6.py`**
+
+```python
+"""Этап 6: REST API событий, расхода, уведомлений, аварий.
+
+Эндпоинты (Артефакт 0.6):
+- GET  /api/events                       — список событий (фильтры, пагинация)
+- GET  /api/events/export.csv            — экспорт CSV
+- GET  /api/flow/summary                 — сводка расхода
+- GET  /api/flow/daily                   — дневные агрегаты
+- GET  /api/notifications                — уведомления
+- GET  /api/notifications/unread-count   — счётчик непрочитанных
+- POST /api/notifications/{id}/read      — пометить прочитанным
+- POST /api/notifications/read-all       — прочитать все
+- POST /api/controllers/{id}/clear-error — сброс аварийной блокировки
+
+Роли: viewer+ на чтение, operator+ на действия.
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+import sqlite3
+from typing import Any
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from ..infra.logging import get_logger
+from ..services.event_service import get_event_service
+from ..services.flow_service import get_flow_service, get_setting
+from ..services.notification_service import get_notification_service
+from .routes_stage3 import _user
+
+log = get_logger("poliv.api6")
+
+ROLE_LEVELS = {"viewer": 0, "operator": 1, "admin": 2}
+
+MAX_RANGE_DAYS = 365
+
+
+def _check(request: Request, min_role: str = "viewer"):
+    user = _user(request)
+    if user is None:
+        return JSONResponse({"detail": "Требуется вход в систему"}, status_code=401)
+    if ROLE_LEVELS[user["role"]] < ROLE_LEVELS[min_role]:
+        return JSONResponse(
+            {"detail": f"Недостаточно прав: требуется роль {min_role}"},
+            status_code=403,
+        )
+    return None
+
+
+def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> None:
+
+    # ------------------------------------------------------------------
+    # События
+    # ------------------------------------------------------------------
+    @app.get("/api/events")
+    async def events_list(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+
+        page = max(1, int(request.query_params.get("page", 1)))
+        page_size = min(200, int(request.query_params.get("page_size", 50)))
+        controller_id = request.query_params.get("controller_id")
+        status = request.query_params.get("status")
+        source = request.query_params.get("source")
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+
+        sql = "SELECT * FROM watering_events WHERE 1=1"
+        params: list[Any] = []
+
+        if controller_id:
+            sql += " AND controller_id = ?"
+            params.append(int(controller_id))
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        if source:
+            sql += " AND source = ?"
+            params.append(source)
+        if date_from:
+            sql += " AND start_ts >= ?"
+            params.append(int(date_from))
+        if date_to:
+            sql += " AND start_ts < ?"
+            params.append(int(date_to))
+
+        total = conn.execute(
+            sql.replace("SELECT *", "SELECT COUNT(*) c"), params
+        ).fetchone()["c"]
+
+        sql += " ORDER BY id DESC LIMIT ? OFFSET ?"
+        params.extend([page_size, (page - 1) * page_size])
+        items = [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+        return {
+            "items": items,
+            "page": page,
+            "page_size": page_size,
+            "total_items": total,
+            "total_pages": (total + page_size - 1) // page_size if total else 0,
+        }
+
+    @app.get("/api/events/export.csv")
+    async def events_csv(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+
+        rows = conn.execute(
+            """
+            SELECT e.*, c.name AS controller_name, c.box_id
+            FROM watering_events e
+            JOIN controllers c ON c.id = e.controller_id
+            ORDER BY e.id DESC LIMIT 10000
+            """
+        ).fetchall()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        if rows:
+            writer.writerow(rows[0].keys())
+            for r in rows:
+                writer.writerow(list(r))
+        output.seek(0)
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=events.csv"},
+        )
+
+    # ------------------------------------------------------------------
+    # Расход
+    # ------------------------------------------------------------------
+    @app.get("/api/flow/summary")
+    async def flow_summary(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+
+        sql = """
+            SELECT COALESCE(SUM(total_volume_l), 0) AS volume,
+                   COALESCE(SUM(watering_count), 0) AS runs,
+                   COALESCE(SUM(water_sec), 0) AS water_sec,
+                   COALESCE(SUM(anomaly_count), 0) AS anomalies
+            FROM flow_daily WHERE 1=1
+        """
+        params: list[Any] = []
+        if date_from:
+            sql += " AND date >= ?"
+            params.append(date_from)
+        if date_to:
+            sql += " AND date <= ?"
+            params.append(date_to)
+
+        row = conn.execute(sql, params).fetchone()
+        return dict(row) if row else {}
+
+    @app.get("/api/flow/daily")
+    async def flow_daily(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+
+        controller_id = request.query_params.get("controller_id")
+        date_from = request.query_params.get("from")
+        date_to = request.query_params.get("to")
+
+        sql = "SELECT * FROM flow_daily WHERE 1=1"
+        params: list[Any] = []
+        if controller_id:
+            sql += " AND controller_id = ?"
+            params.append(int(controller_id))
+        if date_from:
+            sql += " AND date >= ?"
+            params.append(date_from)
+        if date_to:
+            sql += " AND date <= ?"
+            params.append(date_to)
+        sql += " ORDER BY date DESC LIMIT 365"
+
+        return {"items": [dict(r) for r in conn.execute(sql, params).fetchall()]}
+
+    # ------------------------------------------------------------------
+    # Уведомления
+    # ------------------------------------------------------------------
+    @app.get("/api/notifications")
+    async def notifications_list(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+
+        notif = get_notification_service()
+        if notif is None:
+            return JSONResponse({"detail": "Сервис уведомлений недоступен"}, 503)
+
+        unread = request.query_params.get("unread") == "1"
+        severity = request.query_params.get("severity")
+        items = notif.list(unread_only=unread, severity=severity)
+        return {"items": items, "unread_count": notif.unread_count()}
+
+    @app.get("/api/notifications/unread-count")
+    async def notifications_unread(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+
+        notif = get_notification_service()
+        return {"unread_count": notif.unread_count() if notif else 0}
+
+    @app.post("/api/notifications/{notif_id}/read")
+    async def notifications_read(request: Request, notif_id: int):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+
+        notif = get_notification_service()
+        if notif is None:
+            return JSONResponse({"detail": "Сервис уведомлений недоступен"}, 503)
+
+        ok = notif.mark_read(notif_id)
+        return {"status": "ok" if ok else "not_found"}
+
+    @app.post("/api/notifications/read-all")
+    async def notifications_read_all(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+
+        notif = get_notification_service()
+        if notif is None:
+            return JSONResponse({"detail": "Сервис уведомлений недоступен"}, 503)
+
+        count = notif.mark_all_read()
+        return {"status": "ok", "marked": count}
+
+    # ------------------------------------------------------------------
+    # Сброс аварии
+    # ------------------------------------------------------------------
+    @app.post("/api/controllers/{controller_id}/clear-error")
+    async def clear_error(request: Request, controller_id: int):
+        denied = _check(request, "operator")
+        if denied is not None:
+            return denied
+
+        user = _user(request)
+        body = await request.json() if await request.body() else {}
+        reason = body.get("reason", "ручной сброс аварии")
+
+        row = conn.execute(
+            "SELECT id, emergency_lock_until_ts FROM controllers WHERE id = ?",
+            (controller_id,),
+        ).fetchone()
+        if row is None:
+            return JSONResponse({"detail": "Контроллер не найден"}, 404)
+
+        conn.execute(
+            """
+            UPDATE controllers
+            SET emergency_lock_until_ts = NULL, status = 'idle'
+            WHERE id = ?
+            """,
+            (controller_id,),
+        )
+        conn.commit()
+
+        # Отправляем команду контроллеру через command_service
+        try:
+            cmd = app.state.command_service
+            cmd.send_command_async(
+                controller_id, "clear_error",
+                {"reason": reason},
+                source="web",
+                user_id=user["id"],
+                username=user["username"],
+            )
+        except Exception:
+            log.exception("clear-error: не удалось отправить команду")
+
+        # Запись в журнал
+        try:
+            auth = app.state.auth
+            auth.write_log(
+                user["id"], user["username"], "controller.clear_error",
+                "controller", controller_id, {"reason": reason},
+            )
+        except Exception:
+            pass
+
+        return {"status": "ok", "controller_id": controller_id}
+
+    log.info("API Этап 6 зарегистрирован")
+```
+
+---
+
+## Файл 6. Тесты
+
+**`server/tests/test_stage6.py`**
+
+```python
+"""Этап 6: тесты событий, дедупликации, расхода, аварий, уведомлений."""
+
+from __future__ import annotations
+
+import time
+
+
+def test_event_saved_and_deduplicated(h):
+    """Событие сохраняется; повторный event_uid игнорируется."""
+    c = h.controller("BOX-EVENT-1")
+    h.add_zone(c["id"], 1)
+
+    from server.app.services.event_service import get_event_service
+    svc = get_event_service()
+    assert svc is not None
+
+    payload = {
+        "protocol_version": 1,
+        "event_uid": "evt-001",
+        "ts": int(time.time()),
+        "box_id": "BOX-EVENT-1",
+        "run_id": "run-1",
+        "active_zones": [1],
+        "primary_zone": 1,
+        "source": "schedule",
+        "start_ts": int(time.time()) - 600,
+        "end_ts": int(time.time()),
+        "water_sec": 600,
+        "wall_sec": 600,
+        "volume_liters": 50.0,
+        "expected_flow_lpm": 5.0,
+        "status": "ok",
+        "schedule_version": 1,
+        "buffered": False,
+    }
+
+    assert svc.handle_event(payload) is True
+    # Дубликат
+    assert svc.handle_event(payload) is False
+
+    row = h.conn.execute(
+        "SELECT COUNT(*) c FROM watering_events WHERE event_uid = 'evt-001'"
+    ).fetchone()
+    assert row["c"] == 1
+
+
+def test_daily_flow_aggregated(h):
+    """Объём воды попадает в дневные агрегаты."""
+    c = h.controller("BOX-FLOW-1")
+    h.add_zone(c["id"], 1)
+
+    from server.app.services.event_service import get_event_service
+    svc = get_event_service()
+
+    payload = {
+        "event_uid": "evt-flow-1",
+        "box_id": "BOX-FLOW-1",
+        "active_zones": [1],
+        "source": "schedule",
+        "start_ts": int(time.time()) - 300,
+        "end_ts": int(time.time()),
+        "water_sec": 300,
+        "volume_liters": 25.0,
+        "status": "ok",
+    }
+    assert svc.handle_event(payload) is True
+
+    row = h.conn.execute(
+        """
+        SELECT total_volume_l, watering_count
+        FROM flow_daily WHERE controller_id = ?
+        """,
+        (c["id"],),
+    ).fetchone()
+    assert row is not None
+    assert row["total_volume_l"] >= 25.0
+    assert row["watering_count"] >= 1
+
+
+def test_emergency_blocks_controller(h):
+    """Авария потока устанавливает блокировку и создаёт уведомление."""
+    c = h.controller("BOX-EMER-1")
+    h.add_zone(c["id"], 3)
+
+    from server.app.services.event_service import get_event_service
+    svc = get_event_service()
+
+    payload = {
+        "event_uid": "evt-emer-1",
+        "box_id": "BOX-EMER-1",
+        "active_zones": [3],
+        "source": "schedule",
+        "start_ts": int(time.time()) - 100,
+        "end_ts": int(time.time()),
+        "water_sec": 100,
+        "volume_liters": 0.0,
+        "status": "no_flow",
+        "reason_code": 4001,
+    }
+    assert svc.handle_event(payload) is True
+
+    row = h.conn.execute(
+        "SELECT emergency_lock_until_ts, status FROM controllers WHERE id = ?",
+        (c["id"],),
+    ).fetchone()
+    assert row["emergency_lock_until_ts"] is not None
+    assert row["emergency_lock_until_ts"] > int(time.time())
+    assert row["status"] == "error"
+
+    notif = h.conn.execute(
+        """
+        SELECT * FROM notifications
+        WHERE controller_id = ? AND severity = 'critical'
+        """,
+        (c["id"],),
+    ).fetchone()
+    assert notif is not None
+
+
+def test_notification_deduplication(h):
+    """Уведомления с одинаковым dedupe_key не дублируются."""
+    c = h.controller("BOX-NOTIF-1")
+
+    from server.app.services.notification_service import get_notification_service
+    notif = get_notification_service()
+
+    id1 = notif.create(
+        type="test",
+        severity="warning",
+        message="Тестовое уведомление",
+        controller_id=c["id"],
+        dedupe_key="test-key-1",
+    )
+    id2 = notif.create(
+        type="test",
+        severity="warning",
+        message="Тестовое уведомление",
+        controller_id=c["id"],
+        dedupe_key="test-key-1",
+    )
+    assert id1 == id2
+
+    count = h.conn.execute(
+        "SELECT COUNT(*) c FROM notifications WHERE dedupe_key = 'test-key-1'"
+    ).fetchone()["c"]
+    assert count == 1
+
+
+def test_api_events_and_notifications(h):
+    """API Этапа 6 отвечает корректно."""
+    c = h.controller("BOX-API6-1")
+    admin = h.login_as("admin")
+
+    # События
+    r = admin.get("/api/events")
+    assert r.status_code == 200
+    body = r.json()
+    assert "items" in body
+    assert "total_items" in body
+
+    # Уведомления
+    r = admin.get("/api/notifications")
+    assert r.status_code == 200
+    assert "items" in r.json()
+
+    # Счётчик
+    r = admin.get("/api/notifications/unread-count")
+    assert r.status_code == 200
+    assert "unread_count" in r.json()
+
+    # Расход
+    r = admin.get("/api/flow/summary")
+    assert r.status_code == 200
+
+
+def test_viewer_cannot_clear_error(h):
+    """viewer не может сбросить аварию."""
+    c = h.controller("BOX-ROLE-1")
+    viewer = h.login_as("viewer")
+    r = viewer.post(f"/api/controllers/{c['id']}/clear-error", json={"reason": "test"})
+    assert r.status_code == 403
+```
+
+---
+
+## ⚠ Точки интеграции (нужно сверить с текущим кодом)
+
+1. **Миграции.** Проверь, как подключаются миграции в `server/main.py` / `infra`. Файл должен попасть в тот же каталог и иметь ту же сигнатуру (`migrate(conn)` или иную). Если миграции нумеруются иначе — переименуй.
+
+2. **Инициализация сервисов.** В `server/main.py` (или там, где создаются сервисы) нужно вызвать:
+   ```python
+   from app.services.event_service import init_event_service
+   from app.services.flow_service import init_flow_service
+   from app.services.notification_service import init_notification_service
+
+   init_event_service(conn)
+   init_flow_service(conn)
+   init_notification_service(conn)
+   ```
+
+3. **MQTT-хендлеры.** В обработчике MQTT (вероятно, `server/app/infra/mqtt_client.py` или `services/mqtt_service.py`) нужно подписаться и направить топики:
+   - `poliv/{box_id}/event` → `event_service.handle_event(payload)`
+   - `poliv/{box_id}/flow` → `flow_service.handle_flow(payload)`
+
+4. **Регистрация роутов.** В `main.py` добавь:
+   ```python
+   from app.api.routes_stage6 import register_api_routes_stage6
+   register_api_routes_stage6(app, cfg, conn)
+   ```
+
+5. **Тестовый хелпер `h`.** Тесты используют `h.conn`, `h.controller()`, `h.add_zone()`, `h.login_as()`. Если в `test_stage5.py` хелпер называется иначе — поправь импорты/имена.
+
+---
