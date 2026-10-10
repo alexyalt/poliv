@@ -6,7 +6,7 @@
   "valid_from_date": "2026-10-10",
   "valid_to_date": "2026-10-17",
   "timezone_offset_min": 0,
-  "generated_ts": 1791641508,
+  "generated_ts": 1791646721,
   "source": "auto",
   "options": {
     "max_catchup_sec": 600,

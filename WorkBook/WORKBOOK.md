@@ -334,3 +334,46 @@ config/config.local.toml; проверено git check-ignore. В коммите
   по коду routes_stage5.py/web routes и шаблонам (POLL_MS=10000, net-banner,
   @media в default.css); версия 0.5.0 (APP_VERSION_BASE в main.py).
   Push — по запросу пользователя.
+
+---
+
+## [10.10.2026] Этап 6 — события полива, контроль расхода, уведомления
+
+- **Контекст/запрос:** пользователь запросил выполнение Этапа 6 с опорой на
+  рекомендации `qwen_chat/stage6_recomendation` (готовый код), допустимо
+  изменять нерабочие подходы.
+- **Что сделано:**
+  - Миграция `0008_stage6_events_flow_notifications.py`: таблицы
+    `watering_events` (UNIQUE по `event_uid` — дедупликация), `flow_daily`
+    (суточная агрегация литров), `notifications` (severity/read); настройки
+    `flow.*` (пороги no_flow/over_flow, grace, блок) и
+    `ui.sound_notifications_enabled`. Исправлена блокирующая ошибка исходной
+    миграции (недопустимый COALESCE в UNIQUE-индексе — заменён на
+    суррогатный ключ).
+  - Сервисы `event_service`, `flow_service` (аварии no_flow/over_flow,
+    блокировка поливов, daily-сводка), `notification_service` (идемпотентная
+    генерация, unread-count, mark read/read-all).
+  - MQTT-клиент сервера: подписка и обработка `poliv/+/event`, `poliv/+/flow`
+    (`attach_stage6_services`, `_handle_event`, `_handle_flow`); flow не двигает
+    `last_seen_at` отдельно от статусов. Сигнатуры вызовов сервисов сверены
+    (были рассинхронизированы — исправлено).
+  - REST API `routes_stage6.py`: события (+CSV-экспорт), сводка расхода,
+    центр уведомлений, unread-count; регистрация маршрутов и передача сервисов
+    в lifespan `main.py`; версия 0.6.0.
+  - Веб: страница `/events` (шаблон `events.html`) — лента событий, суточная
+    сводка, уведомления, звуковой сигнал critical через WebAudio-синтез
+    (без бинарных ассетов), polling unread-count.
+  - Эмулятор (`emulator/controller_sim.py`) публикует flow (10 с активный /
+    30 с простой) и event (start/finish, `event_uid=uuid4`).
+  - Тесты `test_stage6.py` (16 шт.): сервисы, дедупликация, идемпотентность,
+    лимиты, API, ACL viewer/operator, сквозной сценарий страницы.
+  - `docs/ИНСТРУКЦИЯ_ЭТАП6.md`.
+- **Отклонения от рекомендаций qwen_chat:** каталог/сигнатура миграций
+  (`server/migrations`, `upgrade(conn)`); колонки live-state уже в 0004;
+  run_id — TEXT; статусы событий started/finished/stopped; команды clear_error
+  нет в COMMAND_NAMES (механизм снятия аварии реализован через flow_service);
+  фикстуры `h` в pytest нет — использован harness-класс; JSON-ключ счётчика —
+  `unread_count` (в тесте рекомендации был `unread` — исправлено).
+- **Статус проверки:** `python -m pytest server/tests -q` ->
+  **107 passed, 1 skipped** (регресс Этапов 1–5 не сломан).
+  Push — по запросу пользователя.

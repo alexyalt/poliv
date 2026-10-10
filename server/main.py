@@ -25,7 +25,7 @@ from pathlib import Path
 # (например, 0.2.0+fd22a77), чтобы по заголовку вкладки видно, какие изменения
 # реально загружены на локальную машину. Если git недоступен (запуск из копии
 # без .git, продакшен-сборка) — остаётся только базовая версия.
-APP_VERSION_BASE = "0.5.0"
+APP_VERSION_BASE = "0.6.0"
 
 
 def _git_short_hash() -> str:
@@ -62,10 +62,14 @@ from server.app.api.routes_stage2 import register_api_routes
 from server.app.api.routes_stage3 import register_api_routes_stage3
 from server.app.api.routes_stage4 import register_api_routes_stage4
 from server.app.api.routes_stage5 import register_api_routes_stage5
+from server.app.api.routes_stage6 import register_api_routes_stage6
 from server.app.infra import mqtt_client as mqtt_infra
 from server.app.services.auth_service import AuthService
 from server.app.services.catalog_service import CatalogService
+from server.app.services.event_service import init_event_service
+from server.app.services.flow_service import init_flow_service
 from server.app.services.mqtt_command_service import MqttCommandService
+from server.app.services.notification_service import init_notification_service
 from server.app.services.schedule_service import (
     ScheduleService, set_schedule_service)
 from server.app.services.test_data import seed_test_data
@@ -98,6 +102,11 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # Этап 4: сервис машинограмм (компиляция + рассылка); MQTT подключается в lifespan.
     schedule_service = ScheduleService(cfg, conn, db_path=str(cfg.db_path))
     set_schedule_service(schedule_service)
+    # Этап 6: события/расход/уведомления (singleton-сервисы; MQTT подключает
+    # event/flow сервисы в lifespan, API/веб читают их через get_*()).
+    event_service = init_event_service(conn)
+    flow_service = init_flow_service(conn)
+    notification_service = init_notification_service(conn)
 
     app = FastAPI(
         title="Автополив",
@@ -111,6 +120,10 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.users = users
     app.state.command_service = cmd_service
     app.state.schedule_service = schedule_service
+    # Этап 6: доступ к сервисам из lifespan/веб-маршрутов.
+    app.state.event_service = event_service
+    app.state.flow_service = flow_service
+    app.state.notification_service = notification_service
     app.state.app_dir = str(ROOT / "app")
 
     app.mount("/static", StaticFiles(directory=app.state.app_dir + "/static"), name="static")
@@ -127,11 +140,15 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # /api/controllers/{id}/view не конфликтует с ранее зарегистрированными
     # точными путями stage3/stage4 (FastAPI отдаёт приоритет точным маршрутам).
     register_api_routes_stage5(app, cfg, conn)
+    # Этап 6: REST API событий/расхода/уведомлений (/api/stage6/*).
+    # Свой префикс /api/stage6 — не конфликтует с ранее зарегистрированными
+    # маршрутами stage2..5.
+    register_api_routes_stage6(app, cfg, conn)
     register_api_routes(app, cfg, conn, catalog, users)
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "stage": 5}
+        return {"status": "ok", "stage": 6}
 
     log.info("Сервер готов. Веб-интерфейс: http://%s:%d/", cfg.server_host, cfg.server_port)
     return app
@@ -148,6 +165,8 @@ async def _lifespan_mqtt(app: FastAPI):
             cfg, db_path=str(cfg.db_path),
             command_service=app.state.command_service,
             schedule_service=getattr(app.state, "schedule_service", None),
+            event_service=getattr(app.state, "event_service", None),
+            flow_service=getattr(app.state, "flow_service", None),
         )
         app.state.mqtt = inst
     except Exception:

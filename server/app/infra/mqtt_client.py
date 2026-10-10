@@ -96,10 +96,22 @@ class MqttServerClient:
         # Этап 4: сервис машинограмм (attach из main.py). Без него — деградация
         # к заглушке v0 (поведение Этапа 3).
         self.schedule_service = None
+        # Этап 6: сервисы событий/расхода (attach из main.py). Без них —
+        # поведение Этапа 3..5 (события только логируются, flow — live-поля).
+        self.event_service = None
+        self.flow_service = None
 
     def attach_schedule_service(self, svc) -> None:
         """Lifespan/DI: подключить ScheduleService для реальной рассылки."""
         self.schedule_service = svc
+
+    def attach_stage6_services(self, event_service=None,
+                               flow_service=None) -> None:
+        """Lifespan/DI: подключить EventService/FlowService (Этап 6)."""
+        if event_service is not None:
+            self.event_service = event_service
+        if flow_service is not None:
+            self.flow_service = flow_service
 
     # ------------------------------------------------------------------ lifecycle
     def start(self) -> None:
@@ -465,6 +477,14 @@ class MqttServerClient:
                         "water_sec": p.get("water_sec"),
                         "volume_liters": p.get("volume_liters"),
                         "active_zones": p.get("active_zones")}, source="mqtt")
+        # Этап 6: сохранение события в БД (дедупликация по event_uid, ТЗ §9.2)
+        # + дневные агрегаты расхода + аварии/уведомления (EventService → FlowService).
+        esvc = self.event_service
+        if esvc is not None:
+            try:
+                esvc.handle_event(box_id, p)
+            except Exception:
+                log.exception("MQTT: EventService.handle_event упал для %s", box_id)
         # Этап 4: журнал прогонов watering_runs (план→факт) из событий полива.
         svc = self.schedule_service
         if svc is not None:
@@ -497,6 +517,13 @@ class MqttServerClient:
                 f"UPDATE controllers SET {cols} WHERE box_id=?",
                 (*sets.values(), box_id),
             )
+        # Этап 6: детекция аварий потока (no_flow/over_flow) во время полива.
+        fsvc = self.flow_service
+        if fsvc is not None:
+            try:
+                fsvc.handle_flow(box_id, p)
+            except Exception:
+                log.exception("MQTT: FlowService.handle_flow упал для %s", box_id)
 
     # ------------------------------------------------------------------ publish
     def publish(self, topic: str, payload: dict, qos: int = 1,
@@ -673,7 +700,8 @@ def get_mqtt_client() -> Optional[MqttServerClient]:
 
 
 def start_mqtt(cfg: Config, client_factory=None, db_path: Optional[str] = None,
-               command_service=None, schedule_service=None) -> MqttServerClient:
+               command_service=None, schedule_service=None,
+               event_service=None, flow_service=None) -> MqttServerClient:
     """Lifespan-подобный старт: вызывается из main.py, НЕ при импорте модуля."""
     global _instance
     with _instance_lock:
@@ -682,6 +710,8 @@ def start_mqtt(cfg: Config, client_factory=None, db_path: Optional[str] = None,
         inst = MqttServerClient(cfg, client_factory=client_factory, db_path=db_path)
         if schedule_service is not None:
             inst.attach_schedule_service(schedule_service)
+        inst.attach_stage6_services(event_service=event_service,
+                                    flow_service=flow_service)
         inst.start()
         if command_service is not None:
             command_service.attach(inst)

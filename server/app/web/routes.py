@@ -787,6 +787,17 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         auth.write_log(user["id"], user["username"], "settings.updated", "setting", None)
         return redirect("/settings", ok="Настройки сохранены")
 
+    # --------------------------------------------------------------- Этап 6
+    @app.get("/events", response_class=HTMLResponse)
+    def events_page(request: Request):
+        """Страница событий/расхода/уведомлений (Этап 6).
+
+        Данные подгружаются JS-виджетом через API Этапа 6 (/api/events,
+        /api/flow/*, /api/notifications) — серверная часть страницы только
+        проверяет вход и рисует каркас (как dashboard-view в Этапе 5).
+        """
+        return page(request, "events.html")
+
     @app.exception_handler(_NotAuthed)
     async def _not_authed_handler(request: Request, exc: _NotAuthed):
         return RedirectResponse("/login", status_code=302)
