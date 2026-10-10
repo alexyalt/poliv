@@ -32,14 +32,23 @@ from server.app.services.flow_service import (
     init_flow_service, set_flow_service, set_setting, get_setting)
 from server.app.services.notification_service import (
     init_notification_service, set_notification_service)
+from server.app.web.routes import register_web_routes
 from server.tests.test_stage3 import _Harness
 
 
 class _Harness6(_Harness):
     """_Harness Этапа 3 + сервисы и API Этапа 6 (порядок как в create_app)."""
 
-    def __init__(self):
+    def __init__(self, with_web: bool = False):
         super().__init__()
+        # Веб-маршруты нужны только тестам страницы /events (в create_app
+        # они регистрируются main.py; в базовом харнессе Этапа 3 их нет).
+        if with_web:
+            # как в create_app (main.py): app_dir для Jinja2-шаблонов и /static
+            import pathlib
+            self.app.state.app_dir = str(
+                pathlib.Path(__file__).resolve().parent.parent / "app")
+            register_web_routes(self.app, self.cfg, self.conn, self.auth)
         # Сервисы-синглтоны поверх той же conn, что и у приложения/MQTT.
         self.events = init_event_service(self.conn)
         self.flow = init_flow_service(self.conn)
@@ -126,6 +135,16 @@ class _Harness6(_Harness):
 @pytest.fixture()
 def h6():
     h = _Harness6()
+    try:
+        yield h
+    finally:
+        h.close()
+
+
+@pytest.fixture()
+def h6web():
+    """Харнесс с веб-маршрутами — для тестов страницы /events."""
+    h = _Harness6(with_web=True)
     try:
         yield h
     finally:
@@ -343,3 +362,55 @@ def test_api_clear_error_operator(h6):
     # чужого контроллера нет — 404
     assert operator.post("/api/controllers/999999/clear-error",
                          json={}).status_code == 404
+
+
+# ==================================================== Блок 4: страница /events
+def test_events_page_requires_login(h6web):
+    """Без сессии — редирект на /login (как остальные защищённые страницы)."""
+    r = h6web.client.get("/events", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/login"
+
+
+def test_events_page_renders_widget_and_sound(h6web):
+    """Страница отдаётся залогиненному; каркас виджета и звуковое
+    уведомление о новых critical-авариях присутствуют в HTML/JS."""
+    viewer = h6web.login_as("viewer")
+    r = viewer.get("/events")
+    assert r.status_code == 200
+    html = r.text
+    # контейнеры live-виджета (данные подгружаются JS через API этапа 6)
+    for marker in ("flow-summary", "notifications", "events",
+                   "btn-read-all", "chk-critical-only"):
+        assert marker in html, marker
+    # звук новых аварий: WebAudio-синтез + подписка на счётчик critical
+    assert "beep()" in html
+    assert "max_unread_critical_id" in html
+    assert "AudioContext" in html
+
+
+def test_events_page_sound_can_be_disabled(h6web):
+    """Чекбокс «звук новых аварий» включён по умолчанию и управляется JS."""
+    viewer = h6web.login_as("viewer")
+    html = viewer.get("/events").text
+    assert 'id="chk-sound" checked' in html
+    assert "soundOn" in html
+
+
+def test_events_page_shows_data_via_api_after_emergency(h6web):
+    """Сквозной сценарий страницы: авария -> critical-уведомление
+    (unread-count с id для звука) -> mark read -> счётчик обнуляется."""
+    operator = h6web.login_as("operator")
+    c = h6web.controller("BOX-W1")
+    h6web.inject_event("BOX-W1", h6web.event_payload(
+        "BOX-W1", "stopped", reason_code="no_flow", aborted=True))
+    # страница открывается
+    assert operator.get("/events").status_code == 200
+    u = operator.get("/api/notifications/unread-count").json()
+    assert u["unread"] >= 1
+    assert u["max_unread_critical_id"] > 0      # сигнал для beep() на фронте
+    n = h6web.notif_rows()[0]
+    assert n["severity"] == "critical"
+    r = operator.post(f"/api/notifications/{n['id']}/read")
+    assert r.status_code == 200
+    assert operator.get("/api/notifications/unread-count").json()["unread"] == 0
