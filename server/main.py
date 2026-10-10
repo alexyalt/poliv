@@ -25,7 +25,7 @@ from pathlib import Path
 # (например, 0.2.0+fd22a77), чтобы по заголовку вкладки видно, какие изменения
 # реально загружены на локальную машину. Если git недоступен (запуск из копии
 # без .git, продакшен-сборка) — остаётся только базовая версия.
-APP_VERSION_BASE = "0.5.0"
+APP_VERSION_BASE = "0.6.0"
 
 
 def _git_short_hash() -> str:
@@ -140,11 +140,15 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # /api/controllers/{id}/view не конфликтует с ранее зарегистрированными
     # точными путями stage3/stage4 (FastAPI отдаёт приоритет точным маршрутам).
     register_api_routes_stage5(app, cfg, conn)
+    # Этап 6: REST API событий/расхода/уведомлений (/api/stage6/*).
+    # Свой префикс /api/stage6 — не конфликтует с ранее зарегистрированными
+    # маршрутами stage2..5.
+    register_api_routes_stage6(app, cfg, conn)
     register_api_routes(app, cfg, conn, catalog, users)
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "stage": 5}
+        return {"status": "ok", "stage": 6}
 
     log.info("Сервер готов. Веб-интерфейс: http://%s:%d/", cfg.server_host, cfg.server_port)
     return app
@@ -161,6 +165,8 @@ async def _lifespan_mqtt(app: FastAPI):
             cfg, db_path=str(cfg.db_path),
             command_service=app.state.command_service,
             schedule_service=getattr(app.state, "schedule_service", None),
+            event_service=getattr(app.state, "event_service", None),
+            flow_service=getattr(app.state, "flow_service", None),
         )
         app.state.mqtt = inst
     except Exception:

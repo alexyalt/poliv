@@ -312,8 +312,15 @@ def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> N
 
 
 def _plain_api(app: FastAPI):
-    """Регистратор маршрутов напрямую (без обёртки auth из stage5)."""
-    def api(method: str, path: str, handler):
-        app.add_api_route(path, handler, methods=[method])
-        return handler
+    """Регистратор маршрутов напрямую (без обёртки auth из stage5).
+
+    Используется как api("GET", path) в виде декоратора над handler —
+    двухуровневая фабрика (в исходной рекомендации был нерабочий вариант
+    api(method, path, handler), несовместимый с синтаксисом декоратора).
+    """
+    def api(method: str, path: str):
+        def decorator(handler):
+            app.add_api_route(path, handler, methods=[method])
+            return handler
+        return decorator
     return api
