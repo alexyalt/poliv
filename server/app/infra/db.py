@@ -12,12 +12,16 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .config import PROJECT_ROOT, Config
+from .config import CODE_ROOT, Config
 from .logging import get_logger
 
 log = get_logger("poliv.db")
 
-MIGRATIONS_DIR = PROJECT_ROOT / "server" / "migrations"
+# Миграции — часть КОДА (git), а не рабочих данных: всегда от реального
+# расположения исходников. POLIV_DATA_ROOT (изоляция тестов) смещает только
+# data/logs/backups; иначе temp-корень тестов не содержит server/migrations
+# и fresh-BD-тесты падали с «no such table» (аудит этапа 6, дефект №9).
+MIGRATIONS_DIR = CODE_ROOT / "server" / "migrations"
 
 
 def connect(cfg: Config) -> sqlite3.Connection:

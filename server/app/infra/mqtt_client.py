@@ -390,10 +390,16 @@ class MqttServerClient:
         ):
             return
         status = p.get("status")
+        # Аудит 06.10 (P1-4): строгий whitelist статусов контракта (§6.1).
+        # Неизвестный статус НЕ должен финализировать pending — раньше код
+        # писал warning и fall-through к final=True (воспроизведено: status=
+        # 'alien' завершал команду).
         if status not in {"accepted", "completed", "rejected", "error",
                           "ignored_duplicate"}:
-            log.warning("MQTT: command_ack от %s — неизвестный status=%r",
+            log.warning("MQTT: command_ack от %s — неизвестный status=%r, "
+                        "ack проигнорирован без изменения pending",
                         box_id, status)
+            return
         cid = p["command_id"]
         with self._pending_lock:
             entry = self._pending.get(cid)
@@ -402,6 +408,18 @@ class MqttServerClient:
                 log.info("MQTT: command_ack %s от %s — команда не найдена среди "
                          "pending (дубликат или поздний ack), игнорируется",
                          cid[:8], box_id)
+                return
+            # Аудит 06.10 (P1-4): привязка ACK к ожидаемым адресату и команде.
+            if entry.get("box_id") not in (None, box_id):
+                log.warning("MQTT: command_ack %s от %s — ожидался от %s, "
+                            "чужой ack игнорируется",
+                            cid[:8], box_id, entry.get("box_id"))
+                return
+            ack_cmd = p.get("command")
+            if entry.get("command") not in (None, ack_cmd):
+                log.warning("MQTT: command_ack %s — команда %r не совпадает с "
+                            "ожидаемой %r, ack игнорируется",
+                            cid[:8], ack_cmd, entry.get("command"))
                 return
             if status == "accepted":
                 entry["ack_accepted"] = True
@@ -527,15 +545,33 @@ class MqttServerClient:
 
     # ------------------------------------------------------------------ publish
     def publish(self, topic: str, payload: dict, qos: int = 1,
-                retain: bool = False) -> None:
+                retain: bool = False) -> dict[str, Any]:
+        """Публикация с проверяемым результатом (аудит 06.10, P2-10).
+
+        Возвращает dict(ok, error, rc): ok=True только если клиент запущен,
+        соединение с брокером активно и paho вернул rc==MQTT_ERR_SUCCESS.
+        Исключения не поглощаются молча: они попадают в error. Вызывающий код
+        обязан проверять ok до записи command.sent/schedule.sent.
+        """
         if self.client is None:
             log.warning("MQTT: публикация в %s до старта клиента — пропущена", topic)
-            return
+            return {"ok": False, "error": "client_not_started", "rc": None}
+        if not self.connected:
+            log.warning("MQTT: публикация в %s при connected=False — пропущена",
+                        topic)
+            return {"ok": False, "error": "not_connected", "rc": None}
         try:
-            self.client.publish(topic, json.dumps(payload, ensure_ascii=False),
-                                qos=qos, retain=retain)
+            info = self.client.publish(topic,
+                                       json.dumps(payload, ensure_ascii=False),
+                                       qos=qos, retain=retain)
+            rc = getattr(info, "rc", None)
+            if rc not in (None, 0):
+                log.warning("MQTT: publish %s вернул rc=%s", topic, rc)
+                return {"ok": False, "error": f"publish_rc_{rc}", "rc": rc}
+            return {"ok": True, "error": None, "rc": rc}
         except Exception as exc:
             log.warning("MQTT: не удалось опубликовать %s: %s", topic, exc)
+            return {"ok": False, "error": str(exc), "rc": None}
 
     def publish_time(self, box_id: str, force: bool = False) -> None:
         now = time.monotonic()
@@ -614,9 +650,14 @@ class MqttServerClient:
                  box_id)
 
     # ------------------------------------------------------------- pending ack API
-    def register_pending(self, command_id: str) -> dict[str, Any]:
+    def register_pending(self, command_id: str, box_id: Optional[str] = None,
+                         command: Optional[str] = None) -> dict[str, Any]:
+        """Регистрация ожидания ack. Аудит 06.10 (P1-4): pending привязывается
+        к ожидаемым box_id и command — чужой ACK (другой контроллер или другая
+        команда) не должен финализировать запись."""
         entry = {"final": False, "status": None, "message": None,
-                 "ack_accepted": False}
+                 "ack_accepted": False,
+                 "box_id": box_id, "command": command}
         with self._pending_lock:
             self._pending[command_id] = entry
         return entry

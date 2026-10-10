@@ -57,6 +57,15 @@ class FakePahoClient:
         self.on_message = None
         self._lock = threading.Lock()
 
+    def simulate_connected(self):
+        """Эмуляция установки соединения с брокером (для мока)."""
+        if self.on_connect:
+            # сигнатура VERSION2: (client, userdata, flags, reason_code, properties)
+            try:
+                self.on_connect(self, None, {}, 0, None)
+            except TypeError:
+                self.on_connect(self, None, {}, 0)
+
     # --- API paho, который использует серверный клиент ---------------------
     def username_pw_set(self, user, password=None):
         self.credentials = (user, password)
@@ -167,6 +176,9 @@ class _Harness:
         self.mqtt = MqttServerClient(self.cfg, client_factory=lambda: self.fake,
                                      db_path=str(db_path))
         self.mqtt.start()          # старт без побочных сетевых эффектов
+        # Мок не проходит реальный on_connect — эмулируем установку соединения,
+        # иначе publish() (аудит P2-10) корректно отклоняет публикации.
+        self.fake.simulate_connected()
         # фоновый maintenance-поток в тестах не нужен
         self.mqtt._stop.set()
         self.cmd.attach(self.mqtt)
