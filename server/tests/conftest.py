@@ -44,3 +44,18 @@ if not os.environ.get("POLIV_CONFIG_LOCAL"):
     _local.write_text(_TEST_LOCAL_CONTENT, encoding="utf-8")
     os.environ["POLIV_CONFIG_LOCAL"] = str(_local)
     atexit.register(shutil.rmtree, _tmpdir, True)
+
+# --- Полная изоляция рабочих данных (аудит этапа 6, дефект №9) -------------
+# Импортобезопасный код create_app() пишет БД/JSON-расписания/логи в боевые
+# каталоги data/, logs/. Тесты ВСЕГДА должны работать в отдельном temp-корне:
+# относительные пути конфига разрешаются от POLIV_PROJECT_ROOT.
+if not os.environ.get("POLIV_PROJECT_ROOT"):
+    _data_root = Path(tempfile.mkdtemp(prefix="poliv-tests-root-"))
+    for _sub in ("data", "logs", "backups"):
+        (_data_root / _sub).mkdir(parents=True, exist_ok=True)
+    # Конфигурация читается из репозитория (только чтение): прокидываем
+    # абсолютные пути, чтобы смена корня не ломала загрузку config.default.toml.
+    _repo_config = PROJECT_ROOT / "config"
+    os.environ["POLIV_CONFIG_DEFAULT"] = str(_repo_config / "config.default.toml")
+    os.environ["POLIV_PROJECT_ROOT"] = str(_data_root)
+    atexit.register(shutil.rmtree, _data_root, True)
