@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -78,6 +79,14 @@ class FlowService:
         # Аудит 06.10 (P1-6): «наблюдение» нулевого потока — состояние ЭКЗЕМПЛЯРА,
         # а не атрибут класса: два приложения/сервиса не должны делить watch.
         self._no_flow_watch: dict[str, dict[str, Any]] = {}
+        # Аудит 06.10 (P1-1): цепочка аварийной остановки. Командный сервис
+        # инжектируется из main.py; публикация stop_all выполняется в
+        # отдельном потоке, чтобы не блокировать MQTT callback (ACK приходит
+        # тем же сетевым циклом). Дедупликация: не повторять физическую
+        # остановку на каждой аварии подряд без подтверждения.
+        self.command_service = None
+        self._stop_inflight: set[int] = set()
+        self._stop_lock = threading.Lock()
 
     # ------------------------------------------------------------------ настройки
     def thresholds(self) -> dict[str, Any]:
@@ -283,7 +292,90 @@ class FlowService:
                             "event_id": event_id})
         except Exception:
             log.exception("FLOW: не удалось записать журнал аварии")
+
+        # Аудит 06.10 (P1-1): серверная блокировка без физической остановки —
+        # не безопасность. Инициируем stop_all контроллеру ВНЕ этого потока
+        # (авария может регистрироваться из MQTT callback; ACK придёт тем же
+        # сетевым циклом — синхронное ожидание недопустимо).
+        self.request_emergency_stop(controller_id, reason)
         return notif_id
+
+    # --------------------------------------------------- цепочка аварийной остановки
+    def request_emergency_stop(self, controller_id: int, reason: str) -> None:
+        """Надёжная остановка полива при аварии (best effort + журнал исхода).
+
+        Дедупликация: пока предыдущая остановка не завершена (нет финального
+        ACK/таймаута), повторных физических команд не шлём. Исход публикуется
+        в logs (emergency.stop_sent / emergency.stop_failed / итог команды —
+        внутри MqttCommandService).
+        """
+        with self._stop_lock:
+            if controller_id in self._stop_inflight:
+                log.info("FLOW: stop_all для #%s уже в полёте — повтор пропущен",
+                         controller_id)
+                return
+            self._stop_inflight.add(controller_id)
+
+        def _worker():
+            try:
+                svc = self.command_service
+                if svc is None:
+                    log.warning("FLOW: командный сервис не подключён — "
+                                "stop_all для #%s НЕ отправлен (зависимость)",
+                                controller_id)
+                    self._log_stop_outcome(controller_id, reason,
+                                           "emergency.stop_skipped",
+                                           "command_service_not_attached")
+                    return
+                row = self.conn.execute(
+                    "SELECT box_id FROM controllers WHERE id=?",
+                    (controller_id,)).fetchone()
+                if row is None:
+                    return
+                res = svc.send_command(row["box_id"], "stop_all", {},
+                                       source="server_emergency")
+                status = res.get("status")
+                if status == "completed":
+                    self._log_stop_outcome(controller_id, reason,
+                                           "emergency.stop_ack", None,
+                                           extra={"ack_status": status})
+                else:
+                    # timeout/rejected/error/ignored_duplicate — исход известен,
+                    # физическая остановка НЕ подтверждена: фиксируем честно.
+                    self._log_stop_outcome(controller_id, reason,
+                                           "emergency.stop_unconfirmed",
+                                           f"ack_status={status}")
+            except Exception as exc:
+                log.warning("FLOW: не удалось отправить stop_all для #%s: %s",
+                            controller_id, exc)
+                self._log_stop_outcome(controller_id, reason,
+                                       "emergency.stop_failed", str(exc))
+            finally:
+                with self._stop_lock:
+                    self._stop_inflight.discard(controller_id)
+
+        threading.Thread(target=_worker, daemon=True,
+                         name=f"estop-{controller_id}").start()
+
+    def _log_stop_outcome(self, controller_id: int, reason: str, action: str,
+                          error: Optional[str],
+                          extra: Optional[dict] = None) -> None:
+        row = self.conn.execute(
+            "SELECT box_id FROM controllers WHERE id=?",
+            (controller_id,)).fetchone()
+        details = {"reason": reason,
+                   "box_id": row["box_id"] if row else str(controller_id)}
+        if error:
+            details["error"] = error
+        if extra:
+            details.update(extra)
+        try:
+            from .notification_service import write_mqtt_log
+            write_mqtt_log(self.conn, action,
+                           row["box_id"] if row else str(controller_id), details)
+        except Exception:
+            log.exception("FLOW: не удалось записать журнал остановки (%s)",
+                          action)
 
     def is_emergency_locked(self, controller_id: int) -> bool:
         row = self.conn.execute(

@@ -59,6 +59,19 @@ class MqttUnavailable(RuntimeError):
     """MQTT-брокер не подключён на сервере (API: 503 mqtt_unavailable)."""
 
 
+class EmergencyLockError(RuntimeError):
+    """Аудит 06.10 (P1-1): активная аварийная блокировка контроллера —
+    возобновляющие/запускающие команды (zone_open, resume_controller) не
+    отправляются (API/веб: 409 emergency_locked). stop_all и безопасные
+    диагностики (ping, zone_close) остаются доступны."""
+
+    def __init__(self, box_id: str):
+        super().__init__(
+            f"Контроллер {box_id}: активна аварийная блокировка — "
+            f"запуск полива запрещён до снятия аварии оператором")
+        self.box_id = box_id
+
+
 def _parse_int_strict(value: Any, name: str, minimum: int) -> int:
     if isinstance(value, bool):
         raise CommandError(f"Поле «{name}» должно быть целым числом")
@@ -151,13 +164,16 @@ class MqttCommandService:
     """Публичный API отправки команд + ожидание подтверждения."""
 
     def __init__(self, cfg: Config, conn: sqlite3.Connection, mqtt=None,
-                 db_path: str | None = None):
+                 db_path: str | None = None, flow_service=None):
         self.cfg = cfg
         self.conn = conn          # соединение потока FastAPI (для чтения controllers/logs)
         # Фоновые потоки send_command_async не могут писать в общее соединение
         # FastAPI (check_same_thread=True) — свой короткий коннект на поток.
         self._db_path = db_path
         self._mqtt = mqtt         # MqttServerClient (или None до старта)
+        # Аудит 06.10 (P1-1): FlowService для проверки аварийной блокировки;
+        # если не инжектирован — используется собственный SQL-запрос (ниже).
+        self._flow_service = flow_service
         self._lock = threading.Lock()
         # Отложенные тесты: sleep можно заменить на быструю имитацию времени
         self._sleep = time.sleep
@@ -201,6 +217,37 @@ class MqttCommandService:
             "WHERE id=? AND deleted_at IS NULL", (controller_id,)
         ).fetchone()
 
+    # ------------------------------------------------- аварийная блокировка (аудит P1-1)
+    # Команды, которые ЗАПРЕЩЕНЫ при активной аварийной блокировке: они
+    # запускают или возобновляют полив. Остальные (stop_all, zone_close, ping,
+    # reboot) остаются доступны — остановка и диагностика нужнее.
+    EMERGENCY_BLOCKED_COMMANDS = {"zone_open", "resume_controller"}
+
+    def is_emergency_locked(self, controller_id: int) -> bool:
+        """Актуальная серверная аварийная блокировка контроллера."""
+        row = self.conn.execute(
+            "SELECT emergency_lock_until_ts FROM controllers WHERE id=?",
+            (controller_id,)).fetchone()
+        if row is None or row["emergency_lock_until_ts"] is None:
+            return False
+        try:
+            return int(row["emergency_lock_until_ts"]) > time.time()
+        except (TypeError, ValueError):
+            return False
+
+    def _check_emergency_lock(self, controller_id: int, command: str,
+                              box_id: str,
+                              username: Optional[str] = None) -> None:
+        """Бросает EmergencyLockError для запускающих команд под блокировкой."""
+        if command in self.EMERGENCY_BLOCKED_COMMANDS and \
+                self.is_emergency_locked(controller_id):
+            self.write_log("command.rejected", box_id,
+                           {"command": command, "reason": "emergency_locked"},
+                           username=username)
+            log.warning("Команды: %s — команда %s отклонена: активна аварийная "
+                        "блокировка", box_id, command)
+            raise EmergencyLockError(box_id)
+
     # ---------------------------------------------------------------- send_command
     def send_command(self, box_id: str, command: str, params: dict | None,
                      source: str = "web", user_id: Optional[int] = None,
@@ -229,6 +276,12 @@ class MqttCommandService:
             log.warning("Команды: %s офлайн — команда %s НЕ отправлена",
                         box_id, command)
             raise ControllerOffline(box_id)
+
+        # Аудит 06.10 (P1-1): централизованный запрет запуска полива при
+        # активной аварийной блокировке — ВСЕ пути отправки (API/веб/сервисы)
+        # проходят через send_command/send_command_async, проверка здесь.
+        self._check_emergency_lock(row["id"], command, box_id,
+                                   username=username)
 
         command_id = str(uuid.uuid4())
         # ts: вещественное число (секунды Unix) — контракт Артефакта 0.5 §5.1;
@@ -260,11 +313,24 @@ class MqttCommandService:
 
         attempts = 0
         with self._lock:  # последовательная отправка: простая и предсказуемая
-            entry = mqtt.register_pending(command_id)
+            entry = mqtt.register_pending(command_id, box_id=box_id,
+                                          command=command)
             try:
                 while True:
                     attempts += 1
-                    mqtt.publish(topic, payload, qos=qos)
+                    pub = mqtt.publish(topic, payload, qos=qos)
+                    if isinstance(pub, dict) and not pub.get("ok", True):
+                        # Аудит 06.10 (P2-10): не пишем command.sent при
+                        # непрошедшей публикации; фиксируем отказ в журнале.
+                        self.write_log("command.publish_failed", box_id,
+                                       {"command_id": command_id,
+                                        "command": command,
+                                        "attempt": attempts,
+                                        "error": pub.get("error")},
+                                       username=username)
+                        raise MqttUnavailable(
+                            f"MQTT: публикация команды «{command}» не принята "
+                            f"({pub.get('error')})")
                     self.write_log("command.sent", box_id,
                                    {"command_id": command_id, "command": command,
                                     "attempt": attempts}, username=username)
@@ -350,6 +416,10 @@ class MqttCommandService:
                            {"command": command, "reason": "controller_offline"},
                            username=username)
             raise ControllerOffline(box_id)
+        # Аудит 06.10 (P1-1): та же централизованная блокировка запуска, что и
+        # в синхронном send_command.
+        self._check_emergency_lock(row["id"], command, box_id,
+                                   username=username)
         if self._mqtt is None:
             raise MqttUnavailable(
                 f"MQTT-брокер недоступен: команда «{command}» не отправлена")
@@ -372,7 +442,8 @@ class MqttCommandService:
         timeout = self.cfg.mqtt_command_timeout_sec
         retries = max(0, self.cfg.mqtt_command_retries)
 
-        entry = self._mqtt.register_pending(command_id)
+        entry = self._mqtt.register_pending(command_id, box_id=box_id,
+                                            command=command)
         mqtt = self._mqtt
 
         def _worker():
@@ -380,7 +451,20 @@ class MqttCommandService:
             try:
                 while True:
                     attempts += 1
-                    mqtt.publish(topic, payload, qos=qos)
+                    pub = mqtt.publish(topic, payload, qos=qos)
+                    if isinstance(pub, dict) and not pub.get("ok", True):
+                        # Аудит 06.10 (P2-10): публикация не принята брокером —
+                        # не пишем command.sent, фиксируем отказ.
+                        self.write_log("command.publish_failed", box_id,
+                                       {"command_id": command_id,
+                                        "command": command,
+                                        "attempt": attempts,
+                                        "error": pub.get("error")},
+                                       username=username)
+                        log.warning("Команды (async): публикация %s (%s) не "
+                                    "принята: %s", command_id[:8], box_id,
+                                    pub.get("error"))
+                        return
                     self.write_log("command.sent", box_id,
                                    {"command_id": command_id, "command": command,
                                     "attempt": attempts}, username=username)
