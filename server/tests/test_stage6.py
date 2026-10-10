@@ -407,10 +407,10 @@ def test_events_page_shows_data_via_api_after_emergency(h6web):
     # страница открывается
     assert operator.get("/events").status_code == 200
     u = operator.get("/api/notifications/unread-count").json()
-    assert u["unread"] >= 1
+    assert u["unread_count"] >= 1
     assert u["max_unread_critical_id"] > 0      # сигнал для beep() на фронте
     n = h6web.notif_rows()[0]
     assert n["severity"] == "critical"
     r = operator.post(f"/api/notifications/{n['id']}/read")
     assert r.status_code == 200
-    assert operator.get("/api/notifications/unread-count").json()["unread"] == 0
+    assert operator.get("/api/notifications/unread-count").json()["unread_count"] == 0
