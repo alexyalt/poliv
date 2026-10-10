@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}События и расход{% endblock %}
+{% block content %}
+<h1>События полива и расход (Этап 6)</h1>
+
+<div class="grid" style="display:flex;gap:24px;flex-wrap:wrap">
+  <section>
+    <h2>Расход за период</h2>
+    <div id="flow-summary" class="card">Загрузка…</div>
+    <h3>По дням</h3>
+    <table class="table" id="flow-daily">
+      <thead><tr><th>Дата</th><th>Контроллер</th><th>Литры</th><th>Прогинов</th><th>Секунд</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+  <section>
+    <h2>Пороги аварий</h2>
+    <div id="flow-settings" class="card">Загрузка…</div>
+  </section>
+</div>
+
+<h2>Уведомления <span id="notif-unread-badge" class="badge"></span></h2>
+<p>
+  <button type="button" class="btn btn-small" id="btn-read-all">Прочитать все</button>
+  <label><input type="checkbox" id="chk-critical-only"> только critical</label>
+  <label><input type="checkbox" id="chk-sound" checked> звук новых аварий</label>
+</p>
+<table class="table" id="notifications">
+  <thead><tr><th>Время</th><th>Важность</th><th>Заголовок</th><th>Сообщение</th><th></th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<h2>События</h2>
+<p>
+  <a class="btn" href="/api/events/export.csv">Выгрузить CSV</a>
+  <span id="events-total"></span>
+</p>
+<table class="table" id="events">
+  <thead><tr><th>ID</th><th>Контроллер</th><th>Статус</th><th>Источник</th><th>Зоны</th><th>Секунд</th><th>Литров</th><th>Причина</th></tr></thead>
+  <tbody></tbody>
+</table>
+<button type="button" class="btn btn-small" id="btn-more">Показать ещё</button>
+
+<script>
+// ===================== Этап 6: события / расход / уведомления ==============
+(function () {
+  const POLL_MS = 10000;               // опрос как в Этапе 5 (polling, без WS)
+  let page = 1, lastCriticalId = 0, soundOn = true;
+
+  const $ = (id) => document.getElementById(id);
+  const fmtTs = (ts) => ts ? new Date(ts * 1000).toLocaleString('ru-RU') : '—';
+
+  // --- звуковое уведомление о новой аварии (WebAudio, без аудиофайлов) -----
+  let audioCtx = null;
+  function beep() {
+    if (!soundOn) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'square'; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + 0.35);
+    } catch (e) { /* автозапуск звука может блокироваться браузером */ }
+  }
+
+  async function jget(url) {
+    const r = await fetch(url, { credentials: 'same-origin' });
+    if (!r.ok) throw new Error(url + ' -> ' + r.status);
+    return r.json();
+  }
+
+  async function loadFlow() {
+    try {
+      const s = await jget('/api/flow/summary');
+      $('flow-summary').textContent =
+        `Всего: ${s.total_liters.toFixed(1)} л · прогонов: ${s.run_count} · секунд: ${s.total_water_sec}`;
+      const d = await jget('/api/flow/daily');
+      $('flow-daily').querySelector('tbody').innerHTML = (d.items || []).map(r =>
+        `<tr><td>${r.date}</td><td>${r.controller_id}</td><td>${r.total_liters.toFixed(1)}</td>` +
+        `<td>${r.run_count}</td><td>${r.total_water_sec}</td></tr>`).join('');
+      const th = await jget('/api/flow/settings');
+      $('flow-settings').textContent = JSON.stringify(th, null, 1);
+    } catch (e) { console.warn(e); }
+  }
+
+  async function loadEvents(more) {
+    if (!more) { page = 1; $('events').querySelector('tbody').innerHTML = ''; }
+    try {
+      const d = await jget(`/api/events?page=${page}&page_size=50`);
+      $('events-total').textContent = `всего событий: ${d.total_items}`;
+      $('events').querySelector('tbody').insertAdjacentHTML('beforeend',
+        d.items.map(e =>
+          `<tr><td>${e.id}</td><td>${e.controller_id}</td><td>${e.status}</td><td>${e.source}</td>` +
+          `<td>${e.primary_zone_id ?? '—'}</td><td>${e.water_sec}</td>` +
+          `<td>${e.volume_liters != null ? e.volume_liters.toFixed(1) : '—'}</td>` +
+          `<td>${e.reason_code || ''}</td></tr>`).join(''));
+      if (d.page < d.total_pages) page++;
+      else $('btn-more').style.display = 'none';
+    } catch (e) { console.warn(e); }
+  }
+
+  async function loadNotifications() {
+    try {
+      const crit = $('chk-critical-only').checked ? '&severity=critical' : '';
+      const d = await jget('/api/notifications?unread=0' + crit);
+      $('notif-unread-badge').textContent = d.unread_count ? `непрочитанных: ${d.unread_count}` : '';
+      if (d.max_unread_critical_id > lastCriticalId && lastCriticalId !== null) beep();
+      if (d.items.length) lastCriticalId = Math.max(lastCriticalId, ...d.items.map(n => n.id));
+      $('notifications').querySelector('tbody').innerHTML = d.items.map(n =>
+        `<tr class="${n.read_at ? 'muted' : ''}" data-id="${n.id}"><td>${fmtTs(n.created_ts)}</td>` +
+        `<td>${n.severity}</td><td>${n.title}</td><td>${n.message || ''}</td>` +
+        `<td>${n.read_at ? '✓' : '<button class="btn btn-small" data-read>Прочитать</button>'}</td></tr>`).join('');
+    } catch (e) { console.warn(e); }
+  }
+
+  document.addEventListener('click', async (ev) => {
+    const tr = ev.target.closest('#notifications tbody tr');
+    if (tr && ev.target.hasAttribute('data-read')) {
+      await fetch(`/api/notifications/${tr.dataset.id}/read`,
+                  { method: 'POST', credentials: 'same-origin' });
+      loadNotifications();
+    }
+  });
+  $('btn-read-all').addEventListener('click', async () => {
+    await fetch('/api/notifications/read-all', { method: 'POST', credentials: 'same-origin' });
+    loadNotifications();
+  });
+  $('btn-more').addEventListener('click', () => loadEvents(true));
+  $('chk-critical-only').addEventListener('change', loadNotifications);
+  $('chk-sound').addEventListener('change', (e) => { soundOn = e.target.checked; });
+
+  loadFlow(); loadEvents(false); loadNotifications();
+  setInterval(() => { loadEvents(false); loadNotifications(); }, POLL_MS);
+})();
+</script>
+{% endblock %}
