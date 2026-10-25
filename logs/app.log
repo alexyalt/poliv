@@ -33077,3 +33077,1857 @@ AttributeError: module 'bcrypt' has no attribute '__about__'
 2026-10-25 17:07:50 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
 2026-10-25 17:07:50 INFO     [poliv.db] Применяю миграцию 0009_weather
 2026-10-25 17:07:50 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:11:38 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:11:38 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:11:38 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): timed out
+2026-10-25 17:11:38 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): timed out
+2026-10-25 17:11:38 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): HTTP 503
+2026-10-25 17:11:38 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): HTTP 404
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.weather] WEATHER: координаты не заданы — обновление факта пропущено
+2026-10-25 17:11:38 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): offline
+2026-10-25 17:11:38 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): offline
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:38 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:38 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:38 INFO     [poliv.db] База /tmp/poliv-st3-s93lu5xt/test.db: применено миграций: 9
+2026-10-25 17:11:39 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:11:39 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:11:39 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:11:39 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:39 INFO     [poliv.db] База /tmp/poliv-st3-1lypcn07/test.db: применено миграций: 9
+2026-10-25 17:11:39 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:11:39 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:11:39 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:11:39 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 200 OK"
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/rules "HTTP/1.1 200 OK"
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications "HTTP/1.1 200 OK"
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 403 Forbidden"
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:11:39 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules/1/test "HTTP/1.1 403 Forbidden"
+2026-10-25 17:11:39 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:39 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:39 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:39 INFO     [poliv.db] База /tmp/poliv-st3-7qd_6vk4/test.db: применено миграций: 9
+2026-10-25 17:11:40 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:11:40 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:11:40 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:11:40 INFO     [poliv.users] Пользователь user_operator создан администратором admin
+2026-10-25 17:11:40 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 201 Created"
+2026-10-25 17:11:40 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 200 OK"
+2026-10-25 17:11:40 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 422 Unprocessable Entity"
+2026-10-25 17:11:40 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:11:40 INFO     [poliv.users] Пользователь user_admin создан администратором admin
+2026-10-25 17:11:41 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 200 OK"
+2026-10-25 17:11:41 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 404 Not Found"
+2026-10-25 17:11:41 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:41 INFO     [poliv.db] База /tmp/poliv-st3-wkqyxuse/test.db: применено миграций: 9
+2026-10-25 17:11:41 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:11:41 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:11:41 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:11:41 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:11:41 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 200 OK"
+2026-10-25 17:11:41 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/forecast?hours=48 "HTTP/1.1 200 OK"
+2026-10-25 17:11:41 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:41 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:41 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:41 INFO     [poliv.db] База /tmp/poliv-st3-o2u2l1_4/test.db: применено миграций: 9
+2026-10-25 17:11:42 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:11:42 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:11:42 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:11:42 INFO     [poliv.users] Пользователь user_operator создан администратором admin
+2026-10-25 17:11:42 INFO     [poliv.catalog] Создан контроллер BOX-W-API (id=1)
+2026-10-25 17:11:42 INFO     [poliv.catalog] Создана зона №1 контроллера id=1
+2026-10-25 17:11:42 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:42 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:42 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:42 INFO     [poliv.db] База /tmp/poliv-st3-07779rqx/test.db: применено миграций: 9
+2026-10-25 17:11:43 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:11:43 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:11:43 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:11:43 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:11:43 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications?page=1&page_size=2 "HTTP/1.1 200 OK"
+2026-10-25 17:11:43 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications?page=2&page_size=2 "HTTP/1.1 200 OK"
+2026-10-25 17:11:43 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:43 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:43 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:11:43 INFO     [poliv.db] База /tmp/poliv-st3-oltwdwjg/test.db: применено миграций: 9
+2026-10-25 17:11:43 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:11:43 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:11:43 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:11:44 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:11:44 INFO     [httpx] HTTP Request: GET http://testserver/api/weather/rules "HTTP/1.1 200 OK"
+2026-10-25 17:11:44 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:11:48 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:11:48 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:11:48 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:11:48 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:11:48 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:12:10 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:12:10 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:12:10 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): timed out
+2026-10-25 17:12:10 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): timed out
+2026-10-25 17:12:10 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): HTTP 503
+2026-10-25 17:12:10 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): HTTP 404
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.weather] WEATHER: координаты не заданы — обновление факта пропущено
+2026-10-25 17:12:10 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): offline
+2026-10-25 17:12:10 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): offline
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:10 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:10 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:10 INFO     [poliv.db] База /tmp/poliv-st3-lbz7whq9/test.db: применено миграций: 9
+2026-10-25 17:12:11 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:12:11 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:12:11 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:12:11 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:11 INFO     [poliv.db] База /tmp/poliv-st3-i4tj3hmz/test.db: применено миграций: 9
+2026-10-25 17:12:11 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:12:11 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:12:11 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:12:11 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 200 OK"
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/rules "HTTP/1.1 200 OK"
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications "HTTP/1.1 200 OK"
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 403 Forbidden"
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:12:11 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules/1/test "HTTP/1.1 403 Forbidden"
+2026-10-25 17:12:11 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:11 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:11 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:11 INFO     [poliv.db] База /tmp/poliv-st3-kkh_b2ix/test.db: применено миграций: 9
+2026-10-25 17:12:12 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:12:12 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:12:12 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:12:12 INFO     [poliv.users] Пользователь user_operator создан администратором admin
+2026-10-25 17:12:12 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 201 Created"
+2026-10-25 17:12:12 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 200 OK"
+2026-10-25 17:12:12 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 422 Unprocessable Entity"
+2026-10-25 17:12:12 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:12:12 INFO     [poliv.users] Пользователь user_admin создан администратором admin
+2026-10-25 17:12:13 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 200 OK"
+2026-10-25 17:12:13 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 404 Not Found"
+2026-10-25 17:12:13 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:13 INFO     [poliv.db] База /tmp/poliv-st3-czx1c8u4/test.db: применено миграций: 9
+2026-10-25 17:12:13 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:12:13 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:12:13 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:12:13 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:12:13 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 200 OK"
+2026-10-25 17:12:13 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/forecast?hours=48 "HTTP/1.1 200 OK"
+2026-10-25 17:12:13 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:13 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:13 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:13 INFO     [poliv.db] База /tmp/poliv-st3-1zq76mka/test.db: применено миграций: 9
+2026-10-25 17:12:14 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:12:14 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:12:14 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:12:14 INFO     [poliv.users] Пользователь user_operator создан администратором admin
+2026-10-25 17:12:14 INFO     [poliv.catalog] Создан контроллер BOX-W-API (id=1)
+2026-10-25 17:12:14 INFO     [poliv.catalog] Создана зона №1 контроллера id=1
+2026-10-25 17:12:14 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:14 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:14 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:14 INFO     [poliv.db] База /tmp/poliv-st3-oq6i2a9d/test.db: применено миграций: 9
+2026-10-25 17:12:15 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:12:15 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:12:15 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:12:15 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:12:15 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications?page=1&page_size=2 "HTTP/1.1 200 OK"
+2026-10-25 17:12:15 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications?page=2&page_size=2 "HTTP/1.1 200 OK"
+2026-10-25 17:12:15 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:15 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:15 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:15 INFO     [poliv.db] База /tmp/poliv-st3-9imy8r69/test.db: применено миграций: 9
+2026-10-25 17:12:15 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:12:15 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:12:15 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:12:16 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:12:16 INFO     [httpx] HTTP Request: GET http://testserver/api/weather/rules "HTTP/1.1 200 OK"
+2026-10-25 17:12:16 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:12:20 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:12:20 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:12:20 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:12:30 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:12:30 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:12:30 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:30 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:30 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:12:33 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:12:33 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:12:33 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:12:33 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:12:33 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:13:26 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:13:26 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:13:26 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): timed out
+2026-10-25 17:13:26 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): timed out
+2026-10-25 17:13:26 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): HTTP 503
+2026-10-25 17:13:26 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): HTTP 404
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.weather] WEATHER: координаты не заданы — обновление факта пропущено
+2026-10-25 17:13:26 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): offline
+2026-10-25 17:13:26 WARNING  [poliv.open_meteo] Open-Meteo: запрос не удался (https://api.open-meteo.com/v1/forecast 55.0): offline
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:26 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:26 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:26 INFO     [poliv.db] База /tmp/poliv-st3-qstkiu7y/test.db: применено миграций: 9
+2026-10-25 17:13:27 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:13:27 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:13:27 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:13:27 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:27 INFO     [poliv.db] База /tmp/poliv-st3-dlsv47ap/test.db: применено миграций: 9
+2026-10-25 17:13:27 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:13:27 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:13:27 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:13:27 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 200 OK"
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/rules "HTTP/1.1 200 OK"
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications "HTTP/1.1 200 OK"
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 403 Forbidden"
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:13:27 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules/1/test "HTTP/1.1 403 Forbidden"
+2026-10-25 17:13:27 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:27 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:27 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:28 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:28 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:28 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:28 INFO     [poliv.db] База /tmp/poliv-st3-lzlrvfj1/test.db: применено миграций: 9
+2026-10-25 17:13:28 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:13:28 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:13:28 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:13:28 INFO     [poliv.users] Пользователь user_operator создан администратором admin
+2026-10-25 17:13:28 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 201 Created"
+2026-10-25 17:13:28 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 200 OK"
+2026-10-25 17:13:28 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 422 Unprocessable Entity"
+2026-10-25 17:13:28 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 403 Forbidden"
+2026-10-25 17:13:29 INFO     [poliv.users] Пользователь user_admin создан администратором admin
+2026-10-25 17:13:29 INFO     [httpx] HTTP Request: DELETE http://testserver/api/v1/weather/rules/1 "HTTP/1.1 200 OK"
+2026-10-25 17:13:29 INFO     [httpx] HTTP Request: PUT http://testserver/api/v1/weather/rules/1 "HTTP/1.1 404 Not Found"
+2026-10-25 17:13:29 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:29 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:29 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:29 INFO     [poliv.db] База /tmp/poliv-st3-9av928co/test.db: применено миграций: 9
+2026-10-25 17:13:29 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:13:29 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:13:29 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:13:29 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:13:30 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 200 OK"
+2026-10-25 17:13:30 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/forecast?hours=48 "HTTP/1.1 200 OK"
+2026-10-25 17:13:30 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:30 INFO     [poliv.db] База /tmp/poliv-st3-j3em5sn8/test.db: применено миграций: 9
+2026-10-25 17:13:30 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:13:30 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:13:30 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:13:30 INFO     [poliv.users] Пользователь user_operator создан администратором admin
+2026-10-25 17:13:30 INFO     [poliv.catalog] Создан контроллер BOX-W-API (id=1)
+2026-10-25 17:13:30 INFO     [poliv.catalog] Создана зона №1 контроллера id=1
+2026-10-25 17:13:30 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:30 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:30 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:30 INFO     [poliv.db] База /tmp/poliv-st3-2g6rpzhp/test.db: применено миграций: 9
+2026-10-25 17:13:31 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:13:31 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:13:31 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:13:31 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:13:31 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications?page=1&page_size=2 "HTTP/1.1 200 OK"
+2026-10-25 17:13:31 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications?page=2&page_size=2 "HTTP/1.1 200 OK"
+2026-10-25 17:13:31 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0001_initial
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0001_initial применена
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0002_stage2_catalogs
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0002_stage2_catalogs применена
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0003_stage2_hotfix
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0003_stage2_hotfix применена
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0004_controller_live_state
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0004_controller_live_state применена
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0005_stage4_schedules
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0005_stage4_schedules применена
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0006_stage4_parallel_enabled
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0006_stage4_parallel_enabled применена
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0007_stage4_final_fixes
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0007_stage4_final_fixes применена
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0008_stage6_events_flow_notifications
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0008_stage6_events_flow_notifications применена
+2026-10-25 17:13:31 INFO     [poliv.db] Применяю миграцию 0009_weather
+2026-10-25 17:13:31 INFO     [poliv.db] Миграция 0009_weather применена
+2026-10-25 17:13:31 INFO     [poliv.db] База /tmp/poliv-st3-my4ov2lw/test.db: применено миграций: 9
+2026-10-25 17:13:31 INFO     [poliv.auth] Создан первый администратор: admin
+2026-10-25 17:13:31 INFO     [poliv.auth] Admin created, password printed to stdout (not logged)
+2026-10-25 17:13:31 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:13:32 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
+2026-10-25 17:13:32 INFO     [httpx] HTTP Request: GET http://testserver/api/weather/rules "HTTP/1.1 200 OK"
+2026-10-25 17:13:32 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен

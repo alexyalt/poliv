@@ -27,7 +27,7 @@ import json
 import sqlite3
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from ..infra import open_meteo_client
@@ -281,13 +281,23 @@ def update_forecasts(conn: sqlite3.Connection, *, lat=None, lon=None,
     with conn:
         for i, h in enumerate(rows):
             t_from = h.get("time") or now_iso
-            nxt = rows[i + 1]["time"] if i + 1 < len(rows) else None
+            if i + 1 < len(rows):
+                nxt = rows[i + 1].get("time") or t_from
+            else:
+                # Последний час прогноза: период закрываем +1 часом,
+                # valid_to NOT NULL (миграция 0009).
+                try:
+                    dt_from = datetime.fromisoformat(t_from)
+                    nxt = (dt_from + timedelta(hours=1)
+                           ).isoformat(timespec="seconds")
+                except ValueError:
+                    nxt = t_from
             conn.execute(
                 """INSERT INTO weather_forecasts(controller_id, forecasted_at,
                        valid_from, valid_to, temp_c, humidity_pct,
                        precip_probability_pct, precip_mm, condition_code,
                        source, raw_json)
-                   VALUES (?,?,?,?,?,?,?,?,?,?, 'open_meteo', NULL)""",
+                   VALUES (?,?,?,?,?,?,?,?,?, 'open_meteo', NULL)""",
                 (controller_id, now_iso, t_from, nxt, h.get("temp_c"),
                  h.get("humidity_pct"), h.get("precip_probability_pct"),
                  h.get("precip_mm"), h.get("condition_code")),

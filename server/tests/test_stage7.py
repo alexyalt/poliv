@@ -454,7 +454,8 @@ def test_current_conditions_statuses(conn):
 # ==================================================== 8. интеграция с компилятором
 def _compile(conn, ctrl, today=date(2026, 10, 26)):
     from server.app.core.schedule_compiler.compiler import compile_schedule
-    return compile_schedule(conn, ctrl, today=today, days_ahead=3,
+    # days_ahead=2: окно [today..today+2] = ровно 3 календарных дня.
+    return compile_schedule(conn, ctrl, today=today, days_ahead=2,
                             timezone_offset_min=0)
 
 
