@@ -63,6 +63,7 @@ from server.app.api.routes_stage3 import register_api_routes_stage3
 from server.app.api.routes_stage4 import register_api_routes_stage4
 from server.app.api.routes_stage5 import register_api_routes_stage5
 from server.app.api.routes_stage6 import register_api_routes_stage6
+from server.app.api.routes_weather import register_api_routes_weather
 from server.app.infra import mqtt_client as mqtt_infra
 from server.app.services.auth_service import AuthService
 from server.app.services.catalog_service import CatalogService
@@ -144,11 +145,14 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # Свой префикс /api/stage6 — не конфликтует с ранее зарегистрированными
     # маршрутами stage2..5.
     register_api_routes_stage6(app, cfg, conn)
+    # Этап 7: REST API погоды (/api/v1/weather/*). Свой префикс — не
+    # конфликтует с ранее зарегистрированными маршрутами stage2..6.
+    register_api_routes_weather(app, cfg, conn)
     register_api_routes(app, cfg, conn, catalog, users)
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "stage": 6}
+        return {"status": "ok", "stage": 7}
 
     log.info("Сервер готов. Веб-интерфейс: http://%s:%d/", cfg.server_host, cfg.server_port)
     return app
@@ -171,7 +175,21 @@ async def _lifespan_mqtt(app: FastAPI):
         app.state.mqtt = inst
     except Exception:
         log.exception("MQTT: не удалось запустить клиент — сервер работает без брокера")
+    # Этап 7: фоновое обновление погоды (факт/прогноз Open-Meteo) с интервалом
+    # weather.update_interval_min. Поток daemon-типа: не блокирует старт/стоп,
+    # ошибки сети логируются и не роняют сервер (graceful degradation).
+    from server.app.services import weather_service as _wxsvc
+    updater = None
+    try:
+        updater = _wxsvc.start_weather_updater(str(cfg.db_path))
+    except Exception:
+        log.exception("Погода: фоновый апдейтер не запущен — сервер работает без него")
     yield
+    if updater is not None:
+        try:
+            _wxsvc.stop_weather_updater()
+        except Exception:
+            log.exception("Погода: ошибка остановки фонового апдейтера")
     mqtt_infra.stop_mqtt()
     app.state.mqtt = None
 

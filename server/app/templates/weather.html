@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}Погода и правила{% endblock %}
+{% block content %}
+<h1>Погодные корректировки (Этап 7)</h1>
+
+{# ---------- Баннеры offline-статуса ---------- #}
+{% if cond.status == 'disabled' %}
+<div class="card" style="border-left:4px solid #c0392b">
+  ⚠ Нет свежих данных погоды, политика <code>offline_policy=disable_corrections</code> —
+  погодные поправки <b>отключены</b> до появления свежих наблюдений.
+</div>
+{% elif cond.status == 'use_last' %}
+<div class="card" style="border-left:4px solid #e67e22">
+  ⚠ Нет связи с погодой — используется <b>последний сохранённый прогноз</b>
+  (политика <code>offline_policy=use_last</code>).
+</div>
+{% endif %}
+{% if cond.config and cond.config.enabled is defined and not cond.config.enabled %}
+<div class="card" style="border-left:4px solid #7f8c8d">
+  Погодные поправки отключены настройкой <code>weather.enabled=false</code>.
+</div>
+{% endif %}
+
+<div class="grid" style="display:flex;gap:24px;flex-wrap:wrap">
+  {# ---------- Карточка «сейчас» ---------- #}
+  <section>
+    <h2>Сейчас</h2>
+    <div id="current-card" class="card">
+      {% if cond.observation %}
+      <p><b>{{ '%.1f'|format(cond.observation.temp_c) if cond.observation.temp_c is not none else '—' }} °C</b> ·
+         влажность {{ '%.0f'|format(cond.observation.humidity_pct) if cond.observation.humidity_pct is not none else '—' }}% ·
+         осадки {{ cond.observation.precip_mm if cond.observation.precip_mm is not none else 0 }} мм ·
+         ветер {{ '%.1f'|format(cond.observation.wind_ms) if cond.observation.wind_ms is not none else '—' }} м/с</p>
+      <p>Источник: {{ cond.observation.source }} · {{ cond.observation.observed_at }}</p>
+      {% else %}
+      <p id="current-empty">Нет данных — наблюдения ещё не загружены.</p>
+      {% endif %}
+    </div>
+    <p>
+      <button type="button" class="btn btn-small" id="btn-refresh">Обновить погоду сейчас</button>
+      <button type="button" class="btn btn-small" id="btn-recompile">Применить правила вручную</button>
+      <span id="recompile-banner"></span>
+    </p>
+  </section>
+
+  {# ---------- Прогноз ---------- #}
+  <section>
+    <h2>Прогноз</h2>
+    <p>
+      <label><input type="radio" name="fh" value="24" checked> 24 ч</label>
+      <label><input type="radio" name="fh" value="72"> 72 ч</label>
+    </p>
+    <table class="table" id="forecast">
+      <thead><tr><th>Период</th><th>°C</th><th>Влажн.%</th><th>Вер.осадков %</th><th>Осадки мм</th><th>Код</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+
+{# ---------- Правила CRUD ---------- #}
+<h2>Правила</h2>
+<table class="table" id="rules">
+  <thead><tr><th>ID</th><th>Название</th><th>Вкл</th><th>Приоритет</th><th>Условие</th>
+             <th>Оператор</th><th>Порог</th><th>Действие</th><th>Значение</th>
+             <th>Область</th><th></th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<form id="rule-form" class="card" style="max-width:720px">
+  <h3>Новое правило / изменить (<span id="rf-mode">создать</span>)</h3>
+  <input type="hidden" id="rf-id">
+  <p><label>Название <input type="text" id="rf-name" required></label></p>
+  <p>
+    <label><input type="checkbox" id="rf-enabled" checked> включено</label>
+    <label>Приоритет <input type="number" id="rf-priority" value="100" min="0" max="9999"></label>
+  </p>
+  <p>
+    <label>Условие
+      <select id="rf-condition">
+        <option value="rain">rain (осадки, мм)</option>
+        <option value="precip_probability">precip_probability (вероятность осадков, %)</option>
+        <option value="high_humidity">high_humidity (влажность, %)</option>
+        <option value="low_temp">low_temp (температура, °C)</option>
+        <option value="high_temp">high_temp (температура, °C)</option>
+        <option value="wind">wind (ветер, м/с)</option>
+      </select>
+    </label>
+    <label>Оператор
+      <select id="rf-operator">
+        <option value="gt">&gt;</option><option value="gte">&ge;</option>
+        <option value="lt">&lt;</option><option value="lte">&le;</option>
+        <option value="eq">=</option>
+      </select>
+    </label>
+    <label>Порог <input type="number" step="0.1" id="rf-threshold" required></label>
+  </p>
+  <p>
+    <label>Действие
+      <select id="rf-action">
+        <option value="skip">skip (пропустить полив)</option>
+        <option value="reduce_percent">reduce_percent (уменьшить на N%)</option>
+        <option value="increase_percent">increase_percent (увеличить на N%)</option>
+      </select>
+    </label>
+    <label>N (%) <input type="number" id="rf-adjustment" value="0" min="0" max="500"></label>
+  </p>
+  <p>
+    <label>Область
+      <select id="rf-scope">
+        <option value="global">global (все контроллеры)</option>
+        <option value="controller">controller (один контроллер)</option>
+        <option value="zone">zone (одна зона)</option>
+      </select>
+    </label>
+    <label>ID цели <input type="number" id="rf-scope-id" min="1"></label>
+  </p>
+  <p>
+    <button type="submit" class="btn">Сохранить</button>
+    <button type="button" class="btn btn-small" id="rf-cancel">Отмена</button>
+    <button type="button" class="btn btn-small" id="rf-test">Тест (dry-run diff)</button>
+  </p>
+  <pre id="rf-result" class="card" style="display:none;white-space:pre-wrap"></pre>
+</form>
+
+{# ---------- Журнал применений ---------- #}
+<h2>Журнал применения правил</h2>
+<table class="table" id="applications">
+  <thead><tr><th>Время</th><th>Правило</th><th>Версия машинограммы</th>
+             <th>Hash до</th><th>Hash после</th><th>Затронутые зоны</th></tr></thead>
+  <tbody></tbody>
+</table>
+<button type="button" class="btn btn-small" id="btn-more-apps">Показать ещё</button>
+
+<script>
+// ===================== Этап 7: погода / правила / применения ===============
+(function () {
+  const POLL_MS = 10000;                 // polling как в Этапах 5–6 (без WS)
+  const $ = (id) => document.getElementById(id);
+  let appsOffset = 0, appsTotal = 0;
+
+  async function jget(url) {
+    const r = await fetch(url, { credentials: 'same-origin' });
+    if (!r.ok) throw new Error(url + ' -> ' + r.status);
+    return r.json();
+  }
+  async function jsend(method, url, body) {
+    const r = await fetch(url, {
+      method, credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || (url + ' -> ' + r.status));
+    return data;
+  }
+
+  function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // ---------------- current ----------------
+  async function loadCurrent() {
+    try {
+      const c = await jget('/api/v1/weather/current');
+      const o = c.observation;
+      $('current-card').innerHTML = o
+        ? `<p><b>${o.temp_c ?? '—'} °C</b> · влажность ${o.humidity_pct ?? '—'}% · ` +
+          `осадки ${o.precip_mm ?? 0} мм · ветер ${o.wind_ms ?? '—'} м/с</p>` +
+          `<p>Источник: ${esc(o.source)} · ${esc(o.observed_at)}</p>`
+        : '<p>Нет данных — наблюдения ещё не загружены.</p>';
+    } catch (e) { /* оставляем серверный рендер */ }
+  }
+
+  // ---------------- forecast ----------------
+  async function loadForecast() {
+    const hours = document.querySelector('input[name=fh]:checked').value;
+    try {
+      const f = await jget('/api/v1/weather/forecast?hours=' + hours);
+      $('forecast').querySelector('tbody').innerHTML = (f.items || []).map(r =>
+        `<tr><td>${esc((r.valid_from || '').slice(0, 16))} → ${esc((r.valid_to || '').slice(11, 16))}</td>` +
+        `<td>${r.temp_c ?? '—'}</td><td>${r.humidity_pct ?? '—'}</td>` +
+        `<td>${r.precip_probability_pct ?? '—'}</td><td>${r.precip_mm ?? '—'}</td>` +
+        `<td>${esc(r.condition_code ?? '')}</td></tr>`).join('') ||
+        '<tr><td colspan="6">Нет данных прогноза</td></tr>';
+    } catch (e) { console.error(e); }
+  }
+
+  // ---------------- rules ----------------
+  async function loadRules() {
+    try {
+      const rs = await jget('/api/v1/weather/rules');
+      $('rules').querySelector('tbody').innerHTML = (rs.items || []).map(r =>
+        `<tr><td>${r.id}</td><td>${esc(r.name)}</td><td>${r.enabled ? '✔' : '✘'}</td>` +
+        `<td>${r.priority}</td><td>${esc(r.condition)}</td><td>${esc(r.operator)} ${r.threshold}</td>` +
+        `<td></td><td>${esc(r.action)}</td><td>${r.adjustment_value ?? ''}</td>` +
+        `<td>${esc(r.scope)}${r.scope_id ? ' #' + r.scope_id : ''}</td>` +
+        `<td><button type="button" class="btn btn-small" data-edit="${r.id}">Изм.</button> ` +
+        `<button type="button" class="btn btn-small" data-del="${r.id}">Удал.</button></td></tr>`).join('') ||
+        '<tr><td colspan="11">Правил нет</td></tr>';
+    } catch (e) { console.error(e); }
+  }
+
+  function fillForm(r) {
+    $('rf-mode').textContent = r ? 'изменить #' + r.id : 'создать';
+    $('rf-id').value = r ? r.id : '';
+    $('rf-name').value = r ? r.name : '';
+    $('rf-enabled').checked = r ? !!r.enabled : true;
+    $('rf-priority').value = r ? r.priority : 100;
+    $('rf-condition').value = r ? r.condition : 'rain';
+    $('rf-operator').value = r ? r.operator : 'gt';
+    $('rf-threshold').value = r ? r.threshold : '';
+    $('rf-action').value = r ? r.action : 'skip';
+    $('rf-adjustment').value = r ? (r.adjustment_value ?? 0) : 0;
+    $('rf-scope').value = r ? r.scope : 'global';
+    $('rf-scope-id').value = r ? (r.scope_id ?? '') : '';
+    $('rf-result').style.display = 'none';
+  }
+
+  let rulesCache = [];
+  async function refreshRulesCache() {
+    try { rulesCache = (await jget('/api/v1/weather/rules')).items || []; } catch (e) {}
+  }
+
+  $('rules').addEventListener('click', async (ev) => {
+    const editBtn = ev.target.closest('[data-edit]');
+    const delBtn = ev.target.closest('[data-del]');
+    if (editBtn) {
+      await refreshRulesCache();
+      const r = rulesCache.find(x => x.id === Number(editBtn.dataset.edit));
+      if (r) fillForm(r);
+    } else if (delBtn) {
+      if (!confirm('Удалить правило #' + delBtn.dataset.del + '?')) return;
+      try {
+        await jsend('DELETE', '/api/v1/weather/rules/' + delBtn.dataset.del);
+        loadRules();
+      } catch (e) { alert(e.message); }
+    }
+  });
+
+  $('rf-cancel').addEventListener('click', () => fillForm(null));
+
+  $('rule-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const body = {
+      name: $('rf-name').value,
+      enabled: $('rf-enabled').checked,
+      priority: Number($('rf-priority').value || 0),
+      condition: $('rf-condition').value,
+      operator: $('rf-operator').value,
+      threshold: Number($('rf-threshold').value),
+      action: $('rf-action').value,
+      adjustment_value: Number($('rf-adjustment').value || 0),
+      scope: $('rf-scope').value,
+    };
+    if (body.scope !== 'global' && $('rf-scope-id').value) body.scope_id = Number($('rf-scope-id').value);
+    const rid = $('rf-id').value;
+    try {
+      if (rid) await jsend('PUT', '/api/v1/weather/rules/' + rid, body);
+      else await jsend('POST', '/api/v1/weather/rules', body);
+      fillForm(null); loadRules();
+    } catch (e) { showResult('Ошибка: ' + e.message); }
+  });
+
+  function showResult(text) {
+    const p = $('rf-result'); p.style.display = 'block'; p.textContent = text;
+  }
+
+  $('rf-test').addEventListener('click', async () => {
+    const rid = $('rf-id').value;
+    if (!rid) { showResult('Сначала выберите существующее правило (кнопка «Изм.») или сохраните его.'); return; }
+    const cid = prompt('ID контроллера для dry-run?', '1');
+    if (!cid) return;
+    try {
+      const res = await jsend('POST', `/api/v1/weather/rules/${rid}/test?controller_id=${cid}`, {});
+      showResult(JSON.stringify(res, null, 2));
+    } catch (e) { showResult('Ошибка: ' + e.message); }
+  });
+
+  // ---------------- applications ----------------
+  async function loadApps(reset) {
+    if (reset) { appsOffset = 0; }
+    try {
+      const a = await jget(`/api/v1/weather/applications?limit=20&offset=${appsOffset}`);
+      appsTotal = a.total; appsOffset += (a.items || []).length;
+      const rows = (a.items || []).map(r =>
+        `<tr><td>${esc(r.applied_at)}</td><td>${esc(r.rule_name || ('#' + r.rule_id))}</td>` +
+        `<td>${esc(r.schedule_version)}</td><td>${esc((r.before_hash || '').slice(0, 8))}</td>` +
+        `<td>${esc((r.after_hash || '').slice(0, 8))}</td>` +
+        `<td>${(r.affected_zones || []).join(', ')}</td></tr>`).join('');
+      const tb = $('applications').querySelector('tbody');
+      if (reset) tb.innerHTML = rows; else tb.insertAdjacentHTML('beforeend', rows);
+      if (!tb.innerHTML) tb.innerHTML = '<tr><td colspan="6">Применений ещё не было</td></tr>';
+      $('btn-more-apps').style.display = appsOffset >= appsTotal ? 'none' : '';
+    } catch (e) { console.error(e); }
+  }
+  $('btn-more-apps').addEventListener('click', () => loadApps(false));
+
+  // ---------------- buttons ----------------
+  $('btn-refresh').addEventListener('click', async () => {
+    $('btn-refresh').disabled = true;
+    try { await jsend('POST', '/api/v1/weather/refresh', {}); } catch (e) { alert(e.message); }
+    $('btn-refresh').disabled = false;
+    loadCurrent(); loadForecast();
+  });
+
+  $('btn-recompile').addEventListener('click', async () => {
+    const cid = prompt('ID контроллера для пересборки машинограммы?', '1');
+    if (!cid) return;
+    try {
+      const res = await jsend('POST', `/api/controllers/${cid}/schedules/compile`, {});
+      const w = (res.weather_applied || res.weather_applications || []);
+      const zones = new Set(); w.forEach(a => (a.affected_zones || []).forEach(z => zones.add(z)));
+      $('recompile-banner').textContent = w.length
+        ? ` ✔ применено правил: ${w.length}, затронуто зон: ${zones.size}`
+        : ' ✔ правил не применено (нет свежих данных или нет подходящих правил)';
+      loadApps(true);
+    } catch (e) { $('recompile-banner').textContent = ' ✖ ' + e.message; }
+  });
+
+  document.querySelectorAll('input[name=fh]').forEach(r => r.addEventListener('change', loadForecast));
+
+  loadForecast(); loadRules(); loadApps(true);
+  setInterval(() => { loadCurrent(); loadForecast(); }, POLL_MS);
+})();
+</script>
+{% endblock %}

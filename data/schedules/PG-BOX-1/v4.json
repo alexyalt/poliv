@@ -2,11 +2,11 @@
   "protocol_version": "1.0",
   "box_id": "PG-BOX-1",
   "schedule_version": 4,
-  "schedule_hash": "4bc20fba51d771513f7539dcfe225ae3dd1a9b8729d26ba158844e2015bb9827",
-  "valid_from_date": "2026-10-10",
-  "valid_to_date": "2026-10-17",
+  "schedule_hash": "80630216eee044ba1f3346bb93283e7df64be63b8716d80d9be9b58bf0d8edc3",
+  "valid_from_date": "2026-10-25",
+  "valid_to_date": "2026-11-01",
   "timezone_offset_min": 0,
-  "generated_ts": 1791646721,
+  "generated_ts": 1792947378,
   "source": "auto",
   "options": {
     "max_catchup_sec": 600,
@@ -16,9 +16,9 @@
   },
   "runs": [
     {
-      "run_id": "40cea98e-8b52-590b-b6a4-09d3d1223f07",
+      "run_id": "34ee83f7-b7e4-5f36-8932-1ef28d09b5db",
       "program_id": 1,
-      "date": "2026-10-13",
+      "date": "2026-10-27",
       "start_minute_local": 360,
       "enabled": true,
       "mode": "sequential",

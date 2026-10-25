@@ -798,6 +798,25 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         """
         return page(request, "events.html")
 
+    # --------------------------------------------------------------- Этап 7
+    @app.get("/weather", response_class=HTMLResponse)
+    def weather_page(request: Request):
+        """Страница погоды и погодных правил (Этап 7).
+
+        Каркас страницы + серверный снимок «сейчас» (перерисовывается при
+        загрузке); CRUD правил, прогноз и журнал применений подгружаются
+        JS-виджетом через API (/api/v1/weather/*) — polling, без WebSocket.
+        """
+        from ..services import weather_service as wx
+        try:
+            cond = wx.current_conditions(conn)
+        except Exception:
+            log.exception("WEB: не удалось собрать сводку погоды")
+            cond = {"status": "stale", "observation": None,
+                    "forecast_count": 0, "forecast_preview": [],
+                    "config": {}, "fresh": False}
+        return page(request, "weather.html", cond=cond)
+
     @app.exception_handler(_NotAuthed)
     async def _not_authed_handler(request: Request, exc: _NotAuthed):
         return RedirectResponse("/login", status_code=302)
