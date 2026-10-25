@@ -22,6 +22,7 @@ from __future__ import annotations
 import csv
 import io
 import sqlite3
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -35,6 +36,26 @@ from .routes_stage3 import _user
 log = get_logger("poliv.api6")
 
 ROLE_LEVELS = {"viewer": 0, "operator": 1, "admin": 2}
+
+# Аудит 06.10 (P2-12): документированный лимит CSV-выгрузки и стабильный
+# заголовок при пустом результате (колонки watering_events + join).
+CSV_ROW_LIMIT = 10000
+_CSV_COLUMNS = [
+    "id", "event_uid", "started_event_uid", "run_id", "controller_id",
+    "primary_zone_id", "parallel", "source", "status", "start_ts", "end_ts",
+    "water_sec", "wall_sec", "volume_liters", "expected_flow_lpm",
+    "reason_code", "aborted", "schedule_version", "buffered",
+    "created_at", "controller_name", "box_id",
+]
+
+
+def _csv_safe(value: Any) -> Any:
+    """Защита от spreadsheet formula injection (аудит P2-12): строки,
+    начинающиеся с = + - @ или табуляции, экранируются апострофом — Excel/
+    Sheets не интерпретируют их как формулу."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
 
 
 def _check(request: Request, min_role: str = "viewer"):
@@ -59,6 +80,68 @@ def _int_param(request: Request, name: str, default: int,
     return max(minimum, min(value, maximum))
 
 
+class _BadParam(ValueError):
+    """Некорректный query-параметр → 422 вместо 500 (аудит 06.10, P2-12)."""
+
+
+def _strict_int(request: Request, name: str) -> int | None:
+    """Опциональный целый параметр; нечисловое значение — ошибка валидации."""
+    raw = request.query_params.get(name)
+    if raw in (None, ""):
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        raise _BadParam(f"{name} — целое число, получено: {raw!r}") from None
+
+
+def _norm_date(value: str | None) -> str | None:
+    """Нормализация даты периода: YYYY-MM-DD (аудит P2-12). Пусто — None;
+    мусор — 422. Unix-секунды тоже допускаются (конвертируются в дату UTC,
+    как и фильтры /api/events)."""
+    if value in (None, ""):
+        return None
+    v = value.strip()
+    if len(v) == 10 and v[4] == "-" and v[7] == "-":
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise _BadParam(f"date — ожидался формат YYYY-MM-DD, получено: {value!r}")
+        return v
+    try:
+        ts = int(v)
+    except ValueError:
+        raise _BadParam(f"date/unix — ожидался YYYY-MM-DD или целые секунды, получено: {value!r}")
+    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+
+
+def _events_filter(request: Request) -> tuple[str, list[Any]]:
+    """Единый builder WHERE для /api/events и export.csv (аудит P2-12):
+    выгрузка обязана применять те же фильтры, что и список."""
+    sql, params = "", []
+    controller_id = _strict_int(request, "controller_id")
+    if controller_id is not None:
+        sql += " AND e.controller_id = ?"
+        params.append(controller_id)
+    status = request.query_params.get("status")
+    if status:
+        sql += " AND e.status = ?"
+        params.append(status)
+    source = request.query_params.get("source")
+    if source:
+        sql += " AND e.source = ?"
+        params.append(source)
+    date_from = _strict_int(request, "from")
+    if date_from is not None:
+        sql += " AND e.start_ts >= ?"
+        params.append(date_from)
+    date_to = _strict_int(request, "to")
+    if date_to is not None:
+        sql += " AND e.start_ts <= ?"
+        params.append(date_to)
+    return sql, params
+
+
 def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> None:
     api = app.state.stage6_api_helper if hasattr(app.state, "stage6_api_helper") \
         else _plain_api(app)
@@ -73,37 +156,17 @@ def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> N
         page = _int_param(request, "page", 1, 1, 100000)
         page_size = _int_param(request, "page_size", 50, 1, 200)
 
-        sql = "SELECT * FROM watering_events WHERE 1=1"
-        params: list[Any] = []
-        controller_id = request.query_params.get("controller_id")
-        status = request.query_params.get("status")
-        source = request.query_params.get("source")
-        date_from = request.query_params.get("from")
-        date_to = request.query_params.get("to")
-        if controller_id:
-            sql += " AND controller_id = ?"
-            params.append(int(controller_id))
-        if status:
-            sql += " AND status = ?"
-            params.append(status)
-        if source:
-            sql += " AND source = ?"
-            params.append(source)
+        sql = "SELECT e.* FROM watering_events e WHERE 1=1"
         try:
-            if date_from:
-                sql += " AND start_ts >= ?"
-                params.append(int(date_from))
-            if date_to:
-                sql += " AND start_ts <= ?"
-                params.append(int(date_to))
-        except ValueError:
-            return JSONResponse({"detail": "from/to — unix-секунды (целые)"},
-                                status_code=422)
+            where, params = _events_filter(request)
+        except _BadParam as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=422)
+        sql += where
 
         total = conn.execute(
-            sql.replace("SELECT *", "SELECT COUNT(*) c"), params
+            sql.replace("SELECT e.*", "SELECT COUNT(*) c"), params
         ).fetchone()["c"]
-        sql += " ORDER BY id DESC LIMIT ? OFFSET ?"
+        sql += " ORDER BY e.id DESC LIMIT ? OFFSET ?"
         items = [dict(r) for r in conn.execute(
             sql, (*params, page_size, (page - 1) * page_size)).fetchall()]
         return {
@@ -120,17 +183,25 @@ def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> N
         if denied is not None:
             return denied
 
+        # Аудит 06.10 (P2-12): CSV применяет ТЕ ЖЕ фильтры, что и список;
+        # лимит документирован (CSV_ROW_LIMIT); заголовок стабилен даже при
+        # пустом результате; формулы защищены от spreadsheet injection.
+        try:
+            where, params = _events_filter(request)
+        except _BadParam as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=422)
         rows = conn.execute(
             """SELECT e.*, c.name AS controller_name, c.box_id
                FROM watering_events e JOIN controllers c ON c.id = e.controller_id
-               ORDER BY e.id DESC LIMIT 10000"""
+               WHERE 1=1""" + where +
+            " ORDER BY e.id DESC LIMIT ?", (*params, CSV_ROW_LIMIT)
         ).fetchall()
         output = io.StringIO()
         writer = csv.writer(output)
-        if rows:
-            writer.writerow(rows[0].keys())
-            for r in rows:
-                writer.writerow(list(r))
+        header = list(rows[0].keys()) if rows else list(_CSV_COLUMNS)
+        writer.writerow(header)
+        for r in rows:
+            writer.writerow([_csv_safe(v) for v in r])
         output.seek(0)
         return StreamingResponse(
             iter([output.getvalue()]),
@@ -146,8 +217,12 @@ def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> N
         svc = get_flow_service()
         if svc is None:
             return JSONResponse({"detail": "Сервис расхода недоступен"}, 503)
-        return svc.summary(date_from=request.query_params.get("from"),
-                           date_to=request.query_params.get("to"))
+        try:
+            return svc.summary(date_from=request.query_params.get("from"),
+                               date_to=request.query_params.get("to"))
+        except ValueError as exc:
+            # Аудит 06.10 (P2-12): невалидные from/to → 422, а не 500.
+            return JSONResponse({"detail": str(exc)}, status_code=422)
 
     @api("GET", "/api/flow/daily")
     async def flow_daily(request: Request):
@@ -161,18 +236,23 @@ def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> N
                "LEFT JOIN zones z ON z.id = f.zone_id AND f.zone_id != -1 "
                "WHERE 1=1")
         params: list[Any] = []
-        controller_id = request.query_params.get("controller_id")
-        date_from = request.query_params.get("from")
-        date_to = request.query_params.get("to")
-        if controller_id:
-            sql += " AND f.controller_id = ?"
-            params.append(int(controller_id))
-        if date_from:
-            sql += " AND f.date >= ?"
-            params.append(date_from)
-        if date_to:
-            sql += " AND f.date <= ?"
-            params.append(date_to)
+        try:
+            # Аудит 06.10 (P2-12): строгая валидация — controller_id=abc даёт
+            # 422 вместо 500; даты нормализуются к YYYY-MM-DD.
+            controller_id = _strict_int(request, "controller_id")
+            if controller_id is not None:
+                sql += " AND f.controller_id = ?"
+                params.append(controller_id)
+            date_from = _norm_date(request.query_params.get("from"))
+            if date_from:
+                sql += " AND f.date >= ?"
+                params.append(date_from)
+            date_to = _norm_date(request.query_params.get("to"))
+            if date_to:
+                sql += " AND f.date <= ?"
+                params.append(date_to)
+        except _BadParam as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=422)
         sql += " ORDER BY f.date DESC, f.id DESC LIMIT 365"
         return {"items": [dict(r) for r in conn.execute(sql, params).fetchall()]}
 

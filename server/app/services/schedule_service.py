@@ -311,7 +311,15 @@ class ScheduleService:
                     "message": "Идёт прогон — новая версия применится после "
                                "его завершения (apply_policy=next_run)"}
 
-        self._mqtt.publish(f"poliv/{box_id}/schedule", payload, qos=1)
+        pub = self._mqtt.publish(f"poliv/{box_id}/schedule", payload, qos=1)
+        if isinstance(pub, dict) and not pub.get("ok", True):
+            # Аудит 06.10 (P2-10): статус 'sent' только при принятой публикации.
+            self.write_log("schedule.send_failed", box_id,
+                           {"schedule_id": schedule_id,
+                            "version": view["schedule_version"],
+                            "error": pub.get("error")})
+            raise RuntimeError(
+                f"MQTT: публикация расписания не принята ({pub.get('error')})")
         now = utcnow_iso()
         with self._lock, self.conn:
             self.conn.execute(
