@@ -86,14 +86,16 @@ def _mk_zone(conn, controller_id: int, num: int) -> int:
     return int(cur.lastrowid)
 
 
-def _mk_program(conn, name="Полив", start_time="06:00") -> int:
+def _mk_program(conn, name="Полив", start_time="06:00",
+                created_at="2026-01-05T00:00:00+00:00") -> int:
+    # created_at — понедельник: интервальные якоря стабильно попадают в
+    # тестовое окно компиляции (today=понедник 2026-10-26).
     cur = conn.execute(
         """INSERT INTO programs(name, description, enabled, schedule_type,
                                 weekdays_mask, interval_days, start_time,
                                 created_at, updated_at)
            VALUES (?,NULL,1,'weekdays','1111111',NULL,?,?,?)""",
-        (name, start_time, "2026-01-01T00:00:00+00:00",
-         "2026-01-01T00:00:00+00:00"))
+        (name, start_time, created_at, created_at))
     conn.commit()
     return int(cur.lastrowid)
 
@@ -454,8 +456,14 @@ def test_current_conditions_statuses(conn):
 # ==================================================== 8. интеграция с компилятором
 def _compile(conn, ctrl, today=date(2026, 10, 26)):
     from server.app.core.schedule_compiler.compiler import compile_schedule
-    # days_ahead=2: окно [today..today+2] = ровно 3 календарных дня.
-    return compile_schedule(conn, ctrl, today=today, days_ahead=2,
+    # rain_delay (наследие Этапа 4, по умолчанию 24ч из миграции 0002) при
+    # свежем наблюдении с дождём задержал бы и сегодняшние запуски — для
+    # чистоты тестов именно ПОГОДНЫХ правил отключаем его.
+    _set_setting(conn, "adjustment.rain_delay_hours", 0)
+    # days_ahead=3: окно [today..today+3] = ровно 4 календарных дня.
+    # today — понедельник 26.10.2026 → все дни будние (weekdays_mask),
+    # а интервальные программы с понедельничным якорём тоже попадают в окно.
+    return compile_schedule(conn, ctrl, today=today, days_ahead=3,
                             timezone_offset_min=0)
 
 
@@ -477,7 +485,7 @@ def test_weather_skip_removes_runs_before_payload(conn):
     comp = _compile(conn, c)
     assert comp.runs_count == 0
     wsk = [s for s in comp.skipped_runs if s["reason_code"] == "weather_skip"]
-    assert len(wsk) == 3                          # 3 дня окна — все пропущены
+    assert len(wsk) == 4                          # 4 дня окна — все пропущены
     assert all(s["rule_id"] for s in wsk)
     assert comp.weather_applications and \
         comp.weather_applications[0]["action"] == "skip"
@@ -490,7 +498,7 @@ def test_weather_reduce_changes_durations_with_clamp(conn):
                           "operator": "gt", "threshold": 30,
                           "action": "reduce_percent", "adjustment_value": 30})
     comp = _compile(conn, c)
-    assert comp.runs_count == 3
+    assert comp.runs_count == 4
     for run in comp.payload["runs"]:
         for st in run["steps"]:
             assert st["duration_sec"] == 420      # 600*0.7 (10 мин база)
@@ -507,10 +515,10 @@ def test_weather_disabled_flags_skip_application(conn):
     wx.create_rule(conn, {"name": "Дождь", "condition": "rain",
                           "operator": "gt", "threshold": 5, "action": "skip"})
     _set_setting(conn, "weather.enabled", False)
-    assert _compile(conn, c).runs_count == 3
+    assert _compile(conn, c).runs_count == 4
     _set_setting(conn, "weather.enabled", True)
     _set_setting(conn, "weather.rules_enabled", False)
-    assert _compile(conn, c).runs_count == 3
+    assert _compile(conn, c).runs_count == 4
 
 
 def test_offline_policy_disable_corrections(conn):
@@ -520,7 +528,7 @@ def test_offline_policy_disable_corrections(conn):
                           "operator": "gt", "threshold": 5, "action": "skip"})
     _set_setting(conn, "weather.offline_policy", "disable_corrections")
     assert wx.data_fresh(conn) is False
-    assert _compile(conn, c).runs_count == 3      # поправки выключены
+    assert _compile(conn, c).runs_count == 4      # поправки выключены
 
 
 def test_offline_policy_use_last_applies_stale_data(conn):
@@ -541,7 +549,7 @@ def test_zone_scope_prunes_only_that_zone(conn):
                           "operator": "gt", "threshold": 5, "action": "skip",
                           "scope": "zone", "scope_id": z2})
     comp = _compile(conn, c)
-    assert comp.runs_count == 3
+    assert comp.runs_count == 4
     for run in comp.payload["runs"]:
         zones = {z for st in run["steps"] for z in st["active_zones"]}
         assert zones == {1}                        # зона 2 исключена
@@ -553,19 +561,18 @@ def test_running_watering_not_interrupted(conn):
     c, *_ = _scenario(conn)
     with conn:
         conn.execute(
-            "UPDATE controllers SET live_state_json=? WHERE id=?",
-            (json.dumps({"mode": "watering", "phase": "water",
-                         "active_zones": [1], "running_run_id": "r-1"}),
-             c["id"]))
+            "UPDATE controllers SET current_mode='watering', "
+            "current_phase='water', active_zones_json='[1]' WHERE id=?",
+            (c["id"],))
     _add_obs(conn, precip_mm=10.0)
     wx.create_rule(conn, {"name": "Дождь", "condition": "rain",
                           "operator": "gt", "threshold": 5, "action": "skip"})
     comp = _compile(conn, c)
     assert comp.runs_count == 0                    # новая машинограмма — пусто
-    row = conn.execute("SELECT live_state_json FROM controllers WHERE id=?",
-                       (c["id"],)).fetchone()
-    state = json.loads(row["live_state_json"])
-    assert state["mode"] == "watering"             # текущий цикл не прерван
+    row = conn.execute("SELECT current_mode, current_phase, active_zones_json "
+                       "FROM controllers WHERE id=?", (c["id"],)).fetchone()
+    assert row["current_mode"] == "watering"       # текущий цикл не прерван
+    assert json.loads(row["active_zones_json"]) == [1]
 
 
 def test_record_applications_journal(conn):
@@ -595,8 +602,10 @@ def test_schedule_service_persists_applications(conn):
                           "operator": "gt", "threshold": 5, "action": "skip"})
     tmp = Path(tempfile.mkdtemp(prefix="poliv-st7-svc-"))
 
+    real_db = conn.execute("PRAGMA database_list").fetchone()[2]
+
     class _Cfg:
-        db_path = tmp / "db.sqlite"
+        db_path = real_db          # то же файл-БД, что и у соединения теста
         data_dir = tmp / "data"
 
     svc = ScheduleService(_Cfg(), conn)
@@ -687,7 +696,8 @@ def test_api_test_endpoint_dry_run_no_journal(api):
                                   "base_duration_minutes": 10})
     p = api.catalog.create_program({"name": "Прога", "start_time": "06:00",
                                     "schedule_type": "weekdays",
-                                    "weekdays_mask": "1111111"})
+                                    "weekdays": ["пн", "вт", "ср", "чт", "пт",
+                                                 "сб", "вс"]})
     api.catalog.set_program_zones(p["id"], [zz["id"]])
     _add_obs(api.conn, precip_mm=12.0)
     r = o.post("/api/v1/weather/rules", json=_rule_body()).json()
