@@ -37,6 +37,10 @@ from typing import Any, Optional
 
 from ...infra.logging import get_logger
 from ..weather_rules import latest_rain_ts
+# Этап 7: погодные поправки. Импортируем модулем, чтобы при отсутствии
+# миграции 0009 (погода ещё не инициализирована) компилятор деградировал
+# в штатный режим без поправок, а не падал на старте приложения.
+from ...services import weather_service as _wx
 
 log = get_logger("poliv.compiler")
 
@@ -65,6 +69,7 @@ class CompiledSchedule:
     skipped_runs: list[dict] = field(default_factory=list)   # rain_delay и т.п.
     skipped_steps: list[dict] = field(default_factory=list)  # zone_locked/disabled
     skipped_notes: list[dict] = field(default_factory=list)  # soak_in_group_ignored и т.п.
+    weather_applications: list[dict] = field(default_factory=list)  # Этап 7: журнал
 
     @property
     def runs_count(self) -> int:
@@ -231,6 +236,7 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
 
     warnings: list[dict] = []
     skipped_steps: list[dict] = []
+    skipped_runs: list[dict] = []   # rain_delay + weather_skip (Этап 7)
 
     # candidate runs: (date, start_minute, program, steps)
     candidates: list[dict] = []
@@ -289,7 +295,6 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
             d += timedelta(days=1)
 
     # --- дождевая задержка (rain_delay) --------------------------------------
-    skipped_runs: list[dict] = []
     rain_delay_h = int(_setting_value(conn, "adjustment.rain_delay_hours", 0) or 0)
     if rain_delay_h > 0:
         rain_ts = latest_rain_ts(conn)
@@ -314,6 +319,30 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
                 else:
                     kept.append(c)
             candidates = kept
+
+    # --- погодные корректировки (Этап 7) — ДО сборки payload и конфликтов ----
+    # Правила применяются только к НОВОЙ машинограмме: уже запущенный полив
+    # не прерывается (ТЗ Этап 7; apply_policy next_run — контроллер применит
+    # версию от следующего запуска). Порядок: сначала поправки, затем
+    # проверка конфликтов (reduce может освободить пересечение).
+    weather_skipped: list[dict] = []
+    weather_apps: list[dict] = []
+    try:
+        wcfg = _wx.weather_config(conn)
+        proceed = False
+        if wcfg["enabled"] and wcfg["rules_enabled"] and candidates:
+            fresh = _wx.data_fresh(conn)
+            proceed = fresh or wcfg["offline_policy"] == "use_last"
+        if proceed:
+            min_sec = max(1, min_dur) * MINUTE_IN_SEC
+            max_sec = max(min_sec + 1, max_dur) * MINUTE_IN_SEC
+            candidates, weather_skipped, weather_apps = _wx.apply_to_candidates(
+                conn, candidates, cid, min_sec=min_sec, max_sec=max_sec)
+            skipped_runs.extend(weather_skipped)
+    except sqlite3.OperationalError:
+        # Таблицы погоды ещё не созданы (миграция 0009 не применена) —
+        # компиляция продолжается без погодных поправок.
+        log.info("COMPILER: схема Этапа 7 отсутствует — поправки пропущены")
 
     # --- конфликты пересечения запусков --------------------------------------
     _check_conflicts(candidates, box_id)
@@ -362,7 +391,8 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
                             valid_from=today, valid_to=valid_to,
                             warnings=warnings, skipped_runs=skipped_runs,
                             skipped_steps=merged_steps,
-                            skipped_notes=merged_notes)
+                            skipped_notes=merged_notes,
+                            weather_applications=weather_apps)
 
 
 def _local_dt(d: date, minute: int, tz_off_min: int) -> datetime:
