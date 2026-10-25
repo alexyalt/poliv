@@ -1439,3 +1439,181 @@
 2026-10-25 16:56:52 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
 2026-10-25 16:56:52 INFO     [poliv.mqtt] MQTT: event от BOX-W1 uid=ev-BOX-W1-stopped-1792947412 type=stopped water_sec=600 volume=50.0 (в БД не сохраняется — Этап 6)
 2026-10-25 16:56:52 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT: BOX-EMUL-01 buffer_size=7 (хранение событий — Этап 6)
+2026-10-25 17:03:07 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: lwt от BOX-EMUL-01 — контроллер offline
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: BOX-EMUL-01 offline по порогу (1 мин без статусов)
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:08 INFO     [poliv.mqtt.cmd] Команды: zone_open -> BOX-EMUL-01 (id=6f07f4d4, попытка 1, QoS1)
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT: command_ack 6f07f4d4 от BOX-EMUL-01: completed
+2026-10-25 17:03:08 INFO     [poliv.mqtt.cmd] Команды: итог 6f07f4d4 (zone_open) от BOX-EMUL-01: completed
+2026-10-25 17:03:08 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:09 INFO     [poliv.mqtt.cmd] Команды: ping -> BOX-EMUL-01 (id=3e992f95, попытка 1, QoS1)
+2026-10-25 17:03:09 WARNING  [poliv.mqtt.cmd] Команды: таймаут ack 3e992f95 (BOX-EMUL-01), повтор 1/2 с тем же command_id
+2026-10-25 17:03:09 INFO     [poliv.mqtt.cmd] Команды: ping -> BOX-EMUL-01 (id=3e992f95, попытка 2, QoS1)
+2026-10-25 17:03:09 WARNING  [poliv.mqtt.cmd] Команды: таймаут ack 3e992f95 (BOX-EMUL-01), повтор 2/2 с тем же command_id
+2026-10-25 17:03:09 INFO     [poliv.mqtt.cmd] Команды: ping -> BOX-EMUL-01 (id=3e992f95, попытка 3, QoS1)
+2026-10-25 17:03:09 INFO     [poliv.mqtt.cmd] Команды: итог 3e992f95 (ping) от BOX-EMUL-01: timeout
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT: command_ack cid-dup- от BOX-EMUL-01: completed
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT: command_ack cid-dup- от BOX-EMUL-01 — команда уже финализирована (completed), дублирующий ack 'rejected' игнорируется
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT: command_ack unknown- от BOX-EMUL-01 — команда не найдена среди pending (дубликат или поздний ack), игнорируется
+2026-10-25 17:03:09 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:10 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:10 WARNING  [poliv.mqtt.cmd] Команды: BOX-OFF офлайн — команда zone_open НЕ отправлена
+2026-10-25 17:03:10 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:10 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:10 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:10 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:10 WARNING  [poliv.mqtt] MQTT: status от BOX-EMUL-01 — невалидный JSON (Expecting property name enclosed in double quotes: line 1 column 2 (char 1)), пропущено
+2026-10-25 17:03:10 WARNING  [poliv.mqtt] MQTT: status от BOX-EMUL-01 — JSON не объект, пропущено
+2026-10-25 17:03:10 WARNING  [poliv.mqtt] MQTT: status от BOX-EMUL-01 — отсутствуют обязательные поля ['protocol_version', 'ts', 'box_id', 'online', 'mode', 'phase', 'active_zones', 'buffer_size', 'flow_enabled', 'service_mode']
+2026-10-25 17:03:10 WARNING  [poliv.mqtt] MQTT: event от BOX-EMUL-01 — неизвестный статус None
+2026-10-25 17:03:10 WARNING  [poliv.mqtt] MQTT: сообщение от неизвестного box_id=UNKNOWN-BOX — игнорируется
+2026-10-25 17:03:11 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:11 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:11 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:11 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:12 INFO     [poliv.mqtt.cmd] Команды: ping -> BOX-EMUL-01 (id=972911d5, попытка 1, QoS1)
+2026-10-25 17:03:12 INFO     [poliv.mqtt] MQTT: command_ack 972911d5 от BOX-EMUL-01: completed
+2026-10-25 17:03:12 INFO     [poliv.mqtt.cmd] Команды: итог 972911d5 (ping) от BOX-EMUL-01: completed
+2026-10-25 17:03:12 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:12 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:12 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:12 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:13 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:13 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:13 INFO     [poliv.mqtt] MQTT: hello от BOX-EMUL-01 — контроллер online
+2026-10-25 17:03:13 INFO     [poliv.mqtt] MQTT: schedule (заглушка Этапа 3, v0, runs=[]) отправлен BOX-EMUL-01
+2026-10-25 17:03:14 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:14 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:14 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:16 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:16 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:16 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:16 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:17 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:17 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:18 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:18 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:18 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:19 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:19 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:20 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:20 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:21 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:21 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:22 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:22 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:22 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:23 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:23 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:23 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:23 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:24 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:24 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:25 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:25 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:25 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:25 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:26 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:26 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:26 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:26 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:26 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:26 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:26 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:26 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:27 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:27 INFO     [poliv.mqtt] MQTT: event от BOX-Q1 uid=ev-BOX-Q1-started-1792947807 type=started water_sec=None volume=None (в БД не сохраняется — Этап 6)
+2026-10-25 17:03:27 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:27 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:27 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:27 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:28 INFO     [poliv.mqtt] MQTT: event от BOX-A1 uid=ev-BOX-A1-started-1792947808 type=started water_sec=None volume=None (в БД не сохраняется — Этап 6)
+2026-10-25 17:03:28 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:28 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:28 INFO     [poliv.mqtt] MQTT: event от BOX-A2 uid=pg-0 type=finished water_sec=600 volume=10.0 (в БД не сохраняется — Этап 6)
+2026-10-25 17:03:28 INFO     [poliv.mqtt] MQTT: event от BOX-A2 uid=pg-1 type=finished water_sec=600 volume=10.0 (в БД не сохраняется — Этап 6)
+2026-10-25 17:03:28 INFO     [poliv.mqtt] MQTT: event от BOX-A2 uid=pg-2 type=finished water_sec=600 volume=10.0 (в БД не сохраняется — Этап 6)
+2026-10-25 17:03:28 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:29 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:29 INFO     [poliv.mqtt] MQTT: event от BOX-A3 uid=ev-BOX-A3-finished-1792947809 type=finished water_sec=600 volume=30.0 (в БД не сохраняется — Этап 6)
+2026-10-25 17:03:29 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:30 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:30 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:30 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:31 INFO     [poliv.mqtt] MQTT: event от BOX-A5 uid=ev-BOX-A5-stopped-1792947811 type=stopped water_sec=600 volume=50.0 (в БД не сохраняется — Этап 6)
+2026-10-25 17:03:31 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:31 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:31 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:31 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:32 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:32 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:33 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:03:33 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:03:33 INFO     [poliv.mqtt] MQTT: event от BOX-W1 uid=ev-BOX-W1-stopped-1792947813 type=stopped water_sec=600 volume=50.0 (в БД не сохраняется — Этап 6)
+2026-10-25 17:03:33 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:06:53 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:06:53 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:06:53 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:06:54 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:06:54 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:06:55 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:06:55 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:06:56 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:06:56 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:06:57 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:06:57 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:06:57 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:06:58 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:06:58 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:15 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:15 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:15 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:15 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:16 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:17 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:17 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:17 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:18 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:18 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:19 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:19 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:19 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:20 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:41 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:41 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:41 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:41 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:42 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:43 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:43 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:43 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:44 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:44 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:45 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:45 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:07:45 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:07:46 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
