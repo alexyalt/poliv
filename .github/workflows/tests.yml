@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -33,7 +35,7 @@ jobs:
       - name: Verify tracked runtime snapshots were not modified by tests
         run: git diff --exit-code -- data logs server/poliv.db
       - name: Check commit whitespace
-        run: git show --format= --check HEAD
+        run: git diff --check HEAD^ HEAD
 
   browser:
     runs-on: ubuntu-latest
