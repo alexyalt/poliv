@@ -348,10 +348,11 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
 
     for candidate in candidates:
         override = conn.execute(
-            "SELECT start_minute FROM normalization_overrides WHERE controller_id=? AND program_id=? AND date=?",
+            "SELECT start_minute,job_id FROM normalization_overrides WHERE controller_id=? AND program_id=? AND date=?",
             (cid, candidate['program_id'], candidate['date'].isoformat())).fetchone()
         if override is not None:
             candidate['start_minute'] = override['start_minute']
+            candidate['normalization_job_id'] = override['job_id']
     from ..blocks.policy import filter_candidates
     original_candidates = candidates
     candidates, interval_skips = filter_candidates(conn, candidates, cid, tz_off)
@@ -401,6 +402,9 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
         },
         "runs": runs_payload,
     }
+    normalized_jobs = sorted({c['normalization_job_id'] for c in candidates if 'normalization_job_id' in c})
+    if normalized_jobs:
+        payload['normalization'] = {'enabled':True,'job_ids':normalized_jobs}
     payload["schedule_hash"] = _canonical_hash(payload)
 
     merged_steps, merged_notes = _merge_skipped(skipped_steps)

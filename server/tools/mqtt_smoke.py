@@ -117,9 +117,9 @@ def main():
                     with database_scope():
                         return owned.execute("SELECT count(*) FROM controllers WHERE connection_status='online'").fetchone()[0] == 2
                 wait_until(both_online, 'real hello persisted')
-                def send(box, command):
+                def send(box, command, params=None):
                     with database_scope():
-                        return commands.send_command(box, command, {})
+                        return commands.send_command(box, command, params or {})
                 result = send('SMOKE-A', 'ping')
                 assert result['status'] == 'completed' and result['attempts'] == 2
                 attempts = [p for box, p in published if p['command_id'] == result['command_id']]
@@ -133,6 +133,22 @@ def main():
                     assert stopped['status'] == 'completed'
                     assert not pending.done(), 'stop waited for the other command timeout'
                     assert pending.result(timeout=3)['status'] == 'timeout'
+                from server.app.services.block_service import BlockService
+                from server.app.services.mqtt_command_service import CommandError
+                with database_scope():
+                    cid=owned.execute("SELECT id FROM controllers WHERE box_id='SMOKE-A'").fetchone()[0]
+                    zone=CatalogService(owned).create_zone({'controller_id':cid,'zone_number':1,'name':'Smoke zone','base_duration_minutes':10})
+                    block=BlockService(owned).quick(zone['id'],{'duration_hours':1,'kind':'all','reason':'real broker smoke'},'smoke')
+                mode['value']='ack'
+                before=len(published)
+                try:
+                    send('SMOKE-A','zone_open',{'zone':1,'duration_sec':60})
+                    raise AssertionError('Manual block did not reject command')
+                except CommandError:
+                    pass
+                assert len(published)==before
+                with database_scope():BlockService(owned).release(block['id'],'smoke')
+                assert send('SMOKE-A','zone_open',{'zone':1,'duration_sec':60})['status']=='completed'
                 event = {'protocol_version': '1.0', 'box_id': 'SMOKE-A', 'event_uid': 'durable-smoke',
                          'status': 'finished', 'source': 'manual', 'ts': time.time(),
                          'start_ts': 1, 'end_ts': 61, 'water_sec': 60, 'volume_liters': 5,
@@ -150,7 +166,7 @@ def main():
                 assert send('SMOKE-A', 'ping')['status'] == 'completed'
                 assert count_events() == 0, 'archived event was replayed'
                 assert not callback_errors, callback_errors
-                print('Real Mosquitto: hello, QoS1 retry/same ID, ACK, independent stop, archive replay OK')
+                print('Real Mosquitto: hello, QoS1 retry/same ID, ACK, independent stop, stage9 block/release, archive replay OK')
             finally:
                 if commands is not None:
                     commands.close()

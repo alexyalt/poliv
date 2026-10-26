@@ -211,3 +211,29 @@ def test_settings_cannot_disable_confirmation_or_safety(h6):
     assert op.put('/api/v1/settings/normalization',json={'enabled':False}).status_code==200
     assert op.post('/api/v1/normalization/jobs',json={'controller_ids':ids}).status_code==422
     service.schedules.close()
+
+
+def test_apply_ack_and_heatmap_show_new_start(h6):
+    from datetime import timedelta
+    from server.app.services.heatmap_service import build_heatmap
+    from server.app.core.schedule_compiler.compiler import _canonical_hash
+    service,ids=normalization_fixture(h6)
+    service.schedules.attach(h6.mqtt)
+    day=(date.today()+timedelta(days=1)).isoformat()
+    job=service.create({'date':day,'controller_ids':ids},'op')
+    proposal=service.proposal(job['id'])['payload']
+    result=service.apply(job['id'],'op',True)
+    for sid in result['schedule_ids']:
+        record=service.schedules.get(sid)
+        service.schedules.on_schedule_ack(record['box_id'],{'schedule_version':record['schedule_version'],
+            'status':'applied','schedule_hash':record['schedule_hash']})
+        ctrl=h6.conn.execute('SELECT * FROM controllers WHERE id=?',(record['controller_id'],)).fetchone()
+        recomputed=compile_schedule(h6.conn,dict(ctrl),source='manual')
+        # Confirmed metadata survives subsequent automatic compilation.
+        assert recomputed.payload['normalization']==record['payload']['normalization']
+    data=build_heatmap(h6.conn,day,interval_min=15)
+    for run in proposal['after']:
+        row=next(r for r in data['rows'] if r['controller_id']==run['controller_id'])
+        slot=run['start_minute_local']//15
+        assert row['zones'][0]['cells'][slot]=='water'
+    service.schedules.close()

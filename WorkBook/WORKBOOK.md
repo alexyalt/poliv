@@ -601,3 +601,9 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Проверки:** первый полный прогон до этих усилений: 279 passed/1 skipped; актуальные stage9+compiler: 28 passed. Проверены horizon, enforcer debounce/mode, optimizer window/immutability, settings safety.
 - **Следующий шаг:** E2E применение и heatmap после schedule ACK, browser UI, миграции/реальный MQTT; затем полный итоговый прогон.
 - **Ограничения:** offline старое расписание физически нельзя отозвать сервером; UI явно показывает доставку и необходимость связи. Ветка сохраняется, main не меняется.
+
+
+## [26.10.2026 UTC] Этап 9 — stage9: verify browser apply ACK heatmap and real MQTT blocks
+- **Сделано:** подтверждённые будущие планы рисуются heatmap с planned_cells (не факт); metadata normalization стабильно при повторной компиляции; block skips раздельны по зоне/дате. CI включает feature/** и stage9_smoke; реальный Mosquitto smoke дополнен запретом publish blocked manual и разрешением после release.
+- **Проверки:** stage9+heatmap: 41 passed; Chromium→FastAPI→SQLite: quick block/release, preview, отказ без confirm, apply/ACK/heatmap успешны; настоящий Mosquitto stage9 block/release успешен.
+- **Следующий шаг:** документация ADR/инструкция/матрица, upgrade старой БД, полный pytest и remote CI. До полного итогового прогона этап не объявляется готовым.

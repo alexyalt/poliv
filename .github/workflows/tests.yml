@@ -2,7 +2,7 @@ name: audit-checks
 
 on:
   push:
-    branches: [main, 'fix/**']
+    branches: [main, 'fix/**', 'feature/**']
   pull_request:
   workflow_dispatch:
 
@@ -53,7 +53,9 @@ jobs:
           python -m pip install -q playwright==1.64.1
           python -m playwright install --with-deps chromium
       - name: Check day/week heatmap and missed-report rendering
-        run: python -m server.tools.browser_smoke
+        run: |
+          python -m server.tools.browser_smoke
+          python -m server.tools.stage9_smoke
 
   mqtt:
     runs-on: ubuntu-latest

@@ -184,7 +184,6 @@ class NormalizationService:
                     old=next(r for r in expected if key(r)==key(run))
                     steps=[{k:v for k,v in s.items() if k!='estimated_flow_lpm'} for s in old['steps']]
                     if steps!=run['steps']:raise StaleProposal('Длительности или ограничения изменились')
-                item.payload['normalization']={'job_id':identity,'mode':job['scope'],'target':job['target']}
                 item.schedule_hash=_canonical_hash(item.payload);item.payload['schedule_hash']=item.schedule_hash
                 sid,_=persist_schedule(conn,item,data_dir=self.cfg.data_dir,status='compiled',created_by=actor)
                 schedule_ids.append(sid)

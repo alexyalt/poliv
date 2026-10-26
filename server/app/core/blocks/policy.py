@@ -56,6 +56,7 @@ def filter_candidates(conn,candidates,controller_id,tz_offset):
                 step['phase']='soak';step['display_zones']=[];step.pop('expected_flow_lpm',None)
             elif step['phase']=='water':
                 values=[conn.execute('SELECT expected_flow_lpm FROM zones WHERE id=?',(zones[z],)).fetchone()[0] for z in step['active_zones']]
-                step['expected_flow_lpm']=sum(values) if all(v is not None for v in values) else None
+                if all(v is not None for v in values):step['expected_flow_lpm']=sum(values)
+                else:step.pop('expected_flow_lpm',None)
         if any(s['phase']=='water' for s in c['steps']):kept.append(c)
     return kept,skipped

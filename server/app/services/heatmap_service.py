@@ -175,6 +175,39 @@ def build_heatmap(conn: sqlite3.Connection, date: str, *,
             if order[row[s]] <= pr:
                 row[s] = state
 
+    # Accepted plans are visible into the future, separately marked from facts.
+    # A compiled/sent proposal is not a delivered controller plan.
+    from pathlib import Path
+    from datetime import timedelta, timezone
+    plan_cells = {}
+    for schedule in conn.execute("""SELECT cs.controller_id,cs.payload_path FROM controller_schedules cs
+        WHERE cs.status='acknowledged' AND cs.schedule_version=(
+            SELECT MAX(x.schedule_version) FROM controller_schedules x
+            WHERE x.controller_id=cs.controller_id AND x.status='acknowledged')"""):
+        cid=schedule['controller_id']
+        if cid not in grids:continue
+        try:
+            payload=json.loads(Path(schedule['payload_path']).read_text())
+            offset=int(payload.get('timezone_offset_min',0))
+            for run in payload.get('runs',[]):
+                base=int(datetime.fromisoformat(run['date']).replace(
+                    tzinfo=timezone(timedelta(minutes=offset))).timestamp())+run['start_minute_local']*60
+                cursor=base
+                for step in run.get('steps',[]):
+                    end=cursor+int(step['duration_sec'])
+                    if cursor<hi and end>lo:
+                        a,b=_slot_of(max(cursor,lo)),_slot_of(min(end-1,hi-1))
+                        nums=step.get('active_zones') or step.get('display_zones') or []
+                        state='water' if step['phase']=='water' else 'soak'
+                        for z in by_ctrl.get(cid,[]):
+                            if z['zone_number'] in nums:
+                                _paint(cid,zindex[cid][z['id']],state,a,b)
+                                plan_cells.setdefault(z['id'],set()).update(range(max(0,a),min(n-1,b)+1))
+                        if nums:_paint(cid,0,state,a,b)
+                    cursor=end
+        except (OSError,ValueError,TypeError,KeyError):
+            continue
+
     # ---- красим события: water/manual/error -------------------------------
     for ev in events_by_uid.values():
         cid = ev["controller_id"]
@@ -349,6 +382,7 @@ def build_heatmap(conn: sqlite3.Connection, date: str, *,
                 "zone_number": z["zone_number"],
                 "name": z["name"],
                 "cells": g[j + 1],
+                "planned_cells": sorted(plan_cells.get(z['id'],set())),
                 "run_info": {str(k): v for k, v in
                              tips_by_zone.get(z["id"], {}).items()},
             } for j, z in enumerate(zs)],

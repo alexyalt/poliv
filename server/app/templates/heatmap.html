@@ -30,6 +30,7 @@
 
 <div id="hm-wrap" class="card" style="overflow-x:auto;"></div>
 <p id="hm-meta" class="muted"></p>
+<p class="muted">Будущие ячейки показывают подтверждённый контроллером план, а не факт полива. Скомпилированные версии без ACK здесь не считаются доставленными.</p>
 
 <style>
   .heatmap { border-collapse: collapse; font-size: 12px; }
@@ -74,6 +75,7 @@
     const t = columns[colIdx];
     let s = (zone ? row.controller_name + ' / ' + zone.name
                   : row.controller_name) + ', ' + t + ' — ' + state;
+    if (zone && (zone.planned_cells || []).includes(colIdx)) s += ', подтверждённый план';
     if (zone && zone.run_info && zone.run_info[colIdx]) {
       const ri = zone.run_info[colIdx];
       if (ri.program_id != null) s += ', программа #' + ri.program_id;
