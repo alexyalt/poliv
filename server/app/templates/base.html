@@ -18,7 +18,8 @@
     <a href="/events" class="{{ 'active' if nav == 'events' else '' }}">События</a>
     <a href="/weather" class="{{ 'active' if nav == 'weather' else '' }}">Погода</a>
     <a href="/reports" class="{{ 'active' if nav == 'reports' else '' }}">Отчёты</a>
-    <a href="/heatmap" class="{{ 'active' if nav == 'heatmap' else '' }}">Тепловая карта</a>
+    {% if user and user.role in ('admin','operator') %}<a href="/stage9">Блокировки / нормализация</a>{% endif %}
+      <a href="/heatmap" class="{{ 'active' if nav == 'heatmap' else '' }}">Тепловая карта</a>
     {% if user.role == 'admin' %}<a href="/users" class="{{ 'active' if nav == 'users' else '' }}">Пользователи</a>{% endif %}
     <a href="/settings" class="{{ 'active' if nav == 'settings' else '' }}">Настройки</a>
   </nav>

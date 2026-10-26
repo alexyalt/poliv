@@ -587,3 +587,10 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Проверки:** test_stage9 + stage4_compiler: 20 passed.
 - **Совместимость:** kind CHECK сохранён, block_type отдельно; runtime/старые миграции не меняются.
 - **Следующий шаг:** API/UI блокировок, перекомпиляция и отдельный optimizer/proposal lifecycle 9B; 9A пока не объявлен завершённым.
+
+
+## [26.10.2026 UTC] Этап 9 — stage9: add normalization proposals and stage9 API UI
+- **Сделано:** отдельный optimizer (15-мин слоты), статистика корректных single-zone finished за 90 дней, min_events, day/week, metrics before/after, immutable proposal snapshot/hash; confirm/stale/reject/idempotence и audited accepted overrides; API 4.8/4.12/settings, страница /stage9 и меню.
+- **Проверки:** test_stage9: 12 passed (locks, exact occurrence, manual denial, proposals/day/week/stale/ACL/UI render).
+- **Состояние:** ядро и интерфейс сохранены; необходимо укрепить доставку/активные блокировки, heatmap/preserve horizon и расширить интеграционную/браузерную приёмку.
+- **Следующий шаг:** обработка активных/будущих блокировок и безопасное сохранение полного горизонта нормализованного расписания; затем полный baseline+CI.

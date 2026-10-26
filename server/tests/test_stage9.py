@@ -12,7 +12,7 @@ from server.app.services.mqtt_command_service import CommandError
 
 def setup_program(h):
     c=mk_controller(h);z=mk_zone(h,c['id'],1)
-    p=_mk_program(h.conn,start_time='06:00');_link(h.conn,p,z['id'])
+    p=_mk_program(h.conn,name=f'Program-{c["id"]}',start_time='06:00');_link(h.conn,p,z['id'])
     return c,z,p
 
 
@@ -61,3 +61,91 @@ def test_manual_auto_only_allowed_all_rejected(h6):
     s.create({'zone_id':z['id'],'start_ts':now-1,'end_ts':now+3600,'reason':'all','kind':'all'},'op')
     with pytest.raises(CommandError):h6.cmd.send_command(c['box_id'],'zone_open',{'zone':1,'duration_sec':60})
     with pytest.raises(CommandError):h6.cmd.send_command_async(c['id'],'zone_open',{'zone':1,'duration_sec':60})
+
+
+def normalization_fixture(h):
+    from server.tests.test_stage8_archive import add_event
+    from server.app.services.schedule_service import ScheduleService
+    from server.app.services.normalization_service import NormalizationService
+    controllers=[]
+    for _ in range(2):
+        c,z,p=setup_program(h)
+        for i in range(3):add_event(h,cid=c['id'],uid=f"stats-{c['id']}-{i}",zone_id=z['id'],start_ts=int(time.time())-86400*(i+1))
+        controllers.append(c['id'])
+    schedules=ScheduleService(h.cfg,h.conn,db_path=str(h.db_path))
+    return NormalizationService(h.conn,h.cfg,schedules),controllers
+
+
+def test_normalization_propose_confirm_preserves_duration(h6):
+    from datetime import timedelta
+    from server.app.services.normalization_service import NormalizationError
+    service,ids=normalization_fixture(h6)
+    day=(date.today()+timedelta(days=1)).isoformat()
+    job=service.create({'scope':'day','date':day,'controller_ids':ids},'operator')
+    assert job['status']=='ready',job
+    proposal=service.proposal(job['id'])['payload']
+    assert proposal['metrics_after']['peak_lpm']<proposal['metrics_before']['peak_lpm']
+    assert proposal['metrics_after']['estimated_liters']==proposal['metrics_before']['estimated_liters']
+    assert h6.conn.execute('SELECT count(*) FROM normalization_overrides').fetchone()[0]==0
+    with pytest.raises(NormalizationError):service.apply(job['id'],'operator')
+    applied=service.apply(job['id'],'operator',True)
+    assert len(applied['schedule_ids'])==2
+    assert h6.conn.execute('SELECT count(*) FROM normalization_overrides').fetchone()[0]==2
+    assert service.apply(job['id'],'operator',True)['already_applied']
+    assert h6.conn.execute('SELECT count(*) FROM controller_schedules').fetchone()[0]==2
+    service.schedules.close()
+
+
+def test_normalization_stale_reject_and_insufficient(h6):
+    from datetime import timedelta
+    from server.app.services.normalization_service import StaleProposal,NormalizationError
+    service,ids=normalization_fixture(h6)
+    data={'date':(date.today()+timedelta(days=1)).isoformat(),'controller_ids':ids}
+    job=service.create(data,'op')
+    with h6.conn:h6.conn.execute("UPDATE zones SET name=name||' changed'")
+    with pytest.raises(StaleProposal):service.apply(job['id'],'op',True)
+    service.reject(job['id'],'op')
+    with pytest.raises(NormalizationError):service.apply(job['id'],'op',True)
+    with h6.conn:h6.conn.execute('DELETE FROM watering_event_zones');h6.conn.execute('DELETE FROM watering_events')
+    job=service.create(data,'op')
+    assert job['status']=='error' and 'Недостаточно' in job['error_message']
+    service.schedules.close()
+
+
+def test_normalization_week_deterministic(h6):
+    from datetime import timedelta
+    service,ids=normalization_fixture(h6)
+    data={'scope':'week','target':'smooth_consumption','date':(date.today()+timedelta(days=1)).isoformat(),'controller_ids':ids}
+    a=service.create(data,'op');b=service.create(data,'op')
+    assert a['status']==b['status']=='ready'
+    pa,pb=service.proposal(a['id']),service.proposal(b['id'])
+    assert pa['after_hash']==pb['after_hash']
+    assert len(pa['payload']['after'])==14
+    service.schedules.close()
+
+
+def test_stage9_api_roles_blocks_jobs(h6):
+    from server.app.api.routes_stage9 import register_api_routes_stage9
+    service,ids=normalization_fixture(h6)
+    h6.app.state.app_dir=str(__import__('pathlib').Path(__file__).resolve().parents[1]/'app')
+    register_api_routes_stage9(h6.app,h6.cfg,h6.conn,service.schedules,h6.cmd)
+    viewer=h6.login_as('viewer');op=h6.login_as('operator')
+    assert viewer.get('/api/v1/normalization/jobs').status_code==403
+    assert viewer.post('/api/v1/zone-blocks',json={}).status_code==403
+    assert op.post('/api/v1/zone-blocks',json=[]).status_code==422
+    zid=h6.conn.execute('SELECT id FROM zones ORDER BY id').fetchone()[0]
+    response=op.post(f'/api/v1/zones/{zid}/quick-block',json={'duration_hours':1,'kind':'all','reason':'test'})
+    assert response.status_code==201,response.text
+    lock=response.json()['block']['id']
+    assert op.get('/api/v1/zone-blocks').json()['items'][0]['active']==1
+    assert op.delete(f'/api/v1/zone-blocks/{lock}').status_code==200
+    assert op.get('/stage9').status_code==200
+    from datetime import timedelta
+    response=op.post('/api/v1/normalization/jobs',json={'date':(date.today()+timedelta(days=1)).isoformat(),'controller_ids':ids})
+    assert response.status_code==201,response.text
+    assert response.json()['status']=='ready',response.text
+    identity=response.json()['id']
+    assert op.get(f'/api/v1/normalization/jobs/{identity}/proposal').status_code==200
+    assert op.post(f'/api/v1/normalization/jobs/{identity}/apply',json={}).status_code==422
+    assert op.post(f'/api/v1/normalization/jobs/{identity}/reject',json={}).status_code==200
+    service.schedules.close()

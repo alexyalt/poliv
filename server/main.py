@@ -162,6 +162,8 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # Этап 8 (блок 8.3): REST API тепловой карты (/api/v1/heatmap).
     register_api_routes_heatmap(app, cfg, conn)
     register_api_routes(app, cfg, conn, catalog, users)
+    from server.app.api.routes_stage9 import register_api_routes_stage9
+    register_api_routes_stage9(app, cfg, conn, schedule_service, cmd_service)
 
     @app.get("/health")
     def health():

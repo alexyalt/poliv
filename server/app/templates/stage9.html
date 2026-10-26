@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Блокировки и нормализация{% endblock %}
+{% block content %}
+<h1>Этап 9: блокировки и нормализация</h1>
+<p>Блокировка хранится на сервере. Для контроллера без связи старое офлайн-расписание может продолжать действовать до доставки новой версии. Проверяйте результат доставки.</p>
+<section class="card"><h2>Блокировка зоны</h2>
+<form id="block-form">
+<label>ID зоны <input id="block-zone" type="number" min="1" required></label>
+<label>Тип <select id="block-kind"><option value="auto">Только автоматический</option><option value="all">Автоматический и ручной</option><option value="service">Сервисная (все запуски)</option></select></label>
+<label>Начало <input id="block-start" type="datetime-local"></label>
+<label>Окончание <input id="block-end" type="datetime-local"></label>
+<label>Причина <input id="block-reason" maxlength="500" required></label>
+<button type="submit">Заблокировать до даты</button>
+<button id="block-hour" type="button">На час</button><button id="block-day" type="button">На 24 часа</button>
+</form><div id="blocks"></div></section>
+<section class="card"><h2>Предложение нормализации</h2>
+<p>Требуется не менее 3 корректных одиночных событий каждой зоны за последние 90 дней. Длительности и погода не меняются. Давление сети не измеряется; дополнительная параллельность не создаётся.</p>
+<form id="normalize-form">
+<label>Дата <input id="norm-date" type="date" required></label>
+<label>Область <select id="norm-scope"><option value="day">День</option><option value="week">7 дней</option></select></label>
+<label>Цель <select id="norm-target"><option value="reduce_peaks">Уменьшить пик</option><option value="smooth_consumption">Выровнять расход</option></select></label>
+<label>ID контроллеров через запятую <input id="norm-controllers" placeholder="1,2"></label>
+<label>Начало окна (мин) <input id="norm-start" type="number" value="0" min="0" max="1439"></label>
+<label>Конец окна (мин) <input id="norm-end" type="number" value="1440" min="1" max="1440"></label>
+<button type="submit">Рассчитать предложение</button></form>
+<div id="proposal"></div><div id="jobs"></div>
+</section><p id="stage9-error" role="alert"></p><pre id="delivery"></pre>
+<script>
+(() => {
+const by=id=>document.getElementById(id);let current=null;
+const showError=e=>{by('stage9-error').textContent=String(e);};
+async function api(path,method='GET',body) {
+ const response=await fetch('/api/v1/'+path,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+ const data=await response.json();if(!response.ok)throw new Error(data.detail||('HTTP '+response.status));return data;
+}
+function text(parent,tag,value){const el=document.createElement(tag);el.textContent=value;parent.append(el);return el;}
+function button(parent,label,fn){const el=text(parent,'button',label);el.type='button';el.addEventListener('click',()=>Promise.resolve().then(fn).catch(showError));}
+async function refresh(){
+ const [blocks,jobs]=await Promise.all([api('zone-blocks'),api('normalization/jobs')]);
+ by('blocks').replaceChildren();by('jobs').replaceChildren();
+ blocks.items.forEach(b=>{const row=text(by('blocks'),'p',`#${b.id}, зона ${b.zone_id}: ${b.reason}; ${b.block_type||b.kind}; ${b.active?'действует (см. даты)':'снята'}`);if(b.active)button(row,'Снять',async()=>{by('delivery').textContent=JSON.stringify(await api('zone-blocks/'+b.id,'DELETE'),null,2);await refresh();});});
+ jobs.items.forEach(j=>{const row=text(by('jobs'),'p',`#${j.id}: ${j.scope} ${j.date_from} — ${j.status}${j.error_message?' — '+j.error_message:''}`);if(j.status==='ready')button(row,'Просмотреть',()=>loadProposal(j.id));});
+}
+function blockData(){return {zone_id:Number(by('block-zone').value),kind:by('block-kind').value,reason:by('block-reason').value};}
+async function quick(hours){const data=blockData();by('delivery').textContent=JSON.stringify(await api('zones/'+data.zone_id+'/quick-block','POST',{...data,duration_hours:hours}),null,2);await refresh();}
+by('block-hour').onclick=()=>quick(1).catch(showError);by('block-day').onclick=()=>quick(24).catch(showError);
+by('block-form').onsubmit=async e=>{e.preventDefault();try{const data=blockData();data.start_ts=by('block-start').value?Math.floor(new Date(by('block-start').value).getTime()/1000):Math.floor(Date.now()/1000);data.end_ts=by('block-end').value?Math.floor(new Date(by('block-end').value).getTime()/1000):null;by('delivery').textContent=JSON.stringify(await api('zone-blocks','POST',data),null,2);await refresh();}catch(e){showError(e);}};
+async function loadProposal(id){
+ const proposal=await api('normalization/jobs/'+id+'/proposal');current=id;const p=proposal.payload;const box=by('proposal');box.replaceChildren();
+ text(box,'h3','Предложение #'+id);text(box,'p',`Пик: ${p.metrics_before.peak_lpm} → ${p.metrics_after.peak_lpm} л/мин. Объём: ${p.metrics_before.estimated_liters} → ${p.metrics_after.estimated_liters} л.`);
+ p.warnings.forEach(w=>text(box,'p',w));
+ const table=text(box,'table','');const head=text(table,'tr','');['Контроллер','Программа','Дата','Было (мин)','Станет (мин)'].forEach(v=>text(head,'th',v));
+ p.changes.forEach(c=>{const row=text(table,'tr','');[c.controller_id,c.program_id,c.date,c.before_minute,c.after_minute].forEach(v=>text(row,'td',v));});
+ if(!p.changes.length)text(box,'p','Изменения не требуются.');
+ const label=text(box,'label','Подтверждаю применение новых версий расписаний ');const check=document.createElement('input');check.type='checkbox';check.id='norm-confirm';label.append(check);
+ button(box,'Применить',async()=>{if(!check.checked)throw new Error('Подтвердите применение');by('delivery').textContent=JSON.stringify(await api('normalization/jobs/'+id+'/apply','POST',{confirm:true}),null,2);box.replaceChildren();await refresh();});
+ button(box,'Отклонить',async()=>{await api('normalization/jobs/'+id+'/reject','POST',{});box.replaceChildren();await refresh();});
+}
+by('normalize-form').onsubmit=async e=>{e.preventDefault();try{by('stage9-error').textContent='';const data={scope:by('norm-scope').value,date:by('norm-date').value,target:by('norm-target').value,window_start_minute:Number(by('norm-start').value),window_end_minute:Number(by('norm-end').value)};if(by('norm-controllers').value.trim())data.controller_ids=by('norm-controllers').value.split(',').map(v=>Number(v.trim()));const job=await api('normalization/jobs','POST',data);await refresh();if(job.status==='ready')await loadProposal(job.id);else throw new Error(job.error_message||job.status);}catch(e){showError(e);}};
+const tomorrow=new Date(Date.now()+86400000);by('norm-date').value=tomorrow.toISOString().slice(0,10);refresh().catch(showError);
+})();
+</script>
+{% endblock %}
