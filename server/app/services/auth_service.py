@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from ..infra.config import Config
@@ -147,11 +148,18 @@ class AuthService:
     # ---------------------------------------------------------------- session
     def get_user_by_token(self, token: str, touch: bool = True) -> Optional[sqlite3.Row]:
         row = self.conn.execute(
-            """SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id
+            """SELECT u.*, s.last_seen_at AS session_last_seen_at FROM sessions s JOIN users u ON u.id = s.user_id
                WHERE s.token_hash = ? AND s.expires_at > ? AND u.enabled = 1""",
             (hash_token(token), utcnow_iso()),
         ).fetchone()
+        should_touch = False
         if row and touch:
+            try:
+                last_seen = datetime.fromisoformat(row["session_last_seen_at"])
+                should_touch = (datetime.now(timezone.utc) - last_seen).total_seconds() >= min(30, self.cfg.session_timeout_min * 30)
+            except (ValueError, TypeError):
+                should_touch = True
+        if should_touch:
             with self.conn:
                 self.conn.execute(
                     """UPDATE sessions SET last_seen_at = ?, expires_at = ?

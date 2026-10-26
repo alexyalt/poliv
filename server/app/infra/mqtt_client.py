@@ -22,6 +22,8 @@
 """
 from __future__ import annotations
 
+from .connection_scope import ScopedConnection, scoped_task
+
 import json
 import sqlite3
 import threading
@@ -29,6 +31,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
+from .db import connect_path
 from ..infra.config import Config
 from ..infra.logging import get_logger
 
@@ -188,12 +191,11 @@ class MqttServerClient:
             # check_same_thread=False: соединение создаётся в потоке create_app,
             # а сообщения paho обрабатываются в thread-loop'ах paho и maintenance-
             # потоке. Все операции сериализуются self._db_lock — гонок нет.
-            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-            self._conn.row_factory = sqlite3.Row
-            self._conn.execute("PRAGMA journal_mode = WAL")
+            self._conn = ScopedConnection(self._db_path)
         return self._conn
 
     # ---------------------------------------------------------------- paho callbacks
+    @scoped_task
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         # Совместимость CallbackAPIVersion VERSION2/VERSION1: subscription_add_*
         for topic, qos in SUBSCRIPTIONS:
@@ -202,10 +204,12 @@ class MqttServerClient:
         log.info("MQTT: подключение к брокеру установлено (rc=%s), подписки активны",
                  reason_code)
 
+    @scoped_task
     def _on_disconnect(self, client, userdata, *args):
         self.connected = False
         log.warning("MQTT: соединение с брокером потеряно")
 
+    @scoped_task
     def _on_message(self, client, userdata, msg):
         try:
             parts = msg.topic.split("/")
@@ -684,6 +688,7 @@ class MqttServerClient:
                 next_scan = now + OFFLINE_SCAN_PERIOD_SEC
             self._stop.wait(1.0)
 
+    @scoped_task
     def mark_stale_offline(self) -> int:
         """Офлайн по порогу offline_threshold_min (нет сообщений дольше порога)."""
         threshold_min = self.cfg.mqtt_offline_threshold_min
@@ -707,6 +712,7 @@ class MqttServerClient:
             count += 1
         return count
 
+    @scoped_task
     def resync_times(self) -> None:
         """Периодическая синхронизация времени online-контроллеров (раз в 6 ч)."""
         rows = self.conn.execute(

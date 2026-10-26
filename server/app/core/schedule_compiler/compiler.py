@@ -212,7 +212,8 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
                      source: str = "auto",
                      today: Optional[date] = None,
                      timezone_offset_min: Optional[int] = None,
-                     programs: Optional[list[dict]] = None) -> CompiledSchedule:
+                     programs: Optional[list[dict]] = None,
+                     weather_rules: Optional[list[dict]] = None) -> CompiledSchedule:
     """Компилирует машинограмму одного контроллера (см. модуль docstring)."""
     cid = int(controller["id"])
     box_id = controller["box_id"]
@@ -330,14 +331,15 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
     try:
         wcfg = _wx.weather_config(conn)
         proceed = False
-        if wcfg["enabled"] and wcfg["rules_enabled"] and candidates:
+        if wcfg["enabled"] and (wcfg["rules_enabled"] or weather_rules is not None) and candidates:
             fresh = _wx.data_fresh(conn)
             proceed = fresh or wcfg["offline_policy"] == "use_last"
         if proceed:
             min_sec = max(1, min_dur) * MINUTE_IN_SEC
             max_sec = max(min_sec + 1, max_dur) * MINUTE_IN_SEC
             candidates, weather_skipped, weather_apps = _wx.apply_to_candidates(
-                conn, candidates, cid, min_sec=min_sec, max_sec=max_sec)
+                conn, candidates, cid, min_sec=min_sec, max_sec=max_sec,
+                rules_override=weather_rules)
             skipped_runs.extend(weather_skipped)
     except sqlite3.OperationalError:
         # Таблицы погоды ещё не созданы (миграция 0009 не применена) —

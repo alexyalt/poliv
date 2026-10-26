@@ -31,6 +31,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, Request
+from starlette.concurrency import run_in_threadpool
+from ..infra.db import connect_path
+
 from fastapi.responses import JSONResponse
 
 from ..infra.csv_export import csv_response
@@ -119,7 +122,7 @@ def register_api_routes_reports(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
     for _name in rs.REPORTS:
         def make_handler(name=_name):
             async def handler(request: Request):
-                return _run(name, request)
+                return await run_in_threadpool(_run, name, request)
             handler.__name__ = f"report_{name}"
             return handler
 
@@ -135,7 +138,7 @@ def register_api_routes_reports(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
                     date_from, date_to = _range(request)
                 except rs.RangeError as exc:
                     return JSONResponse({"detail": str(exc)}, status_code=422)
-                data = rs.REPORTS[name](conn, date_from, date_to)
+                data = await run_in_threadpool(rs.REPORTS[name], conn, date_from, date_to)
                 rows = rs.report_rows_for_csv(name, data)
                 header = rs.CSV_HEADERS[name]
                 stamp = f"{date_from or 'all'}_{date_to or 'all'}"
@@ -150,10 +153,22 @@ def register_api_routes_reports(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
     # Вспомогательные эндпоинты для ручной проверки ротации без кода на сервере
     # (см. docs/ИНСТРУКЦИЯ_ЭТАП8.md §3). Канонический корень данных — cfg-путь
     # рядом с БД (data/), как в main.py при старте ArchiveDaemon.
-    data_root = getattr(cfg, "project_root", None) or Path("data").parent
+    data_root = cfg.data_dir
 
     def _archive_service() -> ArchiveService:
         return ArchiveService(conn, data_root)
+
+    archive_db_path = conn.execute("PRAGMA database_list").fetchone()[2]
+
+    def _rotate_owned(entity_type, dry_run, target_date):
+        owned = connect_path(archive_db_path)
+        try:
+            service = ArchiveService(owned, data_root)
+            if entity_type is None:
+                return service.rotate_all(dry_run=dry_run, target_date=target_date)
+            return service.rotate(entity_type, dry_run=dry_run, target_date=target_date)
+        finally:
+            owned.close()
 
     @app.get("/api/v1/archive/config")
     async def archive_config(request: Request):
@@ -183,30 +198,34 @@ def register_api_routes_reports(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
         try:
             body = await request.json()
         except Exception:
-            body = {}
-        if not isinstance(body, dict):
-            body = {}
-        dry_run = bool(body.get("dry_run", False))
+            return JSONResponse({"detail": "Invalid JSON body"}, status_code=422)
+        if not isinstance(body, dict) or set(body) - {"dry_run", "target_date", "entity_type"}:
+            return JSONResponse({"detail": "Expected archive request object"}, status_code=422)
+        dry_run = body.get("dry_run", False)
+        if type(dry_run) is not bool:
+            return JSONResponse({"detail": "dry_run must be a boolean"}, status_code=422)
         target_date = body.get("target_date")
         entity_type = body.get("entity_type")
         if target_date is not None:
             try:
+                if not isinstance(target_date, str) or len(target_date) != 10:
+                    raise ValueError("Expected ISO date")
                 datetime.strptime(target_date, "%Y-%m-%d")
-            except ValueError:
+            except (ValueError, TypeError):
                 return JSONResponse(
                     {"detail": "target_date должен быть YYYY-MM-DD"},
                     status_code=422)
-        svc = _archive_service()
+        if entity_type is not None and (not isinstance(entity_type, str) or
+                                        entity_type not in arcsvc.ENTITY_TYPES):
+            return JSONResponse({"detail": "Invalid entity_type"}, status_code=422)
         try:
             if entity_type is None:
-                results = svc.rotate_all(dry_run=dry_run,
-                                         target_date=target_date)
+                results = await run_in_threadpool(_rotate_owned, None, dry_run, target_date)
                 return {"dry_run": dry_run, "results": results}
             if entity_type not in arcsvc.ENTITY_TYPES:
                 return JSONResponse({"detail": "неизвестный entity_type"},
                                     status_code=422)
-            res = svc.rotate(entity_type, target_date=target_date,
-                             dry_run=dry_run)
+            res = await run_in_threadpool(_rotate_owned, entity_type, dry_run, target_date)
             return {"dry_run": dry_run, "result": res}
         except Exception as exc:
             log.exception("ARCHIVE: rotate через API упал")

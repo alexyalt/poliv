@@ -102,13 +102,23 @@ def report_by_zones(conn: sqlite3.Connection, date_from: Optional[str],
     # два запроса на весь отчёт независимо от числа зон).
     runs = conn.execute(
         """SELECT wr.id, wr.controller_id, wr.program_id, wr.source, wr.status,
-                  wr.reason_code, wr.water_sec, wr.volume_liters, wr.zones_json
+                  wr.reason_code, wr.water_sec, wr.volume_liters, wr.zones_json,
+                  EXISTS(SELECT 1 FROM watering_events e
+                         WHERE e.controller_id=wr.controller_id AND e.run_id=wr.run_id
+                           AND e.status IN ('finished','stopped')) AS has_fact
            FROM watering_runs wr
            WHERE COALESCE(wr.actual_start_ts, wr.planned_start_ts, 0) BETWEEN ? AND ?""",
         (lo, hi)).fetchall()
     events = conn.execute(
         """SELECT ez.zone_id, e.status, e.reason_code, e.aborted,
-                  COALESCE(ez.volume_liters, e.volume_liters, 0) AS volume_liters,
+                  CASE WHEN e.volume_liters IS NULL THEN COALESCE(ez.volume_liters,0)
+                        WHEN COALESCE((SELECT SUM(COALESCE(z.volume_liters,0))
+                                       FROM watering_event_zones z WHERE z.event_id=e.id),0)>0
+                        THEN e.volume_liters * COALESCE(ez.volume_liters,0) /
+                             (SELECT SUM(COALESCE(z.volume_liters,0))
+                              FROM watering_event_zones z WHERE z.event_id=e.id)
+                        ELSE e.volume_liters / MAX(1,(SELECT COUNT(*)
+                              FROM watering_event_zones z WHERE z.event_id=e.id)) END AS volume_liters,
                   COALESCE(ez.water_sec, e.water_sec, 0) AS water_sec
            FROM watering_events e
            JOIN watering_event_zones ez ON ez.event_id = e.id
@@ -149,8 +159,8 @@ def report_by_zones(conn: sqlite3.Connection, date_from: Optional[str],
             if status in ("completed", "active"):
                 a["runs_count"] += 1
                 a["total_minutes"] += (run["water_sec"] or 0) / 60.0
-                if run["volume_liters"] is not None:
-                    a["total_liters"] += float(run["volume_liters"])
+                if run["volume_liters"] is not None and not run["has_fact"]:
+                    a["total_liters"] += float(run["volume_liters"]) / max(1, len(nums))
             elif status == "skipped":
                 a["skips_count"] += 1
             if status in ("aborted", "failed"):
@@ -428,6 +438,20 @@ def report_by_incidents(conn: sqlite3.Connection, date_from: Optional[str],
 
 
 # ------------------------------------------------------------------ имена
+def report_by_missed(conn, date_from, date_to):
+    """Individual planned skips/cancellations, with reason and affected zones."""
+    lo, hi = _ts_bounds(date_from, date_to)
+    return [dict(row) for row in conn.execute(
+        """SELECT wr.id AS run_ref, wr.run_id, wr.controller_id,
+                  c.name AS controller_name, wr.program_id, wr.status,
+                  COALESCE(wr.reason_code,wr.status) AS reason,
+                  wr.planned_start_ts, wr.zones_json
+           FROM watering_runs wr JOIN controllers c ON c.id=wr.controller_id
+           WHERE wr.status IN ('skipped','cancelled')
+             AND wr.planned_start_ts BETWEEN ? AND ?
+           ORDER BY wr.planned_start_ts DESC,wr.id DESC""", (lo,hi))]
+
+
 REPORTS = {
     "zones": report_by_zones,
     "controllers": report_by_controllers,
@@ -435,9 +459,12 @@ REPORTS = {
     "months": report_by_months,
     "programs": report_by_programs,
     "incidents": report_by_incidents,
+    "missed": report_by_missed,
 }
 
 CSV_HEADERS = {
+    "missed": ["run_ref", "run_id", "controller_id", "controller_name",
+               "program_id", "status", "reason", "planned_start_ts", "zones_json"],
     "zones": ["zone_id", "zone_number", "zone_name", "controller_id",
               "controller_name", "runs_count", "total_minutes",
               "total_liters", "avg_duration_min", "skips_count",

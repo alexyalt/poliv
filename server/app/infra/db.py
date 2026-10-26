@@ -24,14 +24,20 @@ log = get_logger("poliv.db")
 MIGRATIONS_DIR = CODE_ROOT / "server" / "migrations"
 
 
-def connect(cfg: Config) -> sqlite3.Connection:
-    cfg.db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(cfg.db_path, check_same_thread=False)
+def connect_path(path, *, wal=True, check_same_thread=False) -> sqlite3.Connection:
+    """Apply the same integrity and busy-timeout policy to every connection."""
+    conn = sqlite3.connect(path, check_same_thread=check_same_thread, timeout=5)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    if cfg.raw.get("database", {}).get("wal", True):
+    conn.execute("PRAGMA busy_timeout = 5000")
+    if wal:
         conn.execute("PRAGMA journal_mode = WAL")
     return conn
+
+
+def connect(cfg: Config) -> sqlite3.Connection:
+    cfg.db_path.parent.mkdir(parents=True, exist_ok=True)
+    return connect_path(cfg.db_path, wal=cfg.raw.get("database", {}).get("wal", True))
 
 
 def _table_names(conn: sqlite3.Connection) -> set[str]:

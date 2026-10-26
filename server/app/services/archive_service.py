@@ -1,22 +1,9 @@
-"""Этап 8, блок 8.2: файловый архив и ротация оперативной БД (ADR-14).
+"""Immutable archive batches with typed, checksummed companion manifests.
 
-Правила архивации (Артефакт 0.7 §23):
-- строки старше archive.db_retention_days выгружаются в файлы
-  {data_root}/{archive.path}/{entity_type}/YYYY-MM-DD.csv|json — по одному
-  файлу на тип сущности за дату выгрузки; если файл за эту дату уже есть,
-  пачка дописывается без повторного заголовка CSV;
-- после успешной записи файла строки удаляются из БД (одна транзакция);
-- журнал выгрузок — таблица archive_exports (миграция 0010): путь,
-  число строк, sha256 файла;
-- dry_run=True ничего не пишет и не удаляет (только подсчёт);
-- restore_export — обратный импорт из файла архива (реализован для
-  events/notifications/logs; flow/weather — заглушка NotImplementedError).
-
-Фоновая задача ArchiveDaemon — daemon-поток (аналог WeatherUpdater,
-Этап 7): раз в сутки в 03:00 локального времени вызывает rotate_all().
-
-Таймзоны: датировка файлов — UTC-дата (каноническая суточная зона проекта,
-совпадает с flow_daily и report_service._day_expr).
+New exports use YYYY-MM-DD_<batch>.csv|json under data_root/archive.path/type.
+Source deletion and journal insertion share one write transaction; durable files
+precede deletion. Legacy daily files stay readable, with incomplete relations
+explicitly reported. See docs/adr/ADR-18-stage8-stabilization.md.
 """
 from __future__ import annotations
 
@@ -28,12 +15,15 @@ import os
 import sqlite3
 import threading
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from ..infra.db import connect_path
 from ..infra.logging import get_logger
 from .flow_service import get_setting
+from . import archive_integrity as integrity
 
 log = get_logger("poliv.archive")
 
@@ -100,7 +90,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
         else:
             q += "start_ts < ?"
             args = (cutoff_ts,)
-        return conn.execute(q + " ORDER BY start_ts, id", args).fetchall()
+        return conn.execute(q + " ORDER BY start_ts, id LIMIT 1000", args).fetchall()
     if entity_type == "flow":
         q = "SELECT * FROM flow_daily WHERE "
         if target_date:
@@ -110,7 +100,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
             q += "date < ?"
             args = (datetime.fromtimestamp(cutoff_ts, tz=timezone.utc)
                     .strftime("%Y-%m-%d"),)
-        return conn.execute(q + " ORDER BY date, controller_id, zone_id",
+        return conn.execute(q + " ORDER BY date, controller_id, zone_id LIMIT 1000",
                             args).fetchall()
     if entity_type == "notifications":
         q = "SELECT * FROM notifications WHERE "
@@ -120,7 +110,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
         else:
             q += "created_at < ?"
             args = (cutoff_iso,)
-        return conn.execute(q + " ORDER BY created_at, id", args).fetchall()
+        return conn.execute(q + " ORDER BY created_at, id LIMIT 1000", args).fetchall()
     if entity_type == "weather":
         q = "SELECT * FROM weather_observations WHERE "
         if target_date:
@@ -129,7 +119,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
         else:
             q += "ts < ?"
             args = (cutoff_ts,)
-        return conn.execute(q + " ORDER BY ts, id", args).fetchall()
+        return conn.execute(q + " ORDER BY ts, id LIMIT 1000", args).fetchall()
     if entity_type == "logs":
         q = "SELECT * FROM logs WHERE "
         if target_date:
@@ -138,7 +128,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
         else:
             q += "ts < ?"
             args = (cutoff_iso,)
-        return conn.execute(q + " ORDER BY ts, id", args).fetchall()
+        return conn.execute(q + " ORDER BY ts, id LIMIT 1000", args).fetchall()
     raise ValueError(f"Неизвестный тип архивации: {entity_type}")
 
 
@@ -190,82 +180,67 @@ class ArchiveService:
     # ---- выгрузка -------------------------------------------------------
     def rotate(self, entity_type: str, *, target_date: Optional[str] = None,
                dry_run: bool = False) -> dict[str, Any]:
-        """Выгрузить строки entity_type в файл архива и удалить из БД.
+        """Write an immutable v2 batch before deleting its exact source rows.
 
-        target_date=None — штатный режим: всё старше retention cutoff.
-        target_date=YYYY-MM-DD — выгрузить конкретные сутки (ружная
-        операция/тесты). Возвращает {"entity_type","date","file_path",
-        "row_count","file_hash","dry_run"}; при 0 строк файл НЕ создаётся
-        (кроме dry_run) и журнал не пишется — это делает повторный rotate
-        за ту же дату идемпотентным.
+        BEGIN IMMEDIATE serializes rotation across processes. On any failure the
+        source rows and journal roll back; completed unregistered files are copies
+        only and must never be auto-restored. See ADR-18 for recovery rules.
         """
         if entity_type not in ENTITY_TYPES:
-            raise ValueError(f"Неизвестный тип архивации: {entity_type}")
-        cfg = archive_config(self.conn)
-        now = datetime.now(timezone.utc)
-        cutoff_ts = int((now - timedelta(days=cfg["retention_days"]))
-                        .timestamp())
-        cutoff_iso = datetime.fromtimestamp(cutoff_ts,
-                                            tz=timezone.utc).strftime(
-                                                "%Y-%m-%d %H:%M:%S")
-        rows = [_dict(r) for r in _fetch_rows(
-            self.conn, entity_type, cutoff_ts, cutoff_iso, target_date)]
-        # Имя файла — по дню ВЫГРУЗКИ (ADR-14: одна пачка на сутки работы
-        # архиватора), а не по target_date: несколько ручных rotate за
-        # разные сутки пишутся в один файл дня (CSV дописывается без
-        # повторного заголовка). В колонке date журнала — target_date.
-        file_date = utc_date()
-        result: dict[str, Any] = {
-            "entity_type": entity_type, "date": target_date or file_date,
-            "row_count": len(rows), "dry_run": dry_run,
-            "file_path": None, "file_hash": None,
-        }
-        if dry_run:
-            return result
-        if not rows:
-            return result  # идемпотентность: нечего выгружать — пусто
-
-        fmt = cfg["events_format"] if entity_type == "events" else "csv"
-        content, _hdr = _serialize(rows, fmt)
-        rel_dir = self.data_root / cfg["path"] / entity_type
-        rel_dir.mkdir(parents=True, exist_ok=True)
-        ext = "json" if fmt == "json" else "csv"
-        fpath = rel_dir / f"{file_date}.{ext}"
-        appending = fpath.exists() and fmt != "json"
-        with open(fpath, "a", encoding="utf-8") as fh:
-            if appending:
-                # дописываем пачку без повторного заголовка CSV
-                body, _ = _serialize(rows, "csv")
-                payload = body.split("\n", 1)[1] if "\n" in body else ""
-            else:
-                payload = content
-            fh.write(payload)
-        # hash — по содержимому конкретной выгрузки (при дописывании в
-        # существующий файл дня — hash дописанной пачки).
-        file_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-        # Удаление выгруженного — в одной транзакции с журналом.
-        ids = [r["id"] for r in rows]
-        with self.conn:
-            placeholders = ",".join("?" * len(ids))
-            sql = _DELETE_SQL[entity_type].format(placeholders)
-            # Каскад watering_event_zones — через явное удаление (в 0008 нет
-            # ON DELETE CASCADE; FK включены — сначала дочерние строки).
+            raise ValueError(f"Unknown entity_type: {entity_type}")
+        with integrity.transaction(self.conn) as conn:
+            cfg = archive_config(conn)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=cfg["retention_days"])
+            rows = [_dict(r) for r in _fetch_rows(
+                conn, entity_type, int(cutoff.timestamp()),
+                cutoff.strftime("%Y-%m-%d %H:%M:%S"), target_date)]
+            file_date = utc_date()
+            result = {"entity_type": entity_type, "date": target_date or file_date,
+                      "row_count": len(rows), "dry_run": dry_run,
+                      "file_path": None, "file_hash": None}
+            if dry_run or not rows:
+                return result
+            fmt = cfg["events_format"] if entity_type == "events" else "csv"
+            if fmt not in ("csv", "json"):
+                raise ValueError("Unknown archive format")
+            content, _ = _serialize(rows, fmt)
+            directory = self.data_root / cfg["path"] / entity_type
+            directory.mkdir(parents=True, exist_ok=True)
+            batch_id = uuid.uuid4().hex
+            path = directory / f"{file_date}_{batch_id}.{fmt}"
+            data = content.encode("utf-8")
+            children = []
+            ids = [r["id"] for r in rows]
             if entity_type == "events":
-                self.conn.execute(
-                    "DELETE FROM watering_event_zones WHERE event_id IN (%s)"
-                    % placeholders, ids)
-            self.conn.execute(sql, ids)
-            self.conn.execute(
-                """INSERT INTO archive_exports(entity_type, date, file_path,
-                       row_count, file_hash, created_at)
-                   VALUES (?,?,?,?,?,datetime('now'))""",
-                (entity_type, file_date, str(fpath), len(rows), file_hash))
-        log.info("ARCHIVE: %s за %s — %d строк → %s", entity_type,
-                 file_date, len(rows), fpath)
-        result["file_path"] = str(fpath)
-        result["file_hash"] = file_hash
-        return result
+                for offset in range(0, len(ids), 500):
+                    part = ids[offset:offset + 500]
+                    ph = ",".join("?" * len(part))
+                    children.extend(_dict(r) for r in conn.execute(
+                        f"SELECT * FROM watering_event_zones WHERE event_id IN ({ph}) ORDER BY id",
+                        part).fetchall())
+            manifest = {"schema_version": 2, "batch_id": batch_id,
+                        "entity_type": entity_type, "file_hash": integrity.digest(data),
+                        "row_count": len(rows), "target_date": target_date,
+                        "nulls": [[k for k, v in row.items() if v is None] for row in rows],
+                        "event_zones": children}
+            meta = json.dumps(manifest, ensure_ascii=False, allow_nan=False).encode("utf-8")
+            integrity.durable_write(path, data)
+            integrity.durable_write(path.with_suffix(path.suffix + ".manifest.json"), meta)
+            # Files and their directory entries are durable before deletion.
+            for offset in range(0, len(ids), 500):
+                part = ids[offset:offset + 500]
+                ph = ",".join("?" * len(part))
+                if entity_type == "events":
+                    conn.execute(f"DELETE FROM watering_event_zones WHERE event_id IN ({ph})", part)
+                conn.execute(_DELETE_SQL[entity_type].format(ph), part)
+            conn.execute(
+                """INSERT INTO archive_exports(entity_type,date,file_path,row_count,
+                       file_hash,created_at,format_version,manifest_hash)
+                   VALUES (?,?,?,?,?,datetime('now'),2,?)""",
+                (entity_type, file_date, str(path.resolve()), len(rows),
+                 integrity.digest(data), integrity.digest(meta)))
+            result.update(file_path=str(path.resolve()), file_hash=integrity.digest(data))
+            return result
 
     def rotate_all(self, *, dry_run: bool = False,
                    target_date: Optional[str] = None) -> list[dict[str, Any]]:
@@ -274,8 +249,11 @@ class ArchiveService:
         out = []
         for et in ENTITY_TYPES:
             try:
-                out.append(self.rotate(et, target_date=target_date,
-                                       dry_run=dry_run))
+                for _ in range(100):
+                    batch = self.rotate(et, target_date=target_date, dry_run=dry_run)
+                    out.append(batch)
+                    if dry_run or batch["row_count"] < 1000:
+                        break
             except Exception as exc:  # один тип не роняет весь цикл
                 log.exception("ARCHIVE: rotate(%s) упал", et)
                 out.append({"entity_type": et, "error": str(exc)})
@@ -292,47 +270,18 @@ class ArchiveService:
 
     # ---- восстановление ---------------------------------------------------
     def restore_export(self, export_id: int) -> dict[str, Any]:
-        """Обратный импорт строк из файла выгрузки в оперативную БД.
-
-        Реализовано для events/notifications/logs (INSERT OR IGNORE по id —
-        повторный импорт безопасен). Для flow/weather на этом этапе —
-        заглушка NotImplementedError (осмысленное отложенное: эти данные
-        восстанавливаются пересчётом/источником).
-        """
-        row = self.conn.execute(
-            "SELECT * FROM archive_exports WHERE id=?",
-            (export_id,)).fetchone()
-        if row is None:
-            raise KeyError(f"Выгрузка {export_id} не найдена")
-        entity = row["entity_type"]
-        if entity not in _INSERT_SQL:
-            raise NotImplementedError(
-                f"restore_export для '{entity}' отложен (Этап 8: только "
-                "events/notifications/logs)")
-        path = Path(row["file_path"])
-        if not path.exists():
-            raise FileNotFoundError(str(path))
-        text = path.read_text(encoding="utf-8")
-        if path.suffix == ".json":
-            records = json.loads(text)
-        else:
-            records = list(csv.DictReader(io.StringIO(text)))
-        tmpl = _INSERT_SQL[entity][1]
-        restored = 0
-        with self.conn:
-            for rec in records:
-                cols = list(rec.keys())
-                before = self.conn.total_changes
-                self.conn.execute(
-                    tmpl.format(cols=",".join(cols),
-                                ph=",".join("?" * len(cols))),
-                    tuple(rec[c] for c in cols))
-                if self.conn.total_changes > before:
-                    restored += 1
-        log.info("ARCHIVE: restore #%d (%s) — %d записей", export_id,
-                 entity, restored)
-        return {"export_id": export_id, "entity_type": entity,
-                "restored": restored}
+        """Validate v2 checksums, types and relations before transactional restore."""
+        with integrity.transaction(self.conn) as conn:
+            row = conn.execute("SELECT * FROM archive_exports WHERE id=?", (export_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"Export {export_id} not found")
+            entity = row["entity_type"]
+            if entity not in integrity.TABLES:
+                raise ValueError(f"Unknown archive entity: {entity}")
+            records, manifest = integrity.read_records(conn, row)
+            restored = integrity.restore_records(conn, entity, records, manifest)
+            return {"export_id": export_id, "entity_type": entity, "restored": restored,
+                    "legacy_incomplete": row["format_version"] == 1}
 
 
 def _dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -380,8 +329,7 @@ class ArchiveDaemon(threading.Thread):
         today = now.strftime("%Y-%m-%d")
         if now.hour < self.RUN_HOUR or self.last_run_date == today:
             return None
-        conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
+        conn = connect_path(self.db_path)
         try:
             cfg = archive_config(conn)
             if not cfg["enabled"]:

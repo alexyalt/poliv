@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import json
 import sqlite3
 import time
@@ -199,25 +200,27 @@ def test_rotate_dry_run_no_file_no_delete(h6, tmp_path):
     assert h6.conn.execute(
         "SELECT COUNT(*) c FROM watering_events").fetchone()["c"] == 1
     assert svc(h6, tmp_path).list_exports() == []
-
-
-def test_rotate_appends_without_duplicate_header(h6, tmp_path):
-    """Два rotate одного entity_type в один день (разные target_date) —
-    файл архива называется по дню выгрузки: одна пачка на сутки, CSV
-    дописывается без повторного заголовка."""
+def test_rotate_creates_immutable_batches_with_single_headers(h6, tmp_path):
+    """ADR-18 supersedes daily append: every batch has its own stable hash."""
     c = mk_controller(h6)
     today = ar.utc_date()
     add_event(h6, cid=c["id"], uid="a", start_ts=_ts(400))
     add_event(h6, cid=c["id"], uid="b", start_ts=_ts(410))
     s = svc(h6, tmp_path)
     r1 = s.rotate("events", target_date=ar.utc_date(400))
+    original = Path(r1["file_path"]).read_bytes()
     r2 = s.rotate("events", target_date=ar.utc_date(410))
-    assert Path(r1["file_path"]).samefile(Path(r2["file_path"]))
-    assert Path(r1["file_path"]).name == f"{today}.csv"
-    lines = Path(r1["file_path"]).read_text(
-        encoding="utf-8").splitlines()
-    assert sum(1 for ln in lines if ln.startswith("id,")) == 1  # один заголовок
-    assert len(lines) == 3  # header + 2 строки разных суток
+    assert r1["file_path"] != r2["file_path"]
+    assert Path(r1["file_path"]).read_bytes() == original
+    for result, expected_uid in ((r1, "a"), (r2, "b")):
+        path = Path(result["file_path"])
+        assert path.name.startswith(today + "_")
+        assert path.suffix == ".csv"
+        text = path.read_text(encoding="utf-8")
+        rows = list(csv.DictReader(io.StringIO(text)))
+        assert [row["event_uid"] for row in rows] == [expected_uid]
+        assert result["file_hash"] == hashlib.sha256(path.read_bytes()).hexdigest()
+
 
 
 def test_rotate_other_entities(h6, tmp_path):
@@ -315,15 +318,17 @@ def test_restore_events_roundtrip(h6, tmp_path):
     assert s.restore_export(exp["id"])["restored"] == 0
 
 
-def test_restore_flow_not_implemented(h6, tmp_path):
+def test_restore_flow_roundtrip(h6, tmp_path):
     c = mk_controller(h6)
     yday = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
     add_flow_daily(h6, date=yday, cid=c["id"])
     s = svc(h6, tmp_path)
     s.rotate("flow", target_date=yday)
     exp = s.list_exports("flow")[0]
-    with pytest.raises(NotImplementedError):
-        s.restore_export(exp["id"])
+    assert s.restore_export(exp["id"])["restored"] == 1
+    restored = h6.conn.execute("SELECT * FROM flow_daily").fetchone()
+    assert restored["total_volume_l"] == 10.0
+    assert s.restore_export(exp["id"])["restored"] == 0
 
 
 def test_restore_missing_export_raises(h6, tmp_path):

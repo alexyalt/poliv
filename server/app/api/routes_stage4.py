@@ -28,6 +28,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from ..core.schedule_compiler.compiler import ScheduleConflict
 from ..services.auth_service import SESSION_COOKIE, AuthService
@@ -77,7 +78,7 @@ def register_api_routes_stage4(
         data = await body(request)
         send = bool(data.get("send", False))
         days_ahead = data.get("days_ahead")
-        result = sched.compile_and_store(
+        result = await run_in_threadpool(sched.compile_and_store,
             controller_id, source="manual", created_by=user["username"],
             days_ahead=int(days_ahead) if days_ahead else None)
         if send:
@@ -92,7 +93,7 @@ def register_api_routes_stage4(
         denied = _check(request, "operator")
         if denied is not None:
             return denied
-        return sched.preview(controller_id)
+        return await run_in_threadpool(sched.preview,controller_id)
 
     async def list_schedules(request: Request, controller_id: int):
         denied = _check(request, "viewer")

@@ -4,3 +4,13 @@ __pycache__/
 logs/
 *.log
 data/poliv.db
+config/config.local.toml
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+server/poliv.db
+data/schedules/
+data/archive/
+archive/
+backups/

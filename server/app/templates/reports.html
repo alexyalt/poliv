@@ -24,6 +24,7 @@
 
 {# ---------- Вкладки ---------- #}
 <div class="tabs" id="tabs">
+  <button class="tab" data-tab="missed">Пропущенные поливы</button>
   <button class="tab active" data-tab="zones">Зоны</button>
   <button class="tab" data-tab="controllers">Контроллеры</button>
   <button class="tab" data-tab="days">Дни</button>
@@ -55,6 +56,9 @@
     programs: {program_id:'ID', program_name:'Программа', runs_count:'Прогонов',
             total_minutes:'Минуты', total_liters:'Литры', avg_duration_min:'Ср. мин',
             skips_count:'Пропуски', errors_count:'Ошибки'},
+    missed: {run_ref:'ID', run_id:'Запуск', controller_name:'Контроллер',
+             program_id:'Программа', status:'Статус', reason:'Причина',
+             planned_start_ts:'Плановое время', zones_json:'Зоны'},
     incidents: {kind:'Тип', source_table:'Источник', ref_id:'ID', controller_id:'К-ID',
             controller_name:'Контроллер', reason:'Причина', detail:'Подробно',
             severity:'Важность', ts:'Время'},

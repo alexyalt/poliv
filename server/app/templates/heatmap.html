@@ -5,6 +5,7 @@
 
 <form id="hm-filters" class="card" onsubmit="return false;">
   <label>Дата <input type="date" id="hm-date"></label>
+  <label>Период <select id="hm-period"><option value="1">День</option><option value="7">7 дней</option></select></label>
   <label>Интервал
     <select id="hm-interval">
       <option value="5">5 мин</option>
@@ -83,7 +84,7 @@
     return s;
   }
 
-  function render(data) {
+  function render(data, wrap) {
     const cols = data.columns;
     let html = '<table class="heatmap"><thead><tr>' +
                '<th class="rowname">Контроллер / зона</th>';
@@ -135,24 +136,41 @@
     });
   }
 
+  let generation = 0;
   async function load() {
+    const current = ++generation;
     errEl.textContent = '';
-    const qs = '?date=' + encodeURIComponent(dateEl.value) +
-               '&interval_min=' + encodeURIComponent(intEl.value);
+    wrap.innerHTML = '';
+    const days = Number(document.getElementById('hm-period').value);
+    const start = new Date(dateEl.value + 'T12:00:00Z');
+    const interval = intEl.value;
     try {
-      const res = await fetch('/api/v1/heatmap' + qs);
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        errEl.textContent = j.detail || ('Ошибка ' + res.status);
-        return;
+      for (let i = 0; i < days; i++) {
+        const date = new Date(start);
+        date.setUTCDate(date.getUTCDate() + i);
+        const label = date.toISOString().slice(0, 10);
+        const qs = new URLSearchParams({date: label, interval_min: interval});
+        const res = await fetch('/api/v1/heatmap?' + qs);
+        if (current !== generation) return;
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.detail || ('HTTP ' + res.status));
+        }
+        const data = await res.json();
+        if (current !== generation) return;
+        const title = document.createElement('h2');
+        title.textContent = label;
+        const dayWrap = document.createElement('div');
+        wrap.append(title, dayWrap);
+        render(data, dayWrap);
       }
-      render(await res.json());
     } catch (e) {
-      errEl.textContent = 'Сетевая ошибка: ' + e;
+      if (current === generation) errEl.textContent = String(e);
     }
   }
 
   document.getElementById('hm-load').addEventListener('click', load);
+  document.getElementById('hm-period').addEventListener('change', load);
   intEl.addEventListener('change', load);
   dateEl.addEventListener('change', load);
   load();

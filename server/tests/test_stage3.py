@@ -181,6 +181,8 @@ class _Harness:
         self.fake.simulate_connected()
         # фоновый maintenance-поток в тестах не нужен
         self.mqtt._stop.set()
+        for worker in self.mqtt._threads:
+            worker.join(timeout=2)
         self.cmd.attach(self.mqtt)
 
     # ------------------------------------------------------------- helpers

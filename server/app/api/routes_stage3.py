@@ -22,6 +22,7 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from ..infra.config import Config
 from ..services.auth_service import SESSION_COOKIE, AuthService
@@ -148,7 +149,7 @@ def register_api_routes_stage3(
         source = data.get("source", "web")
         if source not in ("web", "api", "service", "system"):
             raise CommandError("source: допустимы web, api, service, system")
-        result = cmd.send_command_for_controller(
+        result = await run_in_threadpool(cmd.send_command_for_controller,
             controller_id, action, params, source=source,
             user_id=user["id"], username=user["username"],
         )
