@@ -64,6 +64,7 @@ from server.app.api.routes_stage4 import register_api_routes_stage4
 from server.app.api.routes_stage5 import register_api_routes_stage5
 from server.app.api.routes_stage6 import register_api_routes_stage6
 from server.app.api.routes_weather import register_api_routes_weather
+from server.app.api.routes_reports import register_api_routes_reports
 from server.app.infra import mqtt_client as mqtt_infra
 from server.app.services.auth_service import AuthService
 from server.app.services.catalog_service import CatalogService
@@ -148,11 +149,14 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # Этап 7: REST API погоды (/api/v1/weather/*). Свой префикс — не
     # конфликтует с ранее зарегистрированными маршрутами stage2..6.
     register_api_routes_weather(app, cfg, conn)
+    # Этап 8: REST API отчётов (/api/v1/reports/*). Свой префикс — не
+    # конфликтует с ранее зарегистрированными маршрутами stage2..7.
+    register_api_routes_reports(app, cfg, conn)
     register_api_routes(app, cfg, conn, catalog, users)
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "stage": 7}
+        return {"status": "ok", "stage": 8}
 
     log.info("Сервер готов. Веб-интерфейс: http://%s:%d/", cfg.server_host, cfg.server_port)
     return app

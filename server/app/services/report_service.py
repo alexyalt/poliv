@@ -22,11 +22,15 @@ date_from > date_to меняются местами (защита «пустых
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 # ------------------------------------------------------------------ параметры
 PRESETS = {"today": 0, "week": 6, "month": 29, "quarter": 91, "year": 364}
+
+
+class RangeError(ValueError):
+    """Некорректный диапазон/параметр отчёта → 422 на слое API."""
 
 
 def resolve_range(date_from: Optional[str], date_to: Optional[str],
@@ -56,25 +60,34 @@ def _norm(value: Optional[str]) -> Optional[str]:
 
 
 def _ts_bounds(date_from: Optional[str], date_to: Optional[str]) -> tuple[int, int]:
-    """Границы unix-диапазона по локальным датам. При отсутствии границ —
+    """Границы unix-диапазона по датам. Даты трактуются в UTC — та же
+    каноническая таймзона суточных срезов, что и у flow_daily / _day_expr
+    (см. FlowService.apply_event_to_daily), поэтому фильтр диапазона и
+    группировка по дням согласованы между собой. При отсутствии границ —
     максимально широкий («всё время»), чтобы один и тот же SQL работал для
     произвольных фильтров."""
     lo = 0
     hi = 4_102_444_800  # 2100-01-01
     if date_from:
-        lo = int(datetime.strptime(date_from, "%Y-%m-%d").timestamp())
+        lo = int(datetime.strptime(date_from, "%Y-%m-%d")
+                 .replace(tzinfo=timezone.utc).timestamp())
     if date_to:
         hi = int((datetime.strptime(date_to, "%Y-%m-%d")
-                  + timedelta(days=1) - timedelta(seconds=1)).timestamp())
+                  + timedelta(days=1) - timedelta(seconds=1))
+                 .replace(tzinfo=timezone.utc).timestamp())
     if lo > hi:  # защита от перевёрнутого диапазона
         lo, hi = hi, lo
     return lo, hi
 
 
 def _day_expr(ts_col: str) -> str:
-    """Выражение SQL: unix-ts → локальная дата YYYY-MM-DD (учитывая offset
-    ОС; тесты и сервер работают в одной таймзоне)."""
-    return f"date({ts_col}, 'localtime')"
+    """Выражение SQL: unix-ts → дата YYYY-MM-DD.
+
+    Методика совпадает с FlowService.apply_event_to_daily (Этап 6): UTC —
+    единая каноническая таймзона проекта для суточных срезов (flow_daily
+    тоже пишется по UTC-датам), поэтому отчёты по дням/месяцам согласованы
+    с агрегатами расхода независимо от TZ окружения."""
+    return f"strftime('%Y-%m-%d', {ts_col}, 'unixepoch')"
 
 
 # ---------------------------------------------------------------------- отчёты
@@ -171,17 +184,20 @@ def report_by_controllers(conn: sqlite3.Connection, date_from: Optional[str],
     """Сводка по контроллерам за диапазон (один GROUP BY по watering_runs +
     подзапрос событий для литров/аварий)."""
     lo, hi = _ts_bounds(date_from, date_to)
+    # SQLite не поддерживает COUNT(*) FILTER (ANSI-фильтры появились только
+    # в 3.30+ и не во всех сборках) — эквивалент через SUM(CASE WHEN ...).
     rows = conn.execute(
         """
         SELECT c.id AS controller_id, c.name AS controller_name, c.box_id,
-               COUNT(wr.id) FILTER (WHERE wr.status IN ('completed','active'))
-                   AS runs_count,
-               COALESCE(SUM(wr.water_sec)
-                   FILTER (WHERE wr.status IN ('completed','active')), 0) / 60.0
+               SUM(CASE WHEN wr.status IN ('completed','active')
+                        THEN 1 ELSE 0 END) AS runs_count,
+               COALESCE(SUM(CASE WHEN wr.status IN ('completed','active')
+                                 THEN wr.water_sec ELSE 0 END), 0) / 60.0
                    AS total_minutes,
-               COUNT(wr.id) FILTER (WHERE wr.status = 'skipped') AS skips_count,
-               COUNT(wr.id) FILTER (WHERE wr.status IN ('aborted','failed'))
-                   AS errors_count
+               SUM(CASE WHEN wr.status = 'skipped' THEN 1 ELSE 0 END)
+                   AS skips_count,
+               SUM(CASE WHEN wr.status IN ('aborted','failed')
+                        THEN 1 ELSE 0 END) AS errors_count
         FROM controllers c
         LEFT JOIN watering_runs wr
                ON wr.controller_id = c.id
@@ -190,15 +206,6 @@ def report_by_controllers(conn: sqlite3.Connection, date_from: Optional[str],
         GROUP BY c.id
         ORDER BY c.name""", (lo, hi)).fetchall()
 
-    liters = conn.execute(
-        """SELECT controller_id,
-                  COALESCE(SUM(COALESCE(volume_liters,0)),0) AS total_liters,
-                  SUM(CASE WHEN reason_code IN
-                          ('no_flow','over_flow','under_flow','emergency_stop')
-                          OR aborted=1 THEN 1 ELSE 0 END) AS event_errors
-           FROM watering_events
-           WHERE status IN ('finished','stopped') AND start_ts BETWEEN ? AND ?
-           GROUP BY controller_id""", (lo, hi)).fetchone
     lmap = {r["controller_id"]: r for r in conn.execute(
         """SELECT controller_id,
                   COALESCE(SUM(COALESCE(volume_liters,0)),0) AS total_liters,

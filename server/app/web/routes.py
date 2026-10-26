@@ -798,6 +798,16 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         """
         return page(request, "events.html")
 
+    # --------------------------------------------------------------- Этап 8
+    @app.get("/reports", response_class=HTMLResponse)
+    def reports_page(request: Request):
+        """Страница отчётов базовой аналитики (Этап 8, блок 8.1).
+
+        Каркас страницы; данные подгружаются JS-виджетом через API
+        (/api/v1/reports/*) — polling, без WebSocket (как /events, /weather).
+        """
+        return page(request, "reports.html")
+
     # --------------------------------------------------------------- Этап 7
     @app.get("/weather", response_class=HTMLResponse)
     def weather_page(request: Request):

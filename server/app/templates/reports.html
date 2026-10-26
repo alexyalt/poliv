@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Отчёты{% endblock %}
+{% block content %}
+<h1>Отчёты (Этап 8)</h1>
+
+{# ---------- Общий блок фильтров ---------- #}
+<form id="filters" class="card" onsubmit="return false;">
+  <label>С <input type="date" name="from" id="f-from"></label>
+  <label>По <input type="date" name="to" id="f-to"></label>
+  <label>Быстро:
+    <select id="f-preset">
+      <option value="">— диапазон вручную —</option>
+      <option value="today">Сегодня</option>
+      <option value="week">Неделя</option>
+      <option value="month">Месяц</option>
+      <option value="quarter">Квартал</option>
+      <option value="year">Год</option>
+    </select>
+  </label>
+  <button type="button" class="btn" id="btn-load">Показать</button>
+  <button type="button" class="btn btn-small" id="btn-csv">Экспорт CSV</button>
+  <span id="report-error" style="color:#c0392b"></span>
+</form>
+
+{# ---------- Вкладки ---------- #}
+<div class="tabs" id="tabs">
+  <button class="tab active" data-tab="zones">Зоны</button>
+  <button class="tab" data-tab="controllers">Контроллеры</button>
+  <button class="tab" data-tab="days">Дни</button>
+  <button class="tab" data-tab="months">Месяцы</button>
+  <button class="tab" data-tab="programs">Программы</button>
+  <button class="tab" data-tab="incidents">Аварии</button>
+</div>
+
+<table class="table" id="report-table">
+  <thead><tr id="report-head"><th>—</th></tr></thead>
+  <tbody id="report-body"><tr><td>Нет данных.</td></tr></tbody>
+</table>
+<p id="report-meta" class="muted"></p>
+
+<script>
+(function () {
+  const LABELS = {
+    zones: {zone_id:'ID', zone_number:'№', zone_name:'Зона', controller_id:'К-ID',
+            controller_name:'Контроллер', runs_count:'Прогонов', total_minutes:'Минуты',
+            total_liters:'Литры', avg_duration_min:'Ср. мин', skips_count:'Пропуски',
+            errors_count:'Ошибки'},
+    controllers: {controller_id:'ID', controller_name:'Контроллер', box_id:'Box',
+            runs_count:'Прогонов', total_minutes:'Минуты', total_liters:'Литры',
+            avg_duration_min:'Ср. мин', skips_count:'Пропуски', errors_count:'Ошибки'},
+    days: {day:'День', runs_count:'Прогонов', total_minutes:'Минуты',
+            total_liters:'Литры', errors_count:'Ошибки'},
+    months: {month:'Месяц', runs_count:'Прогонов', total_minutes:'Минуты',
+            total_liters:'Литры', errors_count:'Ошибки'},
+    programs: {program_id:'ID', program_name:'Программа', runs_count:'Прогонов',
+            total_minutes:'Минуты', total_liters:'Литры', avg_duration_min:'Ср. мин',
+            skips_count:'Пропуски', errors_count:'Ошибки'},
+    incidents: {kind:'Тип', source_table:'Источник', ref_id:'ID', controller_id:'К-ID',
+            controller_name:'Контроллер', reason:'Причина', detail:'Подробно',
+            severity:'Важность', ts:'Время'},
+  };
+  let currentTab = 'zones';
+  let lastData = null;
+
+  function query() {
+    const p = new URLSearchParams();
+    const f = document.getElementById('f-from').value;
+    const t = document.getElementById('f-to').value;
+    const pr = document.getElementById('f-preset').value;
+    if (f) p.set('from', f);
+    if (t) p.set('to', t);
+    if (pr && !f && !t) p.set('preset', pr);
+    return p.toString();
+  }
+
+  function fmtCell(v) {
+    if (v === null || v === undefined) return '—';
+    if (typeof v === 'number' && String(v).length > 4 && v % 1 !== 0) return v.toFixed(2);
+    return String(v);
+  }
+
+  function render(data) {
+    const head = document.getElementById('report-head');
+    const body = document.getElementById('report-body');
+    const labels = LABELS[currentTab];
+    head.innerHTML = Object.values(labels).map(h => `<th>${h}</th>`).join('');
+    const rows = currentTab === 'incidents' ? data.items : data;
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="' + Object.keys(labels).length +
+                       '">Нет данных за выбранный период.</td></tr>';
+    } else {
+      body.innerHTML = rows.map(r =>
+        '<tr>' + Object.keys(labels).map(k => `<td>${fmtCell(r[k])}</td>`).join('') +
+        '</tr>').join('');
+    }
+    const meta = document.getElementById('report-meta');
+    if (currentTab === 'incidents') {
+      meta.textContent = `Пропуски: ${data.counters.skips} · Ошибки: ${data.counters.errors}` +
+        ` · Уведомления: ${data.counters.notifications} · Всего: ${data.total}`;
+    } else meta.textContent = '';
+  }
+
+  async function load() {
+    const err = document.getElementById('report-error');
+    err.textContent = '';
+    const qs = query();
+    try {
+      const resp = await fetch(`/api/v1/reports/${currentTab}?${qs}`, {credentials:'same-origin'});
+      if (!resp.ok) { err.textContent = 'Ошибка ' + resp.status + ': ' + (await resp.text()); return; }
+      const j = await resp.json();
+      lastData = j.data;
+      render(j.data);
+    } catch (e) { err.textContent = String(e); }
+  }
+
+  document.getElementById('tabs').addEventListener('click', e => {
+    const btn = e.target.closest('.tab');
+    if (!btn) return;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    load();
+  });
+  document.getElementById('btn-load').addEventListener('click', load);
+  document.getElementById('f-preset').addEventListener('change', () => {
+    document.getElementById('f-from').value = '';
+    document.getElementById('f-to').value = '';
+    load();
+  });
+  document.getElementById('btn-csv').addEventListener('click', () => {
+    window.location.href = `/api/v1/reports/${currentTab}.csv?${query()}`;
+  });
+  load();
+})();
+</script>
+{% endblock %}
