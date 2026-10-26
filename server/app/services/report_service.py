@@ -102,7 +102,10 @@ def report_by_zones(conn: sqlite3.Connection, date_from: Optional[str],
     # два запроса на весь отчёт независимо от числа зон).
     runs = conn.execute(
         """SELECT wr.id, wr.controller_id, wr.program_id, wr.source, wr.status,
-                  wr.reason_code, wr.water_sec, wr.volume_liters, wr.zones_json
+                  wr.reason_code, wr.water_sec, wr.volume_liters, wr.zones_json,
+                  EXISTS(SELECT 1 FROM watering_events e
+                         WHERE e.controller_id=wr.controller_id AND e.run_id=wr.run_id
+                           AND e.status IN ('finished','stopped')) AS has_fact
            FROM watering_runs wr
            WHERE COALESCE(wr.actual_start_ts, wr.planned_start_ts, 0) BETWEEN ? AND ?""",
         (lo, hi)).fetchall()
@@ -149,8 +152,8 @@ def report_by_zones(conn: sqlite3.Connection, date_from: Optional[str],
             if status in ("completed", "active"):
                 a["runs_count"] += 1
                 a["total_minutes"] += (run["water_sec"] or 0) / 60.0
-                if run["volume_liters"] is not None:
-                    a["total_liters"] += float(run["volume_liters"])
+                if run["volume_liters"] is not None and not run["has_fact"]:
+                    a["total_liters"] += float(run["volume_liters"]) / max(1, len(nums))
             elif status == "skipped":
                 a["skips_count"] += 1
             if status in ("aborted", "failed"):

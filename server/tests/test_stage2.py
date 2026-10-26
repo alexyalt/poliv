@@ -339,6 +339,11 @@ def test_api_crud_and_roles():
     client.post("/users/save", data={"username": "viewer1", "role": "viewer", "password": "secret123"})
     c2 = TestClient(client.app)
     c2.post("/login", data={"username": "viewer1", "password": "secret123"})
+    assert c2.get("/api/zones").json()["code"] == "password_change_required"
+    changed = c2.post("/account/password", data={
+        "current_password": "secret123", "new_password": "viewer-new-secret123",
+        "confirm_password": "viewer-new-secret123"}, follow_redirects=False)
+    assert changed.status_code == 303
     r = c2.get("/api/zones")
     assert r.status_code == 200
     r = c2.post("/api/zones", json={"controller_id": cid, "zone_number": 1, "name": "x"})

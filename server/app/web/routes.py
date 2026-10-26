@@ -153,6 +153,8 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             SESSION_COOKIE,
             token,
             httponly=True,
+            secure=(request.url.scheme == "https" or
+                    bool(cfg.raw["server"].get("cookie_secure", False))),
             samesite="lax",
             max_age=cfg.session_timeout_min * 60,
         )

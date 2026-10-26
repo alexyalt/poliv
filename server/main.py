@@ -131,6 +131,8 @@ def create_app(cfg: Config | None = None) -> FastAPI:
 
     app.mount("/static", StaticFiles(directory=app.state.app_dir + "/static"), name="static")
     templates = register_web_routes(app, cfg, conn, auth)
+    from server.app.web.account_security import register_account_security
+    register_account_security(app, cfg, str(cfg.db_path))
     # Порядок важен: routes_stage3 регистрирует GET /api/controllers/live ДО
     # обобщённого /api/controllers/{controller_id} из routes_stage2 (иначе
     # "live" парсится как controller_id → 422). Маршруты Этапа 4 — свои
@@ -200,7 +202,7 @@ async def _lifespan_mqtt(app: FastAPI):
     if arch_conn is not None:
         try:
             if _arch.archive_config(arch_conn)["enabled"]:
-                _arch.start_archive_daemon(str(cfg.db_path), cfg.project_root)
+                _arch.start_archive_daemon(str(cfg.db_path), cfg.data_dir)
         except Exception:
             log.exception("Архив: демон не запущен — сервер работает без ротации")
     yield

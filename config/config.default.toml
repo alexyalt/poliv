@@ -6,6 +6,7 @@
 host = "0.0.0.0"
 port = 8080
 secret_key = "CHANGE-ME-IN-CONFIG-LOCAL"   # ключ подписи сессионных cookie
+cookie_secure = false                     # true для HTTPS за доверенным reverse proxy
 session_timeout_min = 60                    # тайм-аут сессии, минуты
 login_rate_limit = 10                       # максимум попыток входа с одного IP в минуту
 

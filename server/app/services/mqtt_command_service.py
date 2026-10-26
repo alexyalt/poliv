@@ -24,9 +24,11 @@ import sqlite3
 import threading
 import time
 import uuid
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from ..infra.db import connect_path
 from ..infra.config import Config
 from ..infra.logging import get_logger
 
@@ -174,14 +176,17 @@ class MqttCommandService:
         # Аудит 06.10 (P1-1): FlowService для проверки аварийной блокировки;
         # если не инжектирован — используется собственный SQL-запрос (ниже).
         self._flow_service = flow_service
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # protects publication and cancellation only
+        self._lanes = {}
+        self._stop_generation = {}
+
         # Отложенные тесты: sleep можно заменить на быструю имитацию времени
         self._sleep = time.sleep
         self._monotonic = time.monotonic
 
     def _log_conn(self) -> sqlite3.Connection:
         if self._db_path is not None:
-            return sqlite3.connect(self._db_path)
+            return connect_path(self._db_path, check_same_thread=True)
         return self.conn  # тестовый/однопоточный режим: общее соединение
 
     # ------------------------------------------------------------------ wiring
@@ -297,11 +302,7 @@ class MqttCommandService:
         if user_id is not None:
             payload["user_id"] = user_id
 
-        timeout = self.cfg.mqtt_command_timeout_sec
-        retries = max(0, self.cfg.mqtt_command_retries)
-        qos = self.cfg.mqtt_qos_command
-        topic = f"poliv/{box_id}/command"
-
+        generation, lane = self._command_lane(box_id, command)
         if self._mqtt is None:
             # Брокер не подключён (MQTT-клиент сервера не запущен): публикаций
             # нет. Офлайн-контроллер — как и раньше 409; online без брокера — 503.
@@ -311,71 +312,75 @@ class MqttCommandService:
                 f"MQTT-брокер недоступен: команда «{command}» не отправлена")
         mqtt = self._mqtt
 
+        return self._execute_command(mqtt, box_id, command, payload, username,
+                                     generation, lane)
+
+    def _command_lane(self, box_id, command):
+        with self._lock:
+            if command == "stop_all":
+                self._stop_generation[box_id] = self._stop_generation.get(box_id, 0) + 1
+            return (self._stop_generation.get(box_id, 0),
+                    self._lanes.setdefault(box_id, threading.Lock()))
+
+    def _execute_command(self, mqtt, box_id, command, payload, username,
+                         generation, lane):
+        command_id = payload["command_id"]
+        timeout = self.cfg.mqtt_command_timeout_sec
+        retries = max(0, self.cfg.mqtt_command_retries)
+        topic = f"poliv/{box_id}/command"
         attempts = 0
-        with self._lock:  # последовательная отправка: простая и предсказуемая
-            entry = mqtt.register_pending(command_id, box_id=box_id,
-                                          command=command)
-            try:
+        entry = mqtt.register_pending(command_id, box_id=box_id, command=command)
+
+        def superseded():
+            return (command != "stop_all" and
+                    generation != self._stop_generation.get(box_id, 0))
+
+        try:
+            # Stops bypass the lane, even while another command awaits ACK.
+            with (nullcontext() if command == "stop_all" else lane):
                 while True:
-                    attempts += 1
-                    pub = mqtt.publish(topic, payload, qos=qos)
+                    with self._lock:
+                        if superseded():
+                            entry.update(status="rejected", message="superseded_by_stop", final=True)
+                            break
+                        # Validate again after waiting for the ordinary command lane.
+                        row = self.conn.execute(
+                            "SELECT id, connection_status FROM controllers WHERE box_id=?",
+                            (box_id,)).fetchone()
+                        if row is None or row["connection_status"] != "online":
+                            raise ControllerOffline(box_id)
+                        self._check_emergency_lock(row["id"], command, box_id, username=username)
+                        attempts += 1
+                        pub = mqtt.publish(topic, payload, qos=self.cfg.mqtt_qos_command)
                     if isinstance(pub, dict) and not pub.get("ok", True):
-                        # Аудит 06.10 (P2-10): не пишем command.sent при
-                        # непрошедшей публикации; фиксируем отказ в журнале.
                         self.write_log("command.publish_failed", box_id,
-                                       {"command_id": command_id,
-                                        "command": command,
-                                        "attempt": attempts,
-                                        "error": pub.get("error")},
+                                       {"command_id": command_id, "command": command,
+                                        "attempt": attempts, "error": pub.get("error")},
                                        username=username)
-                        raise MqttUnavailable(
-                            f"MQTT: публикация команды «{command}» не принята "
-                            f"({pub.get('error')})")
+                        raise MqttUnavailable("MQTT command publication failed")
                     self.write_log("command.sent", box_id,
                                    {"command_id": command_id, "command": command,
                                     "attempt": attempts}, username=username)
-                    log.info("Команды: %s -> %s (id=%s, попытка %d, QoS%d)",
-                             command, box_id, command_id[:8], attempts, qos)
                     deadline = self._monotonic() + timeout
-                    final = False
-                    while self._monotonic() < deadline:
-                        if entry["final"]:
-                            final = True
-                            break
+                    while self._monotonic() < deadline and not entry["final"]:
+                        with self._lock:
+                            if superseded():
+                                entry.update(status="rejected", message="superseded_by_stop", final=True)
+                                break
                         self._sleep(0.02)
-                    if final:
+                    if entry["final"] or attempts > retries:
                         break
-                    if attempts > retries:
-                        break
-                    log.warning("Команды: таймаут ack %s (%s), повтор %d/%d "
-                                "с тем же command_id", command_id[:8], box_id,
-                                attempts, retries)
                     self.write_log("command.timeout", box_id,
                                    {"command_id": command_id, "command": command,
                                     "attempt": attempts}, username=username)
-            finally:
-                status = entry.get("status") or "timeout"
-                message = entry.get("message")
-                mqtt.unregister_pending(command_id)
-
-        result = {
-            "command_id": command_id,
-            "command": command,
-            "status": status,
-            "message": message,
-            "attempts": attempts,
-        }
-        if status == "rejected":
-            self.write_log("command.rejected", box_id,
-                           {"command_id": command_id, "command": command,
-                            "ack_status": status, "message": message},
-                           username=username)
-        elif status == "timeout":
-            self.write_log("command.timeout", box_id,
-                           {"command_id": command_id, "command": command,
-                            "attempts": attempts}, username=username)
-        log.info("Команды: итог %s (%s) от %s: %s", command_id[:8], command,
-                 box_id, status)
+        finally:
+            mqtt.unregister_pending(command_id)
+        status = entry.get("status") or "timeout"
+        result = {"command_id": command_id, "command": command, "status": status,
+                  "message": entry.get("message"), "attempts": attempts}
+        self.write_log("command.rejected" if status == "rejected" else
+                       "command.timeout" if status == "timeout" else "command.acked",
+                       box_id, result, username=username)
         return result
 
     def send_command_for_controller(self, controller_id: int, command: str,
@@ -437,69 +442,15 @@ class MqttCommandService:
         }
         if user_id is not None:
             payload["user_id"] = user_id
-        topic = f"poliv/{box_id}/command"
-        qos = self.cfg.mqtt_qos_command
-        timeout = self.cfg.mqtt_command_timeout_sec
-        retries = max(0, self.cfg.mqtt_command_retries)
-
-        entry = self._mqtt.register_pending(command_id, box_id=box_id,
-                                            command=command)
         mqtt = self._mqtt
+        generation, lane = self._command_lane(box_id, command)
 
         def _worker():
-            attempts = 0
             try:
-                while True:
-                    attempts += 1
-                    pub = mqtt.publish(topic, payload, qos=qos)
-                    if isinstance(pub, dict) and not pub.get("ok", True):
-                        # Аудит 06.10 (P2-10): публикация не принята брокером —
-                        # не пишем command.sent, фиксируем отказ.
-                        self.write_log("command.publish_failed", box_id,
-                                       {"command_id": command_id,
-                                        "command": command,
-                                        "attempt": attempts,
-                                        "error": pub.get("error")},
-                                       username=username)
-                        log.warning("Команды (async): публикация %s (%s) не "
-                                    "принята: %s", command_id[:8], box_id,
-                                    pub.get("error"))
-                        return
-                    self.write_log("command.sent", box_id,
-                                   {"command_id": command_id, "command": command,
-                                    "attempt": attempts}, username=username)
-                    deadline = self._monotonic() + timeout
-                    final = False
-                    while self._monotonic() < deadline:
-                        if entry["final"]:
-                            final = True
-                            break
-                        self._sleep(0.05)
-                    if final or attempts > retries:
-                        break
-                    self.write_log("command.timeout", box_id,
-                                   {"command_id": command_id, "command": command,
-                                    "attempt": attempts}, username=username)
-                status = entry.get("status") or "timeout"
-                message = entry.get("message")
-                if status == "rejected":
-                    self.write_log("command.rejected", box_id,
-                                   {"command_id": command_id, "command": command,
-                                    "ack_status": status, "message": message},
-                                   username=username)
-                elif status == "timeout":
-                    self.write_log("command.timeout", box_id,
-                                   {"command_id": command_id, "command": command,
-                                    "attempts": attempts}, username=username)
-                else:
-                    self.write_log("command.acked", box_id,
-                                   {"command_id": command_id, "command": command,
-                                    "ack_status": status, "message": message},
-                                   username=username)
-                log.info("Команды (async): итог %s (%s) от %s: %s",
-                         command_id[:8], command, box_id, status)
-            finally:
-                mqtt.unregister_pending(command_id)
+                self._execute_command(mqtt, box_id, command, payload, username,
+                                      generation, lane)
+            except Exception:
+                log.exception("Asynchronous command failed: %s", command_id)
 
         threading.Thread(target=_worker, daemon=True,
                          name=f"cmd-{command_id[:8]}").start()

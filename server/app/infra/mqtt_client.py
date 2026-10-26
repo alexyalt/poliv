@@ -29,6 +29,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
+from .db import connect_path
 from ..infra.config import Config
 from ..infra.logging import get_logger
 
@@ -188,9 +189,7 @@ class MqttServerClient:
             # check_same_thread=False: соединение создаётся в потоке create_app,
             # а сообщения paho обрабатываются в thread-loop'ах paho и maintenance-
             # потоке. Все операции сериализуются self._db_lock — гонок нет.
-            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-            self._conn.row_factory = sqlite3.Row
-            self._conn.execute("PRAGMA journal_mode = WAL")
+            self._conn = connect_path(self._db_path)
         return self._conn
 
     # ---------------------------------------------------------------- paho callbacks

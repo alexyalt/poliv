@@ -22,7 +22,7 @@
 ```
 .
 ├── README.md                  # этот файл
-├── requirements.txt           # зависимости (версии зафиксированы)
+├── requirements.txt           # допустимые диапазоны зависимостей
 ├── stage0/                    # полное ТЗ с артефактами
 ├── docs/                      # инструкции по проверке этапов
 │   └── ИНСТРУКЦИЯ_ЭТАП1.md
@@ -31,9 +31,9 @@
 │   └── config.local.toml      # локальные секреты (НЕ в git)
 ├── server/
 │   ├── main.py                # точка входа FastAPI
-│   ├── infra/                 # config, БД, логирование, миграции
-│   ├── services/              # бизнес-логика (авторизация и др.)
-│   ├── web/                   # роуты и шаблоны Jinja2
+│   ├── app/infra/                 # config, БД, логирование, миграции
+│   ├── app/services/              # бизнес-логика (авторизация и др.)
+│   ├── app/web/                   # роуты и шаблоны Jinja2
 │   └── tests/                 # смоук-тесты (pytest)
 ├── data/                      # SQLite БД (не в git)
 ├── logs/                      # логи с ротацией (не в git)
@@ -44,20 +44,19 @@
 
 ```bash
 python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.lock
 cp config/config.default.toml config/config.local.toml   # затем отредактируйте секреты
-python -m pytest server/tests -q                          # проверка: 2 passed
-python server/main.py                                     # сервер на http://127.0.0.1:8000
+python -m pytest server/tests -q                          # полный набор проверок, включая 8.S
+python server/main.py                                     # сервер на http://127.0.0.1:8080
 ```
 
-При первом запуске создаётся пользователь `admin`; его пароль выводится в
-`logs/app.log`. Вход — через страницу `/login`. Проверка работоспособности: `GET /health`.
+При первом запуске на чистой БД создаётся пользователь `admin`; сгенерированный пароль выводится один раз в stdout, а не в лог. При первом входе обязательна собственная смена пароля через `/account/password`. Вход — через страницу `/login`. Проверка работоспособности: `GET /health`.
 
 ## Конфигурация и секреты
 
 - `config.default.toml` — общие значения, хранится в git.
 - `config.local.toml` — локальные overrides и секреты; **исключён из git** через `.gitignore`.
-- Файлы `data/`, `logs/`, `backups/`, `*.db`, `.env*` также не коммитятся.
+- Новые runtime-файлы игнорируются. В истории и текущем дереве пока есть ранее отслеженные БД/логи/расписания: `.gitignore` их не удаляет. Перед изменением индекса и обновлением установленной системы сначала сделайте резервную копию; см. `docs/spec/current-status.md`.
 
 ## Режимы размещения
 
@@ -84,3 +83,28 @@ python server/main.py                                     # сервер на ht
 ## License
 
 Лицензия не определена.
+
+
+## Стабилизация 8.S
+
+Актуальное состояние и незакрытые риски: [current-status](docs/spec/current-status.md).
+Изменения контракта архива и восстановления: [ADR-18](docs/adr/ADR-18-stage8-stabilization.md).
+Перед обновлением сделайте согласованную резервную копию SQLite и архивов. Миграция
+0011 добавляет метаданные; старые архивные пути и файлы не перемещаются.
+Новый архив состоит из неизменяемого CSV/JSON и соседнего manifest, сохраняющего
+NULL и связи зон. Копировать их нужно вместе. Относительный archive.path для новых
+выгрузок разрешается от data_dir; старые пути в журнале остаются действительными.
+
+Проверяемая конфигурация: Python 3.13, один worker Uvicorn. `requirements.txt` задаёт
+диапазоны, `requirements.lock` фиксирует полный набор. Для обновления lock используйте
+pip-tools в Python 3.13: `python -m piptools compile --strip-extras --output-file=requirements.lock requirements.txt`,
+затем чистую установку, `pip check` и полный pytest. Готовый шаблон GitHub Actions находится в `docs/ci/tests.yml.example`. Для активации перенесите его в `.github/workflows/tests.yml` учётной записью с правом workflow; в этой ветке workflow пока не активирован.
+
+Для HTTPS за reverse proxy задайте `[server] cookie_secure = true` и доверяйте forwarded
+headers только вашему proxy. Локальный HTTP остаётся доступным. Изменяющие браузерные
+запросы с посторонним Origin/Referer отклоняются; клиенты без этих заголовков остаются
+совместимыми. Не используйте wildcard CORS с сессионными cookie.
+
+Чистую установку выполняйте с новым POLIV_DATA_ROOT либо отдельно подготовленным
+каталогом данных: историческая data/poliv.db из Git не является безопасным production seed.
+POLIV_DATA_ROOT задаётся до импорта приложения. Существующую рабочую БД заменять нельзя.

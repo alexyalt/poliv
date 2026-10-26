@@ -31,6 +31,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from ..infra import open_meteo_client
+from ..infra.db import connect_path
 from ..infra.logging import get_logger
 
 log = get_logger("poliv.weather")
@@ -452,7 +453,8 @@ def adjust_steps(steps: list[dict], action: str, percent: int,
 
 def apply_to_candidates(conn: sqlite3.Connection, candidates: list[dict],
                         controller_id: int, *, min_sec: int, max_sec: int,
-                        dry_run: bool = False) -> tuple[list[dict], list[dict],
+                        dry_run: bool = False,
+                        rules_override: Optional[list[dict]] = None) -> tuple[list[dict], list[dict],
                                                          list[dict]]:
     """Применяет сработавшие правила к candidate-runs КОМПИЛЯТОРА.
 
@@ -468,8 +470,18 @@ def apply_to_candidates(conn: sqlite3.Connection, candidates: list[dict],
     metrics = metrics_for_evaluation(conn)
     zone_ids = sorted({z for c in candidates for s in c["steps"]
                        for z in s.get("active_zones", [])})
-    rules = get_active_rules(conn, controller_id=controller_id,
-                             zone_ids=zone_ids)
+    if rules_override is None:
+        rules = get_active_rules(conn, controller_id=controller_id, zone_ids=zone_ids)
+    else:
+        # Explicit preview input, independent of persistent enabled flags.
+        rules = [dict(r) for r in rules_override if
+                 r["scope"] == "global" or
+                 (r["scope"] == "controller" and r["scope_id"] == controller_id) or
+                 (r["scope"] == "zone" and r["scope_id"] in {
+                     row[0] for row in conn.execute(
+                         "SELECT id FROM zones WHERE controller_id=? AND zone_number IN (%s)"
+                         % (",".join("?" * len(zone_ids)) or "NULL"),
+                         (controller_id, *zone_ids))})]
     fired = evaluate_rules(metrics, rules)
     if not fired:
         return candidates, [], []
@@ -615,8 +627,7 @@ class WeatherUpdater(threading.Thread):
         while not self._stop.is_set():
             interval_min = 60
             try:
-                conn = sqlite3.connect(self.db_path, check_same_thread=False)
-                conn.row_factory = sqlite3.Row
+                conn = connect_path(self.db_path)
                 try:
                     cfgw = weather_config(conn)
                     interval_min = max(5, int(cfgw["update_interval_min"]))

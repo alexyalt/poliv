@@ -27,6 +27,8 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
+from ..infra.db import connect_path
 
 from ..infra.logging import get_logger
 from ..services import weather_service as wx
@@ -170,12 +172,8 @@ def register_api_routes_weather(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
         from ..core.schedule_compiler.compiler import compile_schedule
         from datetime import date as _date
         # baseline: текущая компиляция БЕЗ правил
-        _set_rules_enabled(conn, False)
-        try:
-            before = compile_schedule(conn, dict(ctrl), today=_date.today())
-        finally:
-            _restore_rules_enabled(conn, rule)
-        after = compile_schedule(conn, dict(ctrl), today=_date.today())
+        before = compile_schedule(conn, dict(ctrl), today=_date.today(), weather_rules=[])
+        after = compile_schedule(conn, dict(ctrl), today=_date.today(), weather_rules=[rule])
         diff_runs = [s for s in after.skipped_runs
                      if s.get("reason_code") == "weather_skip"]
         fired = bool(after.weather_applications) or bool(diff_runs)
@@ -210,18 +208,17 @@ def register_api_routes_weather(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
         denied = _check(request, "operator")
         if denied is not None:
             return denied
-        obs = wx.update_observations(conn)
-        fc_rows = wx.update_forecasts(conn)
-        return {"observation_saved": obs is not None,
-                "forecast_rows_saved": fc_rows,
-                "conditions": wx.current_conditions(conn)}
+        db_path = conn.execute("PRAGMA database_list").fetchone()[2]
 
+        def refresh():
+            owned = connect_path(db_path)
+            try:
+                obs = wx.update_observations(owned)
+                fc_rows = wx.update_forecasts(owned)
+                return {"observation_saved": obs is not None,
+                        "forecast_rows_saved": fc_rows,
+                        "conditions": wx.current_conditions(owned)}
+            finally:
+                owned.close()
 
-# helpers для test-эндпоинта: временно отключить правила и вернуть как было
-def _set_rules_enabled(conn: sqlite3.Connection, value: bool) -> None:
-    wx.set_weather_setting(conn, "weather.rules_enabled", value)
-
-
-def _restore_rules_enabled(conn: sqlite3.Connection, rule: dict) -> None:
-    # включаем поправки только если само правило активно (dry-run честный)
-    wx.set_weather_setting(conn, "weather.rules_enabled", bool(rule["enabled"]))
+        return await run_in_threadpool(refresh)

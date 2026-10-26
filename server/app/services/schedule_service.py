@@ -41,6 +41,7 @@ from ..core.schedule_compiler.compiler import (
     load_schedule_file,
     persist_schedule,
 )
+from ..infra.db import connect_path
 from ..infra.logging import get_logger
 
 log = get_logger("poliv.schedules")
@@ -75,9 +76,7 @@ class ScheduleService:
     def conn(self) -> sqlite3.Connection:
         """Своё соединение для фоновых потоков (как у MqttServerClient)."""
         if self._conn is None:
-            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-            self._conn.row_factory = sqlite3.Row
-            self._conn.execute("PRAGMA journal_mode = WAL")
+            self._conn = connect_path(self._db_path)
         return self._conn
 
     def close(self) -> None:
