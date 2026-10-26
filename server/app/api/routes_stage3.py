@@ -28,6 +28,7 @@ from ..services.auth_service import SESSION_COOKIE, AuthService
 from ..services.mqtt_command_service import (
     COMMAND_NAMES,
     ControllerOffline,
+    EmergencyLockError,
     MqttUnavailable,
     MqttCommandService,
     CommandError,
@@ -212,6 +213,10 @@ def register_api_routes_stage3(
                 return JSONResponse({"detail": str(exc)}, status_code=422)
             except ControllerOffline:
                 return JSONResponse({"detail": "controller_offline"}, status_code=409)
+            except EmergencyLockError:
+                # Аудит 06.10 (P1-1): запуск полива под аварийной блокировкой
+                # запрещён — 409 с различимым кодом причины.
+                return JSONResponse({"detail": "emergency_locked"}, status_code=409)
             except MqttUnavailable as exc:
                 return JSONResponse({"detail": str(exc)}, status_code=503)
 

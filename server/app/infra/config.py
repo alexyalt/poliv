@@ -14,8 +14,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]  # корень репозитория poliv/
-CONFIG_DIR = PROJECT_ROOT / "config"
+# Корень репозитория poliv/. POLIV_DATA_ROOT задаёт каталог РАБОЧИХ ДАННЫХ
+# (data/, logs/, backups/): тесты используют временный каталог, чтобы прогон pytest
+# не затрагивал рабочие данные (аудит этапа 6, дефект №9). Пути кода и
+# миграций (server/) всегда разрешаются от реального расположения исходников.
+_REPO_ROOT = Path(__file__).resolve().parents[3]  # корень репозитория poliv/
+PROJECT_ROOT = Path(os.environ.get("POLIV_DATA_ROOT") or _REPO_ROOT)
+CODE_ROOT = _REPO_ROOT
+CONFIG_DIR = CODE_ROOT / "config"
 DEFAULT_FILE = CONFIG_DIR / "config.default.toml"
 LOCAL_FILE = CONFIG_DIR / "config.local.toml"
 
@@ -225,9 +231,14 @@ def _load_toml(path: Path) -> dict:
 
 
 def load_config(
-    default_file: Path = DEFAULT_FILE,
+    default_file: Path | None = None,
     local_file: Path | None = LOCAL_FILE,
 ) -> Config:
+    if default_file is None:
+        # POLIV_CONFIG_DEFAULT — абсолютный путь к config.default.toml;
+        # используется тестами при изолированном POLIV_PROJECT_ROOT.
+        env_default = os.environ.get("POLIV_CONFIG_DEFAULT")
+        default_file = Path(env_default) if env_default else DEFAULT_FILE
     if not default_file.exists():
         raise ConfigError(f"Не найден файл конфигурации: {default_file}")
     merged = _load_toml(default_file)
