@@ -613,3 +613,12 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Сделано:** ADR-19, manual runbook и актуальная матрица/README; tests атомарного rollback двух controllers и будущей manual/service блокировки; applied schedule_ids сохраняются для restart/repeated apply, applied/rejected history доступна UI; future lock виден heatmap; настройки аудируются; версия 0.9.0/health stage9.
 - **Проверки:** предыдущий полный pytest 284 passed/1 skipped (152.29 с); актуальные stage9+heatmap 44 passed. Chromium→API→SQLite повторно успешен. Upgrade точной копии исторической БД через 0013 идемпотентен, users/controllers/zones/logs сохранены, integrity/FK OK.
 - **Следующий шаг:** только финальные полный pytest, browser+MQTT, remote CI и итоговая запись. Не расширять алгоритм на переносы дней/изменение water duration; ADR-19 фиксирует безопасный ограниченный метод.
+
+
+## [26.10.2026 UTC] Этап 9 — stage9: record completed acceptance and recovery handoff
+- **Итог:** этап 9A/9B реализован по ADR-19 и сохранён отдельной веткой; main не менялся. HTTP/MQTT пути прежних этапов и duration/weather инварианты сохранены.
+- **Проверки финального кода 7e79cfb:** полный `pytest server/tests -q --disable-warnings --tb=short` — **287 passed, 1 skipped, 3 warnings за 154.65 с**. Remote CI **40395532503** — tests/browser/mqtt SUCCESS. pip check чист; diff whitespace/runtime snapshots чистые. Upgrade точной исторической копии БД через 0013 идемпотентен, users=1/controllers=1/zones=8/logs=23 сохранены, integrity/FK OK.
+- **Интеграция:** Chromium→FastAPI→SQLite: block/release/proposal/confirmation/apply/ACK/heatmap, без JS ошибок; real loopback Mosquitto: stage9 block не публикует manual, release разрешает; regressions старых этапов проходят.
+- **Файлы приёмки:** docs/ИНСТРУКЦИЯ_ЭТАП9.md, docs/adr/ADR-19-stage9.md, docs/STAGE9_PROGRESS.md.
+- **Отклонения/пределы:** optimizer эвристический, shifts whole runs внутри исходного дня; week обрабатывает 7 дней, не перераспределяет суточные объёмы и не дробит программы. Давление не измеряется, дополнительная parallel не создаётся. Недостаток статистики/stale/нет confirm запрещают apply. Offline запрет не физически гарантирован до ACK/остановки; ESP32/железо — отдельный этап/стенд.
+- **Возобновление после сбоя:** функциональный код завершён. Прочитать последний remote commit и текущий progress; повторить CI при необходимости; следующий шаг review/стенд/merge пользователем. Applied предложения не применять повторно обходными SQL/ручной отправкой. Финальный commit/push сохраняет эту запись вместе с progress.

@@ -27,12 +27,18 @@
 агрономические интервалы и оставлено будущей версии, без заявления реализации.
 
 
-## Текущая контрольная точка
+## Итоговая контрольная точка
 
-Ядро 9A, proposal lifecycle 9B, API/UI, BlockEnforcer, preserve-horizon apply и
-acknowledged-plan heatmap реализованы. Последний функциональный checkpoint:
-86d652f. После него добавлены отказ atomic rollback, сохранение schedule_ids при
-повторе apply, история applied/rejected в UI и docs. Целевые stage9 19 passed,
-Chromium/FastAPI/SQLite и настоящий Mosquitto stage9 smoke успешны.
-Текущий шаг: итоговый полный pytest/upgrade/CI и обновление WorkBook результатом.
-Не повторять применение уже applied job — сервис идемпотентен, сверить proposal.
+Этап 9A/9B реализован в рамках ADR-19. Последний функциональный checkpoint
+7e79cfb, локальный полный pytest: 287 passed/1 skipped/3 warnings за 154.65 с.
+CI 40395532503: tests/browser/mqtt SUCCESS на 7e79cfb. Upgrade исторической копии
+БД через 0013: идемпотентно, counts/integrity/FK OK. Chromium/FastAPI/SQLite и
+настоящий Mosquitto stage9 block/release успешны. Итоговый commit добавляет только
+эту запись и WorkBook; его SHA/CI смотрите в git log/Actions.
+
+Состояние продолжения: незавершённых обязательных программных шагов нет.
+Дальше — review/стендовая приёмка и merge по решению пользователя, без auto-deploy.
+Перед будущими изменениями прочитать ADR-19/ИНСТРУКЦИЯ_ЭТАП9.md: переносы runs
+только внутри исходного дня, без дополнительных parallel/изменения duration.
+Offline ограничения не решаются серверным запретом; нужны связь/ACK и firmware.
+Не повторять apply applied job вручную: status/idempotence/snapshot проверяет API.
