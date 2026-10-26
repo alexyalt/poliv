@@ -39844,3 +39844,61 @@ AttributeError: module 'bcrypt' has no attribute '__about__'
 2026-10-25 17:18:17 INFO     [poliv.users] Пользователь user_viewer создан администратором admin
 2026-10-25 17:18:17 INFO     [httpx] HTTP Request: GET http://testserver/api/weather/rules "HTTP/1.1 200 OK"
 2026-10-25 17:18:17 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:27:54 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:27:54 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:27:54 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:27:54 WARNING  [poliv.mqtt] MQTT: не удалось подключиться к брокеру 127.0.0.1:1883 — [Errno 111] Connection refused. Будут повторные попытки.
+2026-10-25 17:27:54 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:27:59 INFO     [poliv.weather] WEATHER: координаты не заданы — обновление факта пропущено
+2026-10-25 17:28:19 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:28:19 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:28:19 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:28:19 WARNING  [poliv.mqtt] MQTT: не удалось подключиться к брокеру 127.0.0.1:1883 — [Errno 111] Connection refused. Будут повторные попытки.
+2026-10-25 17:28:19 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:28:24 INFO     [poliv.weather] WEATHER: координаты не заданы — обновление факта пропущено
+2026-10-25 17:28:49 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:28:49 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:28:49 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:28:49 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:28:49 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:28:49 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:28:49 WARNING  [poliv.mqtt] MQTT: не удалось подключиться к брокеру 127.0.0.1:1883 — [Errno 111] Connection refused. Будут повторные попытки.
+2026-10-25 17:28:49 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:28:54 INFO     [poliv.weather] WEATHER: координаты не заданы — обновление факта пропущено
+2026-10-25 17:29:04 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:29:04 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:29:04 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:29:04 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:29:04 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:29:04 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:29:04 WARNING  [poliv.mqtt] MQTT: не удалось подключиться к брокеру 127.0.0.1:1883 — [Errno 111] Connection refused. Будут повторные попытки.
+2026-10-25 17:29:04 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:29:04 INFO     [httpx] HTTP Request: POST http://testserver/login "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:29:04 INFO     [httpx] HTTP Request: GET http://testserver/weather "HTTP/1.1 302 Found"
+2026-10-25 17:29:04 INFO     [httpx] HTTP Request: GET http://testserver/login "HTTP/1.1 200 OK"
+2026-10-25 17:29:04 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/current "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:29:04 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/rules "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:29:04 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:29:04 INFO     [httpx] HTTP Request: POST http://testserver/api/v1/weather/rules/None/test "HTTP/1.1 422 Unprocessable Entity"
+2026-10-25 17:29:04 INFO     [httpx] HTTP Request: GET http://testserver/api/v1/weather/applications "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:29:05 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:29:09 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:29:09 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:29:09 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:29:09 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:29:09 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:29:09 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:29:09 WARNING  [poliv.mqtt] MQTT: не удалось подключиться к брокеру 127.0.0.1:1883 — [Errno 111] Connection refused. Будут повторные попытки.
+2026-10-25 17:29:09 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:29:10 INFO     [httpx] HTTP Request: POST http://testserver/login "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:29:10 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен
+2026-10-25 17:29:15 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:29:15 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:29:15 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:29:15 INFO     [poliv.main] Конфигурация загружена и проверена: /workspace/config
+2026-10-25 17:29:15 INFO     [poliv.api6] API Этап 6 зарегистрирован
+2026-10-25 17:29:15 INFO     [poliv.main] Сервер готов. Веб-интерфейс: http://0.0.0.0:8080/
+2026-10-25 17:29:15 WARNING  [poliv.mqtt] MQTT: не удалось подключиться к брокеру 127.0.0.1:1883 — [Errno 111] Connection refused. Будут повторные попытки.
+2026-10-25 17:29:15 INFO     [poliv.mqtt] MQTT-клиент сервера запущен (broker 127.0.0.1:1883)
+2026-10-25 17:29:16 INFO     [httpx] HTTP Request: POST http://testserver/login "HTTP/1.1 401 Unauthorized"
+2026-10-25 17:29:16 INFO     [poliv.mqtt] MQTT-клиент сервера остановлен

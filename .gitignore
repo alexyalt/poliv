@@ -2,5 +2,4 @@ __pycache__/
 *.pyc
 logs/
 *.log
-*.db-shm
-*.db-wal
+data/poliv.db
