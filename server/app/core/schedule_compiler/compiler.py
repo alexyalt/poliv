@@ -171,7 +171,7 @@ def _zone_locked(conn: sqlite3.Connection, zone_id: int, day_iso: str) -> bool:
     """
     row = conn.execute(
         """SELECT 1 FROM zone_locks
-           WHERE zone_id=? AND active=1
+           WHERE zone_id=? AND active=1 AND start_ts IS NULL
              AND substr(COALESCE(unlock_at,'9999-12-31'),1,10) >= substr(?,1,10)
            LIMIT 1""", (zone_id, day_iso)).fetchone()
     return row is not None
@@ -345,6 +345,16 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
         # Таблицы погоды ещё не созданы (миграция 0009 не применена) —
         # компиляция продолжается без погодных поправок.
         log.info("COMPILER: схема Этапа 7 отсутствует — поправки пропущены")
+
+    for candidate in candidates:
+        override = conn.execute(
+            "SELECT start_minute FROM normalization_overrides WHERE controller_id=? AND program_id=? AND date=?",
+            (cid, candidate['program_id'], candidate['date'].isoformat())).fetchone()
+        if override is not None:
+            candidate['start_minute'] = override['start_minute']
+    from ..blocks.policy import filter_candidates
+    candidates, interval_skips = filter_candidates(conn, candidates, cid, tz_off)
+    skipped_steps.extend(interval_skips)
 
     # --- конфликты пересечения запусков --------------------------------------
     _check_conflicts(candidates, box_id)

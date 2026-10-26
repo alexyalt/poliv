@@ -580,3 +580,10 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Сделано:** отдельная ветка от 9cab288, прочитаны AGENTS/ТЗ/ADR/WorkBook, план docs/STAGE9_PROGRESS.md.
 - **Проверки:** код не менялся; baseline последнего main 267 passed/1 skipped подтверждён предыдущим CI.
 - **Следующий шаг:** миграция и ядро 9A; основной main не меняется.
+
+
+## [26.10.2026 UTC] Этап 9 — stage9: implement interval blocks and manual command guards
+- **Сделано:** additive 0013, BlockService create/list/release/quick, UTC half-open policy, audit/notification; компилятор фильтрует water intervals по occurrence day, legacy locks сохранены; manual check на входе и перед MQTT publish.
+- **Проверки:** test_stage9 + stage4_compiler: 20 passed.
+- **Совместимость:** kind CHECK сохранён, block_type отдельно; runtime/старые миграции не меняются.
+- **Следующий шаг:** API/UI блокировок, перекомпиляция и отдельный optimizer/proposal lifecycle 9B; 9A пока не объявлен завершённым.

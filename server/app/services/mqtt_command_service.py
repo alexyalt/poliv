@@ -293,6 +293,11 @@ class MqttCommandService:
         self._check_emergency_lock(row["id"], command, box_id,
                                    username=username)
 
+        from .block_service import check_manual, BlockError
+        try:
+            check_manual(self.conn, row['id'], command, params)
+        except BlockError as exc:
+            raise CommandError(str(exc)) from exc
         command_id = str(uuid.uuid4())
         # ts: вещественное число (секунды Unix) — контракт Артефакта 0.5 §5.1;
         # int() здесь отбрасывал дробную часть и ломал точные сравнения в тестах.
@@ -355,6 +360,11 @@ class MqttCommandService:
                         if row is None or row["connection_status"] != "online":
                             raise ControllerOffline(box_id)
                         self._check_emergency_lock(row["id"], command, box_id, username=username)
+                        from .block_service import check_manual, BlockError
+                        try:
+                            check_manual(self.conn, row['id'], command, payload['params'])
+                        except BlockError as exc:
+                            raise CommandError(str(exc)) from exc
                         attempts += 1
                         pub = mqtt.publish(topic, payload, qos=self.cfg.mqtt_qos_command)
                     if isinstance(pub, dict) and not pub.get("ok", True):
@@ -436,6 +446,11 @@ class MqttCommandService:
 
         import threading
 
+        from .block_service import check_manual, BlockError
+        try:
+            check_manual(self.conn, row['id'], command, params)
+        except BlockError as exc:
+            raise CommandError(str(exc)) from exc
         command_id = str(uuid.uuid4())
         payload = {
             "protocol_version": PROTOCOL_VERSION,
