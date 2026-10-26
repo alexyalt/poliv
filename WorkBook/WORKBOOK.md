@@ -441,3 +441,72 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Статус проверки:** изменения только документационные;
   `python -m pytest server/tests -q` -> **107 passed, 1 skipped** (регресс не сломан).
   Push — по запросу пользователя.
+
+## [26.10.2026] Этап 7 — погодные корректировки и сезонность
+
+- **Контекст/запрос:** реализовать Этап 7 по ТЗ (Этап 0 §4, Артефакты
+  0.4/0.5/0.6/0.7 §17.7): получение погоды от Open-Meteo (факт + прогноз 72 ч),
+  хранение в БД, пользовательские правила skip/reduce_percent/increase_percent,
+  применение правил ДО генерации машинограммы, offline-политика, REST API и
+  страница `/weather`. Запреты: не трогать firmware/, emulator/, config/,
+  контракты MQTT, миграции 0001–0008, роли вне viewer/operator/admin.
+- **Что сделано:**
+  - `server/migrations/0009_weather.py` (+ .md): таблицы `weather_observations`,
+    `weather_forecasts`, `weather_rules`, `weather_rule_applications`, индексы,
+    настройки `weather.*`; идемпотентна (CREATE ... IF NOT EXISTS, INSERT OR
+    IGNORE) и обратима (`downgrade`). Колонки наблюдений включают и `precip_mm`
+    (спецификация), и `precipitation_mm`/`ts` (совместимость с rain-delay
+    хуком Этапа 4 `core/weather_rules.latest_rain_ts`).
+  - `server/app/infra/open_meteo_client.py`: синхронный httpx-клиент (таймаут
+    10 с), `fetch_current`/`fetch_forecast(lat, lon, hours=72)`, User-Agent с
+    версией приложения, in-memory кэш 5 мин, сетевые ошибки → `None` + лог.
+  - `server/app/services/weather_service.py`: CRUD+валидация правил,
+    `update_observations`/`update_forecasts`, `get_active_rules` (по
+    приоритету), `evaluate_rules` (условия rain/precip_probability/
+    high_humidity/low_temp/high_temp/wind × операторы gt/lt/eq/gte/lte),
+    `apply_to_candidates` (skip/reduce/increase с клампом
+    schedule.min/max_duration_minutes), `current_conditions`, журнал
+    применений; фоновый daemon-поток `WeatherUpdater` с интервалом
+    `weather.update_interval_min`.
+  - Интеграция в `schedule_compiler/compiler.py`: шаг погодных поправок после
+    формирования кандидатов и до сборки payload/hash; учёт `weather.enabled`,
+    `weather.rules_enabled`, `weather.offline_policy` (use_last /
+    disable_corrections); запись в `weather_rule_applications`; активный полив
+    не затрагивается (только новая машинограмма).
+  - `server/app/api/routes_weather.py`: GET current/forecast/rules/applications,
+    POST rules, PUT rules/{id}, DELETE rules/{id}, POST rules/{id}/test (dry-run
+    diff), POST refresh; ACL viewer=read, operator=read+test+CRUD, admin=full.
+  - `server/app/templates/weather.html` + роут `/weather` + пункт меню «Погода»
+    в base.html после «События»: карточка «сейчас», таблица прогноза, CRUD
+    правил, кнопка ручного применения с баннером «применено N правил, затронуто
+    M зон», offline-баннеры.
+  - `server/tests/test_stage7.py`: 39 тестов (мок httpx: успех/таймаут/4xx/5xx;
+    CRUD/валидация; evaluate все операторы и действия; границы min/max;
+    интеграция с компилятором; offline-policy; неизменность активного полива;
+    API+ACL; up/down миграции 0009).
+  - `docs/ИНСТРУКЦИЯ_ЭТАП7.md` (§1 подготовка, §2 автотесты, §3 сценарии
+    ручной проверки, §4 DoD, §5 отклонения, §6 отложенное).
+  - `README.md`: Этап 7 — завершён; следующий — Этап 8. `APP_VERSION_BASE` →
+    0.7.0.
+- **Соответствие плану Этапа 0:** реализованы цели и критерии готовности
+  Этапа 7 (§4 ТЗ), таблицы Артефакта 0.4 §5.9/§11, эндпоинты Артефакта 0.6,
+  ключи `weather.*` Артефакта 0.7 §17.7; ADR-13 (нормализация не вмешивается
+  в погоду) соблюдён; контракты MQTT не менялись.
+- **Отклонения и их причины:**
+  - изменение правила — `PUT` вместо `PATCH` (по промпту этапа; семантика та же);
+  - apscheduler отсутствует в зависимостях — собственный лёгкий daemon-поток
+    для фонового обновления (без добавления новых зависимостей);
+  - секция `[weather]` в `config/config.default.toml` не добавлялась (запрет на
+    изменение config/) — значения читаются из таблицы `settings`.
+- **Принятые решения:** применение поправок внутри `compile_schedule` до hash
+  (детерминизм сохраняется); двойные колонки осадков для обратной совместимости
+  с rain-delay; dry-run теста правила без записи в журнал; FRESH_HOURS=6 для
+  определения «нет свежих данных».
+- **Новые функции/подходы вне первоначального плана:** `POST /api/v1/weather/refresh`
+  (ручное обновление факт/прогноз с UI) — вспомогательный эндпоинт для сценариев
+  ручной проверки.
+- **Статус проверки:** `python -m pytest server/tests -q` -> **146 passed,
+  1 skipped** (регресс 107+1 не сломан, +39 тестов этапа); сервер стартует без
+  ошибок; `/weather` открывается, при пустой БД показывает «нет данных»;
+  создание правила через UI → применение → запись в `weather_rule_applications`
+  проверено тестами сквозного сценария. Push выполнен в рабочую ветку.

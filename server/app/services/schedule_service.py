@@ -143,6 +143,18 @@ class ScheduleService:
             sched_id, path = persist_schedule(
                 self.conn, compiled, data_dir=self.cfg.data_dir,
                 status="compiled", created_by=created_by)
+            # Этап 7: журнал применения погодных правил (только при реальной
+            # компиляции; preview/test — dry run без записей).
+            if getattr(compiled, "weather_applications", None):
+                try:
+                    from ..services import weather_service as wx
+                    wx.record_applications(
+                        self.conn, compiled.weather_applications,
+                        schedule_version=compiled.payload["schedule_version"],
+                        before_hash="", after_hash=compiled.schedule_hash)
+                except Exception:
+                    log.exception("SCHEDULE: не удалось записать журнал "
+                                  "погодных применений")
         log.info("SCHEDULE: %s v%s скомпилирована (id=%s, runs=%d, hash=%s…)",
                  compiled.box_id, compiled.payload["schedule_version"],
                  sched_id, compiled.runs_count, compiled.schedule_hash[:8])

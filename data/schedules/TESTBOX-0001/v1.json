@@ -2,11 +2,11 @@
   "protocol_version": "1.0",
   "box_id": "TESTBOX-0001",
   "schedule_version": 1,
-  "schedule_hash": "8eb2007c02971e4e25924a2553b1940b2235ecf76a58b3da95cb699901dd71bd",
-  "valid_from_date": "2026-10-10",
-  "valid_to_date": "2026-10-17",
+  "schedule_hash": "18dcc886d41c6b382ebaba20c8646091f2a09579ae52b7a94d3a6b9f07fc35b8",
+  "valid_from_date": "2026-10-25",
+  "valid_to_date": "2026-11-01",
   "timezone_offset_min": 0,
-  "generated_ts": 1791646714,
+  "generated_ts": 1792948650,
   "source": "auto",
   "options": {
     "max_catchup_sec": 600,
@@ -16,9 +16,9 @@
   },
   "runs": [
     {
-      "run_id": "e4b8d577-0a5f-5b23-b560-7c221badbac0",
+      "run_id": "66332ba2-4209-58c3-95cf-ff3affbfa6e7",
       "program_id": 1,
-      "date": "2026-10-13",
+      "date": "2026-10-27",
       "start_minute_local": 360,
       "enabled": true,
       "mode": "sequential",

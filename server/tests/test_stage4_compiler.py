@@ -339,13 +339,18 @@ def test_rain_delay_skips_runs_until_window():
     p = _mk_program(conn, "Дождливая")
     _link(conn, p, z1, 1)
     _set_setting(conn, "adjustment.rain_delay_hours", 24)
-    # Таблица погоды появится в Этапе 5 — для теста создаём её вручную
-    # (latest_rain_ts читает MAX(ts) WHERE precipitation_mm > 0).
-    conn.execute("CREATE TABLE weather_observations (ts INTEGER,"
+    # С Этапа 7 таблица weather_observations создаётся миграцией 0009
+    # (idempotent: CREATE TABLE IF NOT EXISTS). latest_rain_ts читает
+    # MAX(ts) WHERE precipitation_mm > 0 — вставляем запись совместимым
+    # способом (колонки ts/precipitation_mm есть в схеме 0009).
+    conn.execute("CREATE TABLE IF NOT EXISTS weather_observations (ts INTEGER,"
                  " precipitation_mm REAL)")
     rain_ts = int(datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc).timestamp())
-    conn.execute("INSERT INTO weather_observations VALUES (?, ?)",
-                 (rain_ts, 5.0))
+    conn.execute(
+        "INSERT INTO weather_observations"
+        " (observed_at, ts, precipitation_mm) VALUES (?, ?, ?)",
+        (datetime.fromtimestamp(rain_ts, timezone.utc).isoformat(timespec="seconds"),
+         rain_ts, 5.0))
     conn.commit()
     comp = compile_schedule(conn, c, today=date(2026, 10, 5), days_ahead=3,
                             timezone_offset_min=0)
