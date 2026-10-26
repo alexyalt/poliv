@@ -68,7 +68,10 @@ def optimize(runs,*,target,window_start=0,window_end=1440,allowed=None):
     a,b=metrics(before),metrics(after)
     # Never replace a feasible original by a worse aggregate plan.
     key='peak_lpm' if target=='reduce_peaks' else 'squared_load'
-    if b[key]>a[key]+1e-6:after=copy.deepcopy(before);b=a
+    if b[key]>a[key]+1e-6 and all(window_start<=r['start_minute_local'] and
+            r['start_minute_local']+math.ceil(sum(s['duration_sec'] for s in r['steps'])/60)<=window_end
+            and (allowed is None or allowed(r,r['start_minute_local'])) for r in before):
+        after=copy.deepcopy(before);b=a
     return {'before':before,'after':after,'metrics_before':a,'metrics_after':b,
             'changes':[{'controller_id':x['controller_id'],'program_id':x['program_id'],
                         'date':x['date'],'before_minute':x['start_minute_local'],

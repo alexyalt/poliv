@@ -198,7 +198,7 @@ def _merge_skipped(skipped_steps: list[dict]) -> tuple[list[dict], list[dict]]:
             notes_seen.add(nkey)
             notes_out.append(s)
             continue
-        key = (s.get("program_id"), s.get("zone_id"), s.get("reason_code"))
+        key = (s.get("program_id"), s.get("zone_id"), s.get("reason_code"), s.get("date"))
         if key in seen:
             continue
         seen.add(key)
@@ -353,7 +353,13 @@ def compile_schedule(conn: sqlite3.Connection, controller: dict, *,
         if override is not None:
             candidate['start_minute'] = override['start_minute']
     from ..blocks.policy import filter_candidates
+    original_candidates = candidates
     candidates, interval_skips = filter_candidates(conn, candidates, cid, tz_off)
+    remaining = {(c['program_id'],c['date'],c['start_minute']) for c in candidates}
+    for c in original_candidates:
+        if (c['program_id'],c['date'],c['start_minute']) not in remaining:
+            skipped_runs.append({'program_id':c['program_id'],'date':c['date'].isoformat(),
+                                 'start_minute_local':c['start_minute'],'reason_code':'zone_locked'})
     skipped_steps.extend(interval_skips)
 
     # --- конфликты пересечения запусков --------------------------------------

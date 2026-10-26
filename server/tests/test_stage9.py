@@ -149,3 +149,65 @@ def test_stage9_api_roles_blocks_jobs(h6):
     assert op.post(f'/api/v1/normalization/jobs/{identity}/apply',json={}).status_code==422
     assert op.post(f'/api/v1/normalization/jobs/{identity}/reject',json={}).status_code==200
     service.schedules.close()
+
+
+def test_apply_preserves_horizon_and_has_no_weather_rewrite(h6):
+    import json
+    from datetime import timedelta
+    service,ids=normalization_fixture(h6)
+    before=[tuple(r) for r in h6.conn.execute('SELECT * FROM weather_rules')]
+    day=(date.today()+timedelta(days=2)).isoformat()
+    job=service.create({'date':day,'controller_ids':ids},'op')
+    result=service.apply(job['id'],'op',True)
+    for sid in result['schedule_ids']:
+        row=h6.conn.execute('SELECT * FROM controller_schedules WHERE id=?',(sid,)).fetchone()
+        payload=json.loads(__import__('pathlib').Path(row['payload_path']).read_text())
+        assert payload['valid_from_date']==date.today().isoformat()
+        assert payload['valid_to_date']>day
+        assert len(payload['runs'])>=7
+    assert [tuple(r) for r in h6.conn.execute('SELECT * FROM weather_rules')]==before
+    service.schedules.close()
+
+
+def test_enforcer_only_stops_disallowed_mode(h6):
+    import json
+    from server.app.services.block_enforcer import BlockEnforcer
+    c,z,_=setup_program(h6);now=int(time.time())
+    BlockService(h6.conn).create({'zone_id':z['id'],'start_ts':now-1,'end_ts':now+100,'reason':'auto'},'op')
+    with h6.conn:h6.conn.execute("UPDATE controllers SET connection_status='online',current_mode='manual',active_zones_json='[1]' WHERE id=?",(c['id'],))
+    class Commands:
+        def __init__(self):self.calls=[]
+        def send_command_async(self,*args,**kwargs):self.calls.append(args)
+    class Schedules:
+        def compile_and_send(self,*args,**kwargs):return {}
+    commands=Commands();enforcer=BlockEnforcer(h6.db_path,commands,Schedules())
+    enforcer.tick();assert not commands.calls
+    with h6.conn:h6.conn.execute("UPDATE controllers SET current_mode='schedule' WHERE id=?",(c['id'],))
+    enforcer.tick();assert len(commands.calls)==1
+    enforcer.tick();assert len(commands.calls)==1
+    enforcer.conn.close()
+
+
+def test_optimizer_respects_window_locks_and_no_input_mutation(h6):
+    import copy
+    from server.app.core.normalization.optimizer import optimize
+    run={'controller_id':1,'program_id':1,'run_id':'r','date':'2030-01-01','start_minute_local':360,
+         'steps':[{'phase':'water','active_zones':[1],'duration_sec':600,'estimated_flow_lpm':5}]}
+    original=copy.deepcopy(run)
+    result=optimize([run],target='reduce_peaks',window_start=720,window_end=780,allowed=lambda r,m:m>=750)
+    assert result['after'][0]['start_minute_local']>=750
+    assert run==original
+    with pytest.raises(ValueError):optimize([run],target='reduce_peaks',window_start=720,window_end=725)
+
+
+def test_settings_cannot_disable_confirmation_or_safety(h6):
+    from server.app.api.routes_stage9 import register_api_routes_stage9
+    from pathlib import Path
+    service,ids=normalization_fixture(h6);h6.app.state.app_dir=str(Path(__file__).resolve().parents[1]/'app')
+    register_api_routes_stage9(h6.app,h6.cfg,h6.conn,service.schedules,h6.cmd)
+    op=h6.login_as('operator')
+    assert op.put('/api/v1/settings/normalization',json={'require_confirmation':False}).status_code==422
+    assert op.put('/api/v1/settings/normalization',json={'min_events':1}).status_code==422
+    assert op.put('/api/v1/settings/normalization',json={'enabled':False}).status_code==200
+    assert op.post('/api/v1/normalization/jobs',json={'controller_ids':ids}).status_code==422
+    service.schedules.close()

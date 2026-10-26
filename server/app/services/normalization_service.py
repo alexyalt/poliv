@@ -31,8 +31,11 @@ def snapshot_hash(conn):
     tables=['controllers','zones','programs','program_zones','zone_locks','settings',
             'watering_events','watering_event_zones','weather_observations',
             'weather_forecasts','normalization_overrides']
-    return digest({table:[dict(r) for r in conn.execute(f'SELECT * FROM {table} ORDER BY rowid')]
-                   for table in tables})
+    state={table:[dict(r) for r in conn.execute(f'SELECT * FROM {table} ORDER BY rowid')]
+           for table in tables if table!='controllers'}
+    state['controllers']=[dict(r) for r in conn.execute(
+        'SELECT id,box_id,enabled,parallel_enabled,deleted_at FROM controllers ORDER BY id')]
+    return digest(state)
 
 
 class NormalizationService:
@@ -91,7 +94,7 @@ class NormalizationService:
             identity=cur.lastrowid
             try:
                 compiled=self._compiled(conn,ids,day,days)
-                minimum=int(config(conn)['min_events'])
+                minimum=max(3,int(config(conn)['min_events']))
                 all_runs=[];statistics={};zone_ids={};offsets={}
                 for cid,item in compiled.items():
                     offsets[cid]=item.payload['timezone_offset_min']
@@ -124,6 +127,7 @@ class NormalizationService:
                 if len(all_runs)>1000:raise NormalizationError('Слишком много запусков; уменьшите область')
                 def allowed(run,start):
                     cursor=int(datetime.combine(date.fromisoformat(run['date']),datetime.min.time(),timezone(timedelta(minutes=offsets[run['controller_id']]))).timestamp())+start*60
+                    if cursor<=time.time():return False
                     for step in run['steps']:
                         end=cursor+step['duration_sec']
                         for z in step['active_zones']:
@@ -133,6 +137,7 @@ class NormalizationService:
                 proposal=optimize(all_runs,target=target,window_start=lo,window_end=hi,allowed=allowed)
                 proposal.update(statistics=statistics,source_snapshot=snapshot_hash(conn),
                                 window_start_minute=lo,window_end_minute=hi,
+                                timezone_offsets=offsets,
                                 warnings=['Оценка по одиночным событиям; давление сети не измеряется. Новая параллельность не создаётся.',
                                           'Переносы только внутри исходного дня; суммарные water/soak длительности сохранены.'])
                 conn.execute('''INSERT INTO normalization_proposals(job_id,payload_json,before_hash,after_hash,warnings_json)
@@ -156,18 +161,23 @@ class NormalizationService:
             if payload['source_snapshot']!=snapshot_hash(conn):raise StaleProposal('Данные изменились; создайте новое предложение')
             if not config(conn)['enabled']:raise NormalizationError('Нормализация отключена')
             for run in payload['after']:
-                start=int(datetime.combine(date.fromisoformat(run['date']),datetime.min.time()).timestamp())+run['start_minute_local']*60
+                start=int(datetime.combine(date.fromisoformat(run['date']),datetime.min.time(),timezone(timedelta(minutes=payload['timezone_offsets'][str(run['controller_id'])]))).timestamp())+run['start_minute_local']*60
                 if start<=time.time():raise StaleProposal('Время предложения истекло')
                 conn.execute('''INSERT INTO normalization_overrides(controller_id,program_id,date,start_minute,job_id)
                     VALUES(?,?,?,?,?) ON CONFLICT(controller_id,program_id,date) DO UPDATE SET
                     start_minute=excluded.start_minute,job_id=excluded.job_id''',
                     (run['controller_id'],run['program_id'],run['date'],run['start_minute_local'],identity))
             day=date.fromisoformat(job['date_from']);days=1 if job['scope']=='day' else 7
-            compiled=service._compiled(conn,json.loads(job['controller_ids_json']),day,days)
+            compiled={}
+            from ..core.schedule_compiler.compiler import DEFAULT_DAYS_AHEAD
+            for cid in json.loads(job['controller_ids_json']):
+                ctrl=conn.execute('SELECT * FROM controllers WHERE id=?',(cid,)).fetchone()
+                compiled[cid]=compile_schedule(conn,dict(ctrl),today=date.today(),
+                    days_ahead=max(DEFAULT_DAYS_AHEAD,(date.fromisoformat(job['date_to'])-date.today()).days),source='manual')
             # Preserve exact proposed steps (estimated_flow_lpm is audit-only).
             for cid,item in compiled.items():
                 expected=[r for r in payload['after'] if r['controller_id']==cid]
-                actual=item.payload['runs']
+                actual=[r for r in item.payload['runs'] if job['date_from']<=r['date']<=job['date_to']]
                 key=lambda r:(r['program_id'],r['date'])
                 if {key(r):r['start_minute_local'] for r in expected}!={key(r):r['start_minute_local'] for r in actual}:raise StaleProposal('Состав расписания изменился')
                 for run in actual:

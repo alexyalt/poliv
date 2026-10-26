@@ -594,3 +594,10 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Проверки:** test_stage9: 12 passed (locks, exact occurrence, manual denial, proposals/day/week/stale/ACL/UI render).
 - **Состояние:** ядро и интерфейс сохранены; необходимо укрепить доставку/активные блокировки, heatmap/preserve horizon и расширить интеграционную/браузерную приёмку.
 - **Следующий шаг:** обработка активных/будущих блокировок и безопасное сохранение полного горизонта нормализованного расписания; затем полный baseline+CI.
+
+
+## [26.10.2026 UTC] Этап 9 — stage9: enforce live locks and preserve normalized schedule horizon
+- **Сделано:** lifespan BlockEnforcer для будущих границ/active zones, auto-only не останавливает manual, независимый stop и expiry recompile; compile skip notifications; apply сохраняет текущий полный горизонт, timezone и исходные steps, не переписывает погоду; skip metadata сохраняется для каждой даты/зоны.
+- **Проверки:** первый полный прогон до этих усилений: 279 passed/1 skipped; актуальные stage9+compiler: 28 passed. Проверены horizon, enforcer debounce/mode, optimizer window/immutability, settings safety.
+- **Следующий шаг:** E2E применение и heatmap после schedule ACK, browser UI, миграции/реальный MQTT; затем полный итоговый прогон.
+- **Ограничения:** offline старое расписание физически нельзя отозвать сервером; UI явно показывает доставку и необходимость связи. Ветка сохраняется, main не меняется.

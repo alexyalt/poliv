@@ -144,6 +144,14 @@ class ScheduleService:
             sched_id, path = persist_schedule(
                 self.conn, compiled, data_dir=self.cfg.data_dir,
                 status="compiled", created_by=created_by)
+            for skipped in compiled.skipped_steps:
+                if skipped.get('reason_code') != 'zone_locked':
+                    continue
+                key = f"zone-block-skip:{controller_id}:{skipped.get('program_id')}:{skipped.get('zone_number')}:{skipped.get('date',compiled.valid_from)}"
+                if not self.conn.execute('SELECT 1 FROM notifications WHERE dedupe_key=?',(key,)).fetchone():
+                    self.conn.execute("""INSERT INTO notifications(type,severity,controller_id,message,dedupe_key,details_json)
+                        VALUES('zone_block_skip','info',?,?,?,?)""",
+                        (controller_id,'Зона пропущена из-за блокировки',key,json.dumps(skipped,ensure_ascii=False)))
             # Этап 7: журнал применения погодных правил (только при реальной
             # компиляции; preview/test — dry run без записей).
             if getattr(compiled, "weather_applications", None):

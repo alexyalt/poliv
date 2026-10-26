@@ -48,7 +48,7 @@ def filter_candidates(conn,candidates,controller_id,tz_offset):
             cursor=end
         for number in sorted(excluded):
             skipped.append({'program_id':c['program_id'],'date':c['date'].isoformat(),
-                            'zone_number':number,'reason_code':'zone_locked'})
+                            'zone_number':number,'zone_id':zones[number],'reason_code':'zone_locked'})
         for step in c['steps']:
             step['active_zones']=[z for z in step['active_zones'] if z not in excluded]
             if 'display_zones' in step:step['display_zones']=[z for z in step['display_zones'] if z not in excluded]

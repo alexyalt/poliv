@@ -58,7 +58,7 @@ def register_api_routes_stage9(app,cfg,conn,schedules,commands):
         if row.get('start_ts') is not None and row['start_ts']<=time.time() and (row['end_ts'] is None or row['end_ts']>time.time()):
             ctrl=conn.execute('SELECT * FROM controllers WHERE id=?',(cid,)).fetchone()
             active=json.loads(ctrl['active_zones_json'] or '[]')
-            if zone['zone_number'] in active:
+            if zone['zone_number'] in active and (row['block_manual'] or ctrl['current_mode'] not in ('manual','service')):
                 try:stop=commands.send_command_async(cid,'stop_all',{'reason':'zone_block'})
                 except Exception as exc:stop={'error':str(exc)}
         return {'stop':stop,'schedule':update_controller(cid)}
@@ -117,7 +117,7 @@ def register_api_routes_stage9(app,cfg,conn,schedules,commands):
             if k=='default_mode' and v not in ('day','week'):raise NormalizationError('Неверный режим')
             if k=='target' and v not in ('reduce_peaks','smooth_consumption'):raise NormalizationError('Неверная цель')
         with conn:
-            for k,v in body.items():set_setting(conn,'normalization.'+k,v)
+            for k,v in body.items():conn.execute("UPDATE settings SET value_json=?,updated_at=datetime('now') WHERE key=?",(json.dumps(v),'normalization.'+k))
         return config(conn)
 
     templates=Jinja2Templates(directory=str(Path(app.state.app_dir)/'templates'))

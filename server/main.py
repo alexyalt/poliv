@@ -224,7 +224,12 @@ async def _lifespan_mqtt(app: FastAPI):
                 _arch.start_archive_daemon(str(cfg.db_path), cfg.data_dir)
         except Exception:
             log.exception("Архив: демон не запущен — сервер работает без ротации")
+    from server.app.services.block_enforcer import BlockEnforcer
+    enforcer = BlockEnforcer(str(cfg.db_path), app.state.command_service, app.state.schedule_service)
+    app.state.block_enforcer = enforcer
+    enforcer.start()
     yield
+    enforcer.stop()
     try:
         _arch.stop_archive_daemon()
     except Exception:

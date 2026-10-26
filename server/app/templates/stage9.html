@@ -38,7 +38,7 @@ function button(parent,label,fn){const el=text(parent,'button',label);el.type='b
 async function refresh(){
  const [blocks,jobs]=await Promise.all([api('zone-blocks'),api('normalization/jobs')]);
  by('blocks').replaceChildren();by('jobs').replaceChildren();
- blocks.items.forEach(b=>{const row=text(by('blocks'),'p',`#${b.id}, зона ${b.zone_id}: ${b.reason}; ${b.block_type||b.kind}; ${b.active?'действует (см. даты)':'снята'}`);if(b.active)button(row,'Снять',async()=>{by('delivery').textContent=JSON.stringify(await api('zone-blocks/'+b.id,'DELETE'),null,2);await refresh();});});
+ blocks.items.forEach(b=>{const row=text(by('blocks'),'p',`#${b.id}, зона ${b.zone_id}: ${b.reason}; ${b.block_type||b.kind}; ${b.active?'активна':'снята'}; ${b.start_ts?new Date(b.start_ts*1000).toLocaleString():b.locked_at} — ${b.end_ts?new Date(b.end_ts*1000).toLocaleString():'бессрочно'}`);if(b.active)button(row,'Снять',async()=>{by('delivery').textContent=JSON.stringify(await api('zone-blocks/'+b.id,'DELETE'),null,2);await refresh();});});
  jobs.items.forEach(j=>{const row=text(by('jobs'),'p',`#${j.id}: ${j.scope} ${j.date_from} — ${j.status}${j.error_message?' — '+j.error_message:''}`);if(j.status==='ready')button(row,'Просмотреть',()=>loadProposal(j.id));});
 }
 function blockData(){return {zone_id:Number(by('block-zone').value),kind:by('block-kind').value,reason:by('block-reason').value};}

@@ -26,6 +26,8 @@ class BlockService:
         return [dict(r) for r in self.conn.execute(q+' ORDER BY l.id DESC LIMIT 1000',args)]
 
     def create(self,data,actor):
+        if set(data)-{'zone_id','start_ts','end_ts','kind','block_manual','reason','duration_hours'}:
+            raise BlockError('Неизвестное поле блокировки')
         zid=_integer(data.get('zone_id'),'zone_id')
         zone=self.conn.execute('SELECT * FROM zones WHERE id=? AND deleted_at IS NULL',(zid,)).fetchone()
         if zone is None:raise BlockError('Зона не найдена')
