@@ -28,6 +28,9 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from ..infra.csv_export import _csv_safe, csv_response  # noqa: F401
+# (_csv_safe реэкспортируется: тесты Этапа 6 импортируют её из этого модуля;
+#  Этап 8 вынес утилиту в server/app/infra/csv_export.py как общую.)
 from ..infra.logging import get_logger
 from ..services.flow_service import get_flow_service, get_setting
 from ..services.notification_service import get_notification_service
@@ -47,15 +50,6 @@ _CSV_COLUMNS = [
     "reason_code", "aborted", "schedule_version", "buffered",
     "created_at", "controller_name", "box_id",
 ]
-
-
-def _csv_safe(value: Any) -> Any:
-    """Защита от spreadsheet formula injection (аудит P2-12): строки,
-    начинающиеся с = + - @ или табуляции, экранируются апострофом — Excel/
-    Sheets не интерпретируют их как формулу."""
-    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
-        return "'" + value
-    return value
 
 
 def _check(request: Request, min_role: str = "viewer"):
