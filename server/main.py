@@ -188,7 +188,23 @@ async def _lifespan_mqtt(app: FastAPI):
         updater = _wxsvc.start_weather_updater(str(cfg.db_path))
     except Exception:
         log.exception("Погода: фоновый апдейтер не запущен — сервер работает без него")
+    # Этап 8: фоновый архиватор (ADR-14): раз в сутки в 03:00 локального
+    # времени — rotate_all() (выгрузка старше archive.db_retention_days в
+    # data/archive/... и удаление из оперативной БД). Как и погода — daemon-
+    # поток, ошибки не роняют сервер; archive.enabled=False отключает ротацию.
+    from server.app.services import archive_service as _arch
+    arch_conn = getattr(app.state, "db", None)
+    if arch_conn is not None:
+        try:
+            if _arch.archive_config(arch_conn)["enabled"]:
+                _arch.start_archive_daemon(str(cfg.db_path), cfg.project_root)
+        except Exception:
+            log.exception("Архив: демон не запущен — сервер работает без ротации")
     yield
+    try:
+        _arch.stop_archive_daemon()
+    except Exception:
+        log.exception("Архив: ошибка остановки демона")
     if updater is not None:
         try:
             _wxsvc.stop_weather_updater()
