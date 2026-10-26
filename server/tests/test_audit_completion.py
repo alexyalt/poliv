@@ -254,3 +254,97 @@ def test_replay_resumes_flow_consumer_after_interruption(h6):
     assert [tuple(r) for r in h6.conn.execute('SELECT date,controller_id,zone_id,attribution,total_volume_l,watering_count,water_sec,anomaly_count FROM flow_daily')]==original
     h6.inject_event(c['box_id'],payload)
     assert [tuple(r) for r in h6.conn.execute('SELECT date,controller_id,zone_id,attribution,total_volume_l,watering_count,water_sec,anomaly_count FROM flow_daily')]==original
+
+
+def test_coroutines_on_same_thread_have_separate_connections(h6):
+    import asyncio
+    conn = ScopedConnection(h6.db_path)
+    async def exercise():
+        entered, inspected = asyncio.Event(), asyncio.Event()
+        natives = []
+        async def first():
+            with database_scope():
+                with pytest.raises(RuntimeError):
+                    with conn:
+                        natives.append(conn.native())
+                        conn.execute("INSERT INTO settings(key,value_json) VALUES('async-owner','1')")
+                        entered.set()
+                        await inspected.wait()
+                        raise RuntimeError('rollback first task')
+        async def second():
+            await entered.wait()
+            try:
+                with database_scope(), conn:
+                    natives.append(conn.native())
+                    assert conn.execute("SELECT 1 FROM settings WHERE key='async-owner'").fetchone() is None
+            finally:
+                inspected.set()
+        await asyncio.wait_for(asyncio.gather(first(),second()),timeout=3)
+        assert natives[0] is not natives[1]
+    asyncio.run(exercise())
+    assert h6.conn.execute("SELECT 1 FROM settings WHERE key='async-owner'").fetchone() is None
+
+
+def test_child_tasks_in_one_scope_do_not_share_transaction(h6):
+    import asyncio
+    conn = ScopedConnection(h6.db_path)
+    async def exercise():
+        natives=[]
+        async def read():
+            with conn:
+                natives.append(conn.native())
+                await asyncio.sleep(0)
+                assert conn.execute('SELECT 1').fetchone()[0] == 1
+        with database_scope():
+            await asyncio.gather(read(),read())
+        assert natives[0] is not natives[1]
+        for native in natives:
+            with pytest.raises(sqlite3.ProgrammingError): native.execute('SELECT 1')
+    asyncio.run(exercise())
+
+
+def test_runtime_copy_remaps_local_archive_and_schedule(h6,tmp_path):
+    import json, hashlib
+    from server.tools.prepare_runtime import prepare
+    source, destination = tmp_path/'checkout', tmp_path/'runtime'
+    (source/'data/schedules/B').mkdir(parents=True)
+    schedule=source/'data/schedules/B/v1.json'
+    schedule.write_text('{}')
+    (source/'data/archive/events').mkdir(parents=True)
+    archive=source/'data/archive/events/one.json'
+    archive.write_text('[]')
+    manifest=archive.with_suffix('.json.manifest.json')
+    manifest.write_text('{"schema_version":2}')
+    db=source/'data/poliv.db'
+    with sqlite3.connect(db) as conn:
+        conn.execute('CREATE TABLE controller_schedules(id INTEGER PRIMARY KEY,payload_path TEXT)')
+        conn.execute('CREATE TABLE archive_exports(id INTEGER PRIMARY KEY,file_path TEXT,format_version INTEGER,file_hash TEXT,manifest_hash TEXT)')
+        conn.execute('INSERT INTO controller_schedules VALUES(1,?)',('data/schedules/B/v1.json',))
+        conn.execute('INSERT INTO archive_exports VALUES(1,?,2,?,?)',
+                     (str(archive),hashlib.sha256(archive.read_bytes()).hexdigest(),hashlib.sha256(manifest.read_bytes()).hexdigest()))
+    result=prepare(source,destination)
+    assert result['ready'] and len(result['relocated_files'])==2
+    assert result['external_files']==[]
+    with sqlite3.connect(destination/'data/poliv.db') as conn:
+        copied_schedule=Path(conn.execute('SELECT payload_path FROM controller_schedules').fetchone()[0])
+        copied_archive=Path(conn.execute('SELECT file_path FROM archive_exports').fetchone()[0])
+    assert copied_schedule==destination/'data/schedules/B/v1.json'
+    assert copied_archive==destination/'data/archive/events/one.json'
+    # Detaching source demonstrates that copied DB uses only the new local paths.
+    source.rename(tmp_path/'detached-source')
+    assert copied_schedule.is_file() and copied_archive.is_file()
+    assert copied_archive.with_suffix('.json.manifest.json').is_file()
+
+
+def test_runtime_copy_marks_missing_referenced_file_incomplete(tmp_path):
+    import json
+    from server.tools.prepare_runtime import prepare
+    source, destination = tmp_path/'checkout', tmp_path/'runtime'
+    (source/'data').mkdir(parents=True)
+    with sqlite3.connect(source/'data/poliv.db') as conn:
+        conn.execute('CREATE TABLE controller_schedules(id INTEGER PRIMARY KEY,payload_path TEXT)')
+        conn.execute("INSERT INTO controller_schedules VALUES(1,'data/schedules/missing.json')")
+    with pytest.raises(ValueError,match='not copied'):
+        prepare(source,destination)
+    assert json.loads((destination/'runtime-copy.json').read_text())['ready'] is False
+    assert (source/'data/poliv.db').is_file()

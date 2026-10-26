@@ -7952,3 +7952,9 @@
 current-status и ADR-18. Добавлены scoped SQLite, ledger 0012, missed-report,
 недельный UI, restore flow/weather, ограничение workers и readiness.
 Физическая и эксплуатационная приёмка остаются отдельными уровнями DoD.
+
+
+Финальная приёмка 8.S после PR #19: активный CI выполняет pytest/migrations,
+Chromium mock-UI и настоящий loopback Mosquitto без production оборудования.
+Scoped DB owner включает asyncio task; перенос runtime проверяет и переводит
+ссылки копии БД. Итоговая матрица: docs/spec/current-status.md; протокол: ADR-18.

@@ -1,0 +1,72 @@
+name: audit-checks
+
+on:
+  push:
+    branches: [main, 'fix/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - name: Install locked dependencies
+        run: python -m pip install -q -r requirements.lock
+      - name: Verify dependencies
+        run: python -m pip check
+      - name: Test isolated databases, migrations and services
+        run: python -m pytest server/tests -q --disable-warnings --tb=short
+      - name: Verify tracked runtime snapshots were not modified by tests
+        run: git diff --exit-code -- data logs server/poliv.db
+      - name: Check commit whitespace
+        run: git show --format= --check HEAD
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - name: Install test dependencies
+        run: |
+          python -m pip install -q -r requirements.lock
+          python -m pip install -q playwright==1.64.1
+          python -m playwright install --with-deps chromium
+      - name: Check day/week heatmap and missed-report rendering
+        run: python -m server.tools.browser_smoke
+
+  mqtt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - name: Install locked dependencies and private broker
+        run: |
+          python -m pip install -q -r requirements.lock
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mosquitto
+      - name: Check real MQTT ACK, retry, independent stop and replay
+        run: python -m server.tools.mqtt_smoke

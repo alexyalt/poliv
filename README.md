@@ -98,7 +98,7 @@ NULL и связи зон. Копировать их нужно вместе. О
 Проверяемая конфигурация: Python 3.13, один worker Uvicorn. `requirements.txt` задаёт
 диапазоны, `requirements.lock` фиксирует полный набор. Для обновления lock используйте
 pip-tools в Python 3.13: `python -m piptools compile --strip-extras --output-file=requirements.lock requirements.txt`,
-затем чистую установку, `pip check` и полный pytest. Готовый шаблон GitHub Actions находится в `docs/ci/tests.yml.example`. Для активации перенесите его в `.github/workflows/tests.yml` учётной записью с правом workflow; в этой ветке workflow пока не активирован.
+затем чистую установку, `pip check` и полный pytest. GitHub Actions настроен в `.github/workflows/tests.yml`: tests, browser и mqtt. Статус последнего запуска смотрите во вкладке Actions.
 
 Для HTTPS за reverse proxy задайте `[server] cookie_secure = true` и доверяйте forwarded
 headers только вашему proxy. Локальный HTTP остаётся доступным. Изменяющие браузерные
@@ -125,3 +125,16 @@ POLIV_DATA_ROOT задаётся до импорта приложения. Су�
 Опциональный UI smoke без реального сервера: установить playwright, выполнить
 `python -m playwright install --with-deps chromium`, затем
 `python -m server.tools.browser_smoke`. Playwright не добавлен в runtime lock.
+
+
+### Финальная приёмка 8.S в main
+
+Активный workflow: `.github/workflows/tests.yml` (push/PR/manual), минимальные права,
+без deploy и секретов. Проверяет lock/pip, полный pytest/миграции, Chromium UI и
+настоящий отдельный loopback Mosquitto. Локально MQTT:
+`python -m server.tools.mqtt_smoke` (нужен executable mosquitto в PATH).
+
+`prepare_runtime` теперь обновляет пути скопированных локальных архивов и расписаний
+в копии БД. Проверяйте `runtime-copy.json`: ready=true и список external_files.
+Исходники/исходная БД сохраняются; при ошибке ready=false и копия не пригодна к запуску.
+Текущая итоговая матрица F01–F16 — `docs/spec/current-status.md`, история — WorkBook.

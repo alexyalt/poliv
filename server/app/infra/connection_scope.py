@@ -3,10 +3,26 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import wraps
 import threading
+import asyncio
+from dataclasses import dataclass
 
 from .db import connect_path
 
 _scope = ContextVar('poliv_database_scope', default=None)
+
+
+@dataclass
+class _ConnectionState:
+    connection: object
+    depth: int = 0
+
+
+def _owner():
+    try:
+        task = asyncio.current_task()
+    except RuntimeError:
+        task = None
+    return threading.get_ident(), task
 
 
 @contextmanager
@@ -20,7 +36,7 @@ def database_scope():
         yield
     finally:
         for conn in connections.values():
-            conn.close()  # rollback any uncommitted work
+            conn.connection.close()  # rollback any uncommitted work
         _scope.reset(token)
 
 
@@ -43,17 +59,19 @@ class ScopedConnection:
         self.path = str(path)
         self._fallback = {}
         self._lock = threading.RLock()
-        self._depth = threading.local()
 
-    def native(self):
+    def _state(self):
         registry = _scope.get()
         if registry is None:
             registry = self._fallback
-        key = (id(self), threading.get_ident())
+        key = (id(self), *_owner())
         with self._lock:
             if key not in registry:
-                registry[key] = connect_path(self.path)
+                registry[key] = _ConnectionState(connect_path(self.path))
             return registry[key]
+
+    def native(self):
+        return self._state().connection
 
     def __getattr__(self, name):
         return getattr(self.native(), name)
@@ -61,17 +79,19 @@ class ScopedConnection:
     def __enter__(self):
         conn = self.native()
         # Savepoints prevent nested service contexts committing their caller.
-        depth = getattr(self._depth, 'value', 0)
+        state = self._state()
+        depth = state.depth
         if depth:
             conn.execute(f'SAVEPOINT poliv_nested_{depth}')
         elif not conn.in_transaction:
             conn.execute('BEGIN')
-        self._depth.value = depth + 1
+        state.depth = depth + 1
         return self
 
     def __exit__(self, kind, value, trace):
-        depth = self._depth.value - 1
-        self._depth.value = depth
+        state = self._state()
+        depth = state.depth - 1
+        state.depth = depth
         conn = self.native()
         if depth:
             if kind:
@@ -86,7 +106,7 @@ class ScopedConnection:
     def close(self):
         with self._lock:
             for conn in self._fallback.values():
-                conn.close()
+                conn.connection.close()
             self._fallback.clear()
 
 

@@ -70,3 +70,14 @@ consumer markers event/flow/schedule. Фактическая реализаци�
 Браузерные карты day/week и missed-report проверены headless Chromium с mock API.
 Аппаратные замеры, production нагрузка и активация CI с workflow permission остаются
 эксплуатационными условиями, не выданы за выполненные проверки.
+
+
+## Финальная приёмка после слияния PR #19
+
+CI активирован в `.github/workflows/tests.yml`, ограничение workflow scope снято.
+Проверка настоящим приватным Mosquitto добавлена в CI и выполняется локально.
+Дополнительно разделены async task owners SQLite и проверен перенос локальных
+archive/schedule paths в независимый runtime. Актуальная матрица F01–F16 заменяет
+устаревшие открытые формулировки выше: `docs/spec/current-status.md`.
+На установленной системе остаются перенос tracked runtime перед его удалением из
+индекса и аппаратная/production приёмка; их нельзя выполнить удалённо из checkout.
