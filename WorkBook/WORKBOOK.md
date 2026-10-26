@@ -573,3 +573,10 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - Исправление workflow: tests checkout fetch-depth=2, `git diff --check HEAD^ HEAD`.
   Такой же shallow-клон depth=2 проверен локально успешно. Старая история/ТЗ не
   подвергаются массовой косметической правке; public workflow повторно проверяется.
+
+
+## [26.10.2026 UTC] Этап 9 — stage9: record implementation and recovery checkpoints
+- **Контекст:** пользователь поручил весь этап 9 и периодические commit+WorkBook+push.
+- **Сделано:** отдельная ветка от 9cab288, прочитаны AGENTS/ТЗ/ADR/WorkBook, план docs/STAGE9_PROGRESS.md.
+- **Проверки:** код не менялся; baseline последнего main 267 passed/1 skipped подтверждён предыдущим CI.
+- **Следующий шаг:** миграция и ядро 9A; основной main не меняется.
