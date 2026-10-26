@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Тепловая карта{% endblock %}
+{% block content %}
+<h1>Тепловая карта полива (Этап 8)</h1>
+
+<form id="hm-filters" class="card" onsubmit="return false;">
+  <label>Дата <input type="date" id="hm-date"></label>
+  <label>Интервал
+    <select id="hm-interval">
+      <option value="5">5 мин</option>
+      <option value="10">10 мин</option>
+      <option value="15" selected>15 мин</option>
+      <option value="30">30 мин</option>
+    </select>
+  </label>
+  <button type="button" class="btn" id="hm-load">Показать</button>
+  <span id="hm-error" style="color:#c0392b"></span>
+</form>
+
+<div class="card" id="hm-legend">
+  <span class="cell idle">&nbsp;&nbsp;</span> idle
+  <span class="cell water">&nbsp;&nbsp;</span> полив
+  <span class="cell soak">&nbsp;&nbsp;</span> замачивание
+  <span class="cell manual">&nbsp;&nbsp;</span> ручной
+  <span class="cell blocked">&nbsp;&nbsp;</span> блокировка
+  <span class="cell error">&nbsp;&nbsp;</span> авария
+  <span class="cell offline">&nbsp;&nbsp;</span> офлайн
+</div>
+
+<div id="hm-wrap" class="card" style="overflow-x:auto;"></div>
+<p id="hm-meta" class="muted"></p>
+
+<style>
+  .heatmap { border-collapse: collapse; font-size: 12px; }
+  .heatmap th, .heatmap td { border: 1px solid #ddd; padding: 0; }
+  .heatmap th.time { padding: 2px 4px; font-weight: normal; color: #666;
+                     white-space: nowrap; }
+  .heatmap .rowname { padding: 2px 8px; white-space: nowrap; cursor: pointer;
+                      background: #f7f7f7; position: sticky; left: 0; }
+  .heatmap .zone .rowname { padding-left: 24px; cursor: default;
+                            background: #fcfcfc; }
+  .cell { display: inline-block; width: 10px; height: 16px; }
+  .heatmap td .cell { width: 100%; min-width: 8px; }
+  .idle    { background: #f2f2f2; }
+  .water   { background: #2e86de; }
+  .soak    { background: #7fb3d5; }
+  .manual  { background: #f39c12; }
+  .blocked { background: #b3a2c9; }
+  .error   { background: #e74c3c; }
+  .offline { background: #95a5a6; }
+  tr.zone-row { display: none; }
+  tr.expanded + tr.zone-row, tr.zone-row.cont { display: table-row; }
+</style>
+
+<script>
+(function () {
+  const dateEl = document.getElementById('hm-date');
+  const intEl = document.getElementById('hm-interval');
+  const errEl = document.getElementById('hm-error');
+  const wrap = document.getElementById('hm-wrap');
+  const meta = document.getElementById('hm-meta');
+
+  // сегодня по умолчанию
+  const now = new Date();
+  dateEl.value = now.toISOString().slice(0, 10);
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+
+  function tip(row, zone, colIdx, state, columns) {
+    const t = columns[colIdx];
+    let s = (zone ? row.controller_name + ' / ' + zone.name
+                  : row.controller_name) + ', ' + t + ' — ' + state;
+    if (zone && zone.run_info && zone.run_info[colIdx]) {
+      const ri = zone.run_info[colIdx];
+      if (ri.program_id != null) s += ', программа #' + ri.program_id;
+      if (ri.source) s += ', источник: ' + ri.source;
+      if (ri.status) s += ', статус: ' + ri.status;
+      if (ri.volume_liters != null) s += ', ' + ri.volume_liters + ' л';
+    }
+    return s;
+  }
+
+  function render(data) {
+    const cols = data.columns;
+    let html = '<table class="heatmap"><thead><tr>' +
+               '<th class="rowname">Контроллер / зона</th>';
+    cols.forEach((c, i) => {
+      // подписываем каждый 4-й слот, чтобы не раздувать ширину
+      html += '<th class="time">' + (i % 4 === 0 ? esc(c) : '') + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    data.rows.forEach((row, ri) => {
+      html += '<tr class="ctrl-row" data-ri="' + ri + '">' +
+              '<td class="rowname">▸ ' + esc(row.controller_name) +
+              ' <span class="muted">(' + esc(row.connection_status) + ')</span></td>';
+      row.cells.forEach((st, ci) => {
+        const z0 = row.zones.length ? row.zones[0] : null;
+        html += '<td><span class="cell ' + st + '" title="' +
+                esc(tip(row, null, ci, st, cols)) + '"></span></td>';
+      });
+      html += '</tr>';
+      row.zones.forEach((z) => {
+        html += '<tr class="zone-row cont" data-parent="' + ri + '">' +
+                '<td class="rowname">' + esc(z.zone_number) + '. ' +
+                esc(z.name) + '</td>';
+        z.cells.forEach((st, ci) => {
+          html += '<td><span class="cell ' + st + '" title="' +
+                  esc(tip(row, z, ci, st, cols)) + '"></span></td>';
+        });
+        html += '</tr>';
+      });
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+    meta.textContent = 'Контроллеров: ' + data.rows.length +
+      ', зон: ' + data.rows.reduce((a, r) => a + r.zones.length, 0) +
+      ', слотов: ' + cols.length + ' (' + data.interval_min + ' мин), дата: ' +
+      data.date;
+
+    // раскрытие/сворачивание контроллера по клику
+    wrap.querySelectorAll('tr.ctrl-row .rowname').forEach(el => {
+      el.addEventListener('click', () => {
+        const tr = el.closest('tr');
+        const ri = tr.dataset.ri;
+        const open = !tr.classList.contains('expanded');
+        tr.classList.toggle('expanded', open);
+        el.textContent = (open ? '▾ ' : '▸ ') + el.textContent.slice(2);
+        wrap.querySelectorAll('tr.zone-row[data-parent="' + ri + '"]')
+            .forEach(zr => zr.style.display = open ? 'table-row' : 'none');
+      });
+    });
+  }
+
+  async function load() {
+    errEl.textContent = '';
+    const qs = '?date=' + encodeURIComponent(dateEl.value) +
+               '&interval_min=' + encodeURIComponent(intEl.value);
+    try {
+      const res = await fetch('/api/v1/heatmap' + qs);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        errEl.textContent = j.detail || ('Ошибка ' + res.status);
+        return;
+      }
+      render(await res.json());
+    } catch (e) {
+      errEl.textContent = 'Сетевая ошибка: ' + e;
+    }
+  }
+
+  document.getElementById('hm-load').addEventListener('click', load);
+  intEl.addEventListener('change', load);
+  dateEl.addEventListener('change', load);
+  load();
+})();
+</script>
+{% endblock %}

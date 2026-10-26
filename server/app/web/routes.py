@@ -808,6 +808,15 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         """
         return page(request, "reports.html")
 
+    @app.get("/heatmap", response_class=HTMLResponse)
+    def heatmap_page(request: Request):
+        """Страница тепловой карты полива (Этап 8, блок 8.3; Артефакт 0.6 §5.9).
+
+        Каркас страницы; сетка подгружается JS-виджетом через API
+        (/api/v1/heatmap) по кнопке/смене параметров — polling, без WebSocket.
+        """
+        return page(request, "heatmap.html")
+
     # --------------------------------------------------------------- Этап 7
     @app.get("/weather", response_class=HTMLResponse)
     def weather_page(request: Request):

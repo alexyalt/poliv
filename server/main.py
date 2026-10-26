@@ -65,6 +65,7 @@ from server.app.api.routes_stage5 import register_api_routes_stage5
 from server.app.api.routes_stage6 import register_api_routes_stage6
 from server.app.api.routes_weather import register_api_routes_weather
 from server.app.api.routes_reports import register_api_routes_reports
+from server.app.api.routes_heatmap import register_api_routes_heatmap
 from server.app.infra import mqtt_client as mqtt_infra
 from server.app.services.auth_service import AuthService
 from server.app.services.catalog_service import CatalogService
@@ -152,6 +153,8 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # Этап 8: REST API отчётов (/api/v1/reports/*). Свой префикс — не
     # конфликтует с ранее зарегистрированными маршрутами stage2..7.
     register_api_routes_reports(app, cfg, conn)
+    # Этап 8 (блок 8.3): REST API тепловой карты (/api/v1/heatmap).
+    register_api_routes_heatmap(app, cfg, conn)
     register_api_routes(app, cfg, conn, catalog, users)
 
     @app.get("/health")
