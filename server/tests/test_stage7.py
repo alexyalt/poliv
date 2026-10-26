@@ -156,8 +156,16 @@ class _Resp:
 CURRENT_OK = {"current": {"time": "2026-10-26T12:00", "temperature_2m": 25.0,
                           "relative_humidity_2m": 60.0, "wind_speed_10m": 7.2,
                           "precipitation": 0.0, "weather_code": 1}}
+def _forecast_times(n: int = 24) -> list[str]:
+    """Часы прогноза ОТ «сейчас» (UTC): иначе фильтры актуальных строк
+    (valid_to >= now) отсекают прошедшие часы."""
+    base = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    return [(base + timedelta(hours=i)).isoformat(timespec="seconds")[:16]
+            for i in range(n)]
+
+
 FORECAST_OK = {"hourly": {
-    "time": [f"2026-10-26T{h:02d}:00" for h in range(24)],
+    "time": _forecast_times(),
     "temperature_2m": [20.0] * 24,
     "relative_humidity_2m": [65.0] * 24,
     "precipitation_probability": [80] * 24,
