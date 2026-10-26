@@ -93,7 +93,10 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     setup_logging(cfg)
     log.info("Конфигурация загружена и проверена: %s", ROOT.parent / "config")
 
-    conn = init_db(cfg)
+    bootstrap = init_db(cfg)
+    bootstrap.close()
+    from server.app.infra.connection_scope import ScopedConnection, DatabaseScopeMiddleware
+    conn = ScopedConnection(cfg.db_path)
     auth = AuthService(conn, cfg)
     auth.ensure_admin()
     seed_test_data(conn, cfg)
@@ -116,6 +119,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
         version=APP_VERSION,
         lifespan=_lifespan_mqtt,   # Этап 3: старт/стоп MQTT-клиента (без эффектов при импорте)
     )
+    app.add_middleware(DatabaseScopeMiddleware)
     app.state.cfg = cfg
     app.state.db = conn
     app.state.auth = auth
@@ -162,6 +166,19 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     @app.get("/health")
     def health():
         return {"status": "ok", "stage": 8}
+
+    @app.get("/ready")
+    def ready():
+        from fastapi.responses import JSONResponse
+        try:
+            conn.execute("SELECT 1").fetchone()
+            db_ready = True
+        except Exception:
+            db_ready = False
+        mqtt = getattr(app.state, "mqtt", None)
+        mqtt_ready = bool(mqtt and mqtt.connected)
+        return JSONResponse({"database": db_ready, "mqtt": mqtt_ready},
+                            status_code=200 if db_ready and mqtt_ready else 503)
 
     log.info("Сервер готов. Веб-интерфейс: http://%s:%d/", cfg.server_host, cfg.server_port)
     return app
@@ -217,6 +234,9 @@ async def _lifespan_mqtt(app: FastAPI):
             log.exception("Погода: ошибка остановки фонового апдейтера")
     mqtt_infra.stop_mqtt()
     app.state.mqtt = None
+    app.state.command_service.close()
+    app.state.schedule_service.close()
+    app.state.db.close()
 
 
 try:

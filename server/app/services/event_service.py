@@ -62,10 +62,18 @@ class EventService:
 
         # Дедупликация по event_uid (ТЗ §9.2): повтор — тихо игнорируем.
         exists = self.conn.execute(
-            "SELECT id FROM watering_events WHERE event_uid=?",
-            (str(event_uid),)).fetchone()
+            "SELECT event_uid FROM processed_events WHERE controller_id=? AND event_uid=? AND consumer='event'",
+            (controller_id, str(event_uid))).fetchone()
         if exists:
-            log.info("EVENT: дубликат %s проигнорирован", event_uid)
+            # A process may stop after committing the event but before its flow
+            # consumer runs. Resume that consumer, whose durable marker is separate.
+            saved = self.conn.execute(
+                "SELECT id FROM watering_events WHERE controller_id=? AND event_uid=?",
+                (controller_id, str(event_uid))).fetchone()
+            flow = get_flow_service_ref()
+            if saved is not None and flow is not None:
+                flow.on_event_saved(saved["id"])
+            log.info("EVENT: duplicate %s ignored", event_uid)
             return None
 
         zones = [z for z in (p.get("active_zones") or [])
@@ -81,6 +89,11 @@ class EventService:
 
         try:
             with self.conn:
+                claim = self.conn.execute(
+                    "INSERT OR IGNORE INTO processed_events(controller_id,event_uid,consumer) VALUES(?,?,'event')",
+                    (controller_id, str(event_uid)))
+                if not claim.rowcount:
+                    return None
                 cur = self.conn.execute(
                     """INSERT INTO watering_events(
                            event_uid, started_event_uid, run_id, controller_id,
@@ -122,7 +135,7 @@ class EventService:
                            VALUES (?,?,?,?,?)""",
                         (event_id, zone_id,
                          int(p.get("water_sec") or 0),
-                         float(p["volume_liters"]) if p.get("volume_liters") is not None else None,
+                         float(p["volume_liters"]) / max(1, len(zones)) if p.get("volume_liters") is not None else None,
                          float(p["expected_flow_lpm"]) if p.get("expected_flow_lpm") is not None else None),
                     )
         except sqlite3.IntegrityError:

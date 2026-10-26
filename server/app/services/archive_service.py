@@ -90,7 +90,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
         else:
             q += "start_ts < ?"
             args = (cutoff_ts,)
-        return conn.execute(q + " ORDER BY start_ts, id", args).fetchall()
+        return conn.execute(q + " ORDER BY start_ts, id LIMIT 1000", args).fetchall()
     if entity_type == "flow":
         q = "SELECT * FROM flow_daily WHERE "
         if target_date:
@@ -100,7 +100,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
             q += "date < ?"
             args = (datetime.fromtimestamp(cutoff_ts, tz=timezone.utc)
                     .strftime("%Y-%m-%d"),)
-        return conn.execute(q + " ORDER BY date, controller_id, zone_id",
+        return conn.execute(q + " ORDER BY date, controller_id, zone_id LIMIT 1000",
                             args).fetchall()
     if entity_type == "notifications":
         q = "SELECT * FROM notifications WHERE "
@@ -110,7 +110,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
         else:
             q += "created_at < ?"
             args = (cutoff_iso,)
-        return conn.execute(q + " ORDER BY created_at, id", args).fetchall()
+        return conn.execute(q + " ORDER BY created_at, id LIMIT 1000", args).fetchall()
     if entity_type == "weather":
         q = "SELECT * FROM weather_observations WHERE "
         if target_date:
@@ -119,7 +119,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
         else:
             q += "ts < ?"
             args = (cutoff_ts,)
-        return conn.execute(q + " ORDER BY ts, id", args).fetchall()
+        return conn.execute(q + " ORDER BY ts, id LIMIT 1000", args).fetchall()
     if entity_type == "logs":
         q = "SELECT * FROM logs WHERE "
         if target_date:
@@ -128,7 +128,7 @@ def _fetch_rows(conn: sqlite3.Connection, entity_type: str,
         else:
             q += "ts < ?"
             args = (cutoff_iso,)
-        return conn.execute(q + " ORDER BY ts, id", args).fetchall()
+        return conn.execute(q + " ORDER BY ts, id LIMIT 1000", args).fetchall()
     raise ValueError(f"Неизвестный тип архивации: {entity_type}")
 
 
@@ -249,8 +249,11 @@ class ArchiveService:
         out = []
         for et in ENTITY_TYPES:
             try:
-                out.append(self.rotate(et, target_date=target_date,
-                                       dry_run=dry_run))
+                for _ in range(100):
+                    batch = self.rotate(et, target_date=target_date, dry_run=dry_run)
+                    out.append(batch)
+                    if dry_run or batch["row_count"] < 1000:
+                        break
             except Exception as exc:  # один тип не роняет весь цикл
                 log.exception("ARCHIVE: rotate(%s) упал", et)
                 out.append({"entity_type": et, "error": str(exc)})
@@ -273,8 +276,8 @@ class ArchiveService:
             if row is None:
                 raise KeyError(f"Export {export_id} not found")
             entity = row["entity_type"]
-            if entity not in _INSERT_SQL:
-                raise NotImplementedError(f"restore_export for {entity} is not implemented")
+            if entity not in integrity.TABLES:
+                raise ValueError(f"Unknown archive entity: {entity}")
             records, manifest = integrity.read_records(conn, row)
             restored = integrity.restore_records(conn, entity, records, manifest)
             return {"export_id": export_id, "entity_type": entity, "restored": restored,

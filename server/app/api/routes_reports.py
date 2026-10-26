@@ -122,7 +122,7 @@ def register_api_routes_reports(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
     for _name in rs.REPORTS:
         def make_handler(name=_name):
             async def handler(request: Request):
-                return _run(name, request)
+                return await run_in_threadpool(_run, name, request)
             handler.__name__ = f"report_{name}"
             return handler
 
@@ -138,7 +138,7 @@ def register_api_routes_reports(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
                     date_from, date_to = _range(request)
                 except rs.RangeError as exc:
                     return JSONResponse({"detail": str(exc)}, status_code=422)
-                data = rs.REPORTS[name](conn, date_from, date_to)
+                data = await run_in_threadpool(rs.REPORTS[name], conn, date_from, date_to)
                 rows = rs.report_rows_for_csv(name, data)
                 header = rs.CSV_HEADERS[name]
                 stamp = f"{date_from or 'all'}_{date_to or 'all'}"

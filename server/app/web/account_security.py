@@ -20,7 +20,7 @@ def register_account_security(app, cfg, db_path):
     """
     def current(token):
         with closing(connect_path(db_path)) as conn:
-            user = AuthService(conn, cfg).get_user_by_token(token, touch=False) if token else None
+            user = AuthService(conn, cfg).get_user_by_token(token, touch=True) if token else None
             return dict(user) if user else None
 
     @app.middleware('http')
@@ -40,14 +40,22 @@ def register_account_security(app, cfg, db_path):
             elif request.headers.get('sec-fetch-site') == 'cross-site':
                 return JSONResponse({'detail': 'Untrusted request origin'}, status_code=403)
         path = request.url.path
-        if path not in {'/login', '/logout', '/account/password', '/health'} and not path.startswith('/static/'):
+        user = None
+        if path not in {'/login', '/logout', '/account/password', '/health', '/ready'} and not path.startswith('/static/'):
             user = await run_in_threadpool(current, request.cookies.get(SESSION_COOKIE))
             if user and user['must_change_password']:
                 if path.startswith('/api/'):
                     return JSONResponse({'detail': 'Password change required',
                                          'code': 'password_change_required'}, status_code=403)
                 return RedirectResponse('/account/password', status_code=303)
-        return await call_next(request)
+        response = await call_next(request)
+        token = request.cookies.get(SESSION_COOKIE)
+        if user and token and response.status_code < 400:
+            response.set_cookie(SESSION_COOKIE, token, httponly=True, samesite='lax',
+                                secure=(request.url.scheme == 'https' or
+                                        bool(cfg.raw['server'].get('cookie_secure', False))),
+                                max_age=cfg.session_timeout_min * 60)
+        return response
 
     def form(error=''):
         # Error strings are fixed internal messages, never user input.

@@ -172,8 +172,8 @@ def register_api_routes_weather(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
         from ..core.schedule_compiler.compiler import compile_schedule
         from datetime import date as _date
         # baseline: текущая компиляция БЕЗ правил
-        before = compile_schedule(conn, dict(ctrl), today=_date.today(), weather_rules=[])
-        after = compile_schedule(conn, dict(ctrl), today=_date.today(), weather_rules=[rule])
+        before = await run_in_threadpool(compile_schedule, conn, dict(ctrl), today=_date.today(), weather_rules=[])
+        after = await run_in_threadpool(compile_schedule, conn, dict(ctrl), today=_date.today(), weather_rules=[rule])
         diff_runs = [s for s in after.skipped_runs
                      if s.get("reason_code") == "weather_skip"]
         fired = bool(after.weather_applications) or bool(diff_runs)

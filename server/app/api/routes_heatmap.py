@@ -26,6 +26,7 @@ from datetime import datetime
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from ..infra.logging import get_logger
 from ..services import heatmap_service as hm
@@ -104,7 +105,7 @@ def register_api_routes_heatmap(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
             if not controller_ids:
                 controller_ids = None
 
-        data = hm.build_heatmap(conn, date_str,
+        data = await run_in_threadpool(hm.build_heatmap, conn, date_str,
                                 interval_min=interval_min,
                                 controller_ids=controller_ids)
         return data

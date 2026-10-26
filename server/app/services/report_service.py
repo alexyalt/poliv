@@ -111,7 +111,14 @@ def report_by_zones(conn: sqlite3.Connection, date_from: Optional[str],
         (lo, hi)).fetchall()
     events = conn.execute(
         """SELECT ez.zone_id, e.status, e.reason_code, e.aborted,
-                  COALESCE(ez.volume_liters, e.volume_liters, 0) AS volume_liters,
+                  CASE WHEN e.volume_liters IS NULL THEN COALESCE(ez.volume_liters,0)
+                        WHEN COALESCE((SELECT SUM(COALESCE(z.volume_liters,0))
+                                       FROM watering_event_zones z WHERE z.event_id=e.id),0)>0
+                        THEN e.volume_liters * COALESCE(ez.volume_liters,0) /
+                             (SELECT SUM(COALESCE(z.volume_liters,0))
+                              FROM watering_event_zones z WHERE z.event_id=e.id)
+                        ELSE e.volume_liters / MAX(1,(SELECT COUNT(*)
+                              FROM watering_event_zones z WHERE z.event_id=e.id)) END AS volume_liters,
                   COALESCE(ez.water_sec, e.water_sec, 0) AS water_sec
            FROM watering_events e
            JOIN watering_event_zones ez ON ez.event_id = e.id
@@ -431,6 +438,20 @@ def report_by_incidents(conn: sqlite3.Connection, date_from: Optional[str],
 
 
 # ------------------------------------------------------------------ имена
+def report_by_missed(conn, date_from, date_to):
+    """Individual planned skips/cancellations, with reason and affected zones."""
+    lo, hi = _ts_bounds(date_from, date_to)
+    return [dict(row) for row in conn.execute(
+        """SELECT wr.id AS run_ref, wr.run_id, wr.controller_id,
+                  c.name AS controller_name, wr.program_id, wr.status,
+                  COALESCE(wr.reason_code,wr.status) AS reason,
+                  wr.planned_start_ts, wr.zones_json
+           FROM watering_runs wr JOIN controllers c ON c.id=wr.controller_id
+           WHERE wr.status IN ('skipped','cancelled')
+             AND wr.planned_start_ts BETWEEN ? AND ?
+           ORDER BY wr.planned_start_ts DESC,wr.id DESC""", (lo,hi))]
+
+
 REPORTS = {
     "zones": report_by_zones,
     "controllers": report_by_controllers,
@@ -438,9 +459,12 @@ REPORTS = {
     "months": report_by_months,
     "programs": report_by_programs,
     "incidents": report_by_incidents,
+    "missed": report_by_missed,
 }
 
 CSV_HEADERS = {
+    "missed": ["run_ref", "run_id", "controller_id", "controller_name",
+               "program_id", "status", "reason", "planned_start_ts", "zones_json"],
     "zones": ["zone_id", "zone_number", "zone_name", "controller_id",
               "controller_name", "runs_count", "total_minutes",
               "total_liters", "avg_duration_min", "skips_count",

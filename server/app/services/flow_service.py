@@ -22,6 +22,8 @@
 """
 from __future__ import annotations
 
+from ..infra.connection_scope import scoped_task
+
 import json
 import sqlite3
 import threading
@@ -178,6 +180,11 @@ class FlowService:
             "SELECT * FROM watering_events WHERE id=?", (event_id,)).fetchone()
         if ev is None or ev["status"] not in ("finished", "stopped"):
             return
+        already = self.conn.execute(
+            "SELECT 1 FROM processed_events WHERE controller_id=? AND event_uid=? AND consumer='flow'",
+            (ev["controller_id"], ev["event_uid"])).fetchone()
+        if already:
+            return
         self.apply_event_to_daily(ev)
         reason = ev["reason_code"]
         if reason in EMERGENCY_MESSAGE:
@@ -200,6 +207,11 @@ class FlowService:
             "SELECT zone_id FROM watering_event_zones WHERE event_id=?",
             (ev["id"],)).fetchall()
         with self.conn:
+            claim = self.conn.execute(
+                "INSERT OR IGNORE INTO processed_events(controller_id,event_uid,consumer) VALUES(?,?,'flow')",
+                (controller_id, ev["event_uid"]))
+            if not claim.rowcount:
+                return
             if zones:
                 per_zone = volume / len(zones)
                 for z in zones:
@@ -316,6 +328,7 @@ class FlowService:
                 return
             self._stop_inflight.add(controller_id)
 
+        @scoped_task
         def _worker():
             try:
                 svc = self.command_service

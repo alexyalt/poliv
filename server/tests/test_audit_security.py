@@ -22,7 +22,9 @@ def test_password_change_guard_and_other_sessions_revoked(h6):
     app = h6.app
     register_account_security(app, h6.cfg, str(h6.db_path))
     with TestClient(app) as guarded:
-        guarded.cookies.update(client.cookies)
+        # Mirror a browser host-only login cookie, not the harness global-domain cookie.
+        guarded.cookies.set('poliv_session', client.cookies.get('poliv_session'),
+                            domain='testserver.local', path='/')
         response = guarded.get('/api/controllers', follow_redirects=False)
         assert response.status_code == 403
         assert response.json()['code'] == 'password_change_required'

@@ -25,6 +25,7 @@ import threading
 import time
 import uuid
 from contextlib import nullcontext
+from ..infra.connection_scope import scoped_task
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -177,6 +178,10 @@ class MqttCommandService:
         # если не инжектирован — используется собственный SQL-запрос (ниже).
         self._flow_service = flow_service
         self._lock = threading.RLock()  # protects publication and cancellation only
+        self._worker_slots = threading.BoundedSemaphore(16)
+        self._stop_slots = threading.BoundedSemaphore(64)
+        self._workers = set()
+        self._closing = threading.Event()
         self._lanes = {}
         self._stop_generation = {}
 
@@ -332,8 +337,8 @@ class MqttCommandService:
         entry = mqtt.register_pending(command_id, box_id=box_id, command=command)
 
         def superseded():
-            return (command != "stop_all" and
-                    generation != self._stop_generation.get(box_id, 0))
+            return (self._closing.is_set() or (command != "stop_all" and
+                    generation != self._stop_generation.get(box_id, 0)))
 
         try:
             # Stops bypass the lane, even while another command awaits ACK.
@@ -443,15 +448,38 @@ class MqttCommandService:
         if user_id is not None:
             payload["user_id"] = user_id
         mqtt = self._mqtt
+        slots = self._stop_slots if command == "stop_all" else self._worker_slots
+        if self._closing.is_set() or not slots.acquire(blocking=False):
+            raise MqttUnavailable("Command worker capacity exhausted")
         generation, lane = self._command_lane(box_id, command)
 
+        @scoped_task
         def _worker():
             try:
                 self._execute_command(mqtt, box_id, command, payload, username,
                                       generation, lane)
             except Exception:
                 log.exception("Asynchronous command failed: %s", command_id)
+            finally:
+                slots.release()
+                with self._lock:
+                    self._workers.discard(threading.current_thread())
 
-        threading.Thread(target=_worker, daemon=True,
-                         name=f"cmd-{command_id[:8]}").start()
+        worker = threading.Thread(target=_worker, daemon=True, name=f"cmd-{command_id[:8]}")
+        with self._lock:
+            self._workers.add(worker)
+        try:
+            worker.start()
+        except BaseException:
+            with self._lock:
+                self._workers.discard(worker)
+            slots.release()
+            raise
         return command_id
+
+    def close(self):
+        self._closing.set()
+        with self._lock:
+            workers = tuple(self._workers)
+        for worker in workers:
+            worker.join(timeout=2)

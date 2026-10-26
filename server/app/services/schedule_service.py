@@ -27,6 +27,8 @@ schedule_ack/event) и из потоков FastAPI — все операции �
 """
 from __future__ import annotations
 
+from ..infra.connection_scope import ScopedConnection, scoped_task
+
 import json
 import sqlite3
 import threading
@@ -76,7 +78,7 @@ class ScheduleService:
     def conn(self) -> sqlite3.Connection:
         """Своё соединение для фоновых потоков (как у MqttServerClient)."""
         if self._conn is None:
-            self._conn = connect_path(self._db_path)
+            self._conn = ScopedConnection(self._db_path)
         return self._conn
 
     def close(self) -> None:
@@ -657,6 +659,11 @@ class ScheduleService:
             # Отмена устаревших планов выполняется только в _record_planned_runs
             # при applied новой версии (ACK).
             with self._lock, self.conn:
+                claim = self.conn.execute(
+                    "INSERT OR IGNORE INTO processed_events(controller_id,event_uid,consumer) VALUES(?,?,'schedule')",
+                    (cid, str(p["event_uid"])))
+                if not claim.rowcount:
+                    return
                 if status == "started":
                     # §3.9/Этап 4: событие несёт зоны, которые реально
                     # поливались в прогоне (ev_zones), а не текущие

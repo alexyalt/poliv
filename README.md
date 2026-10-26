@@ -108,3 +108,20 @@ headers только вашему proxy. Локальный HTTP остаётс�
 Чистую установку выполняйте с новым POLIV_DATA_ROOT либо отдельно подготовленным
 каталогом данных: историческая data/poliv.db из Git не является безопасным production seed.
 POLIV_DATA_ROOT задаётся до импорта приложения. Существующую рабочую БД заменять нельзя.
+
+
+### Завершение 8.S
+
+Оставшиеся программные изменения, ledger 0012 и правила обновления описаны в
+`docs/spec/current-status.md` (последнее дополнение). Доступны отдельный отчёт
+«Пропущенные поливы», период heatmap «7 дней», восстановление flow/weather,
+/ready и ограничение командных workers. Для безопасной подготовки независимых
+данных: остановить приложение и выполнить
+`python -m server.tools.prepare_runtime --destination /absolute/outside/checkout`.
+Команда сохраняет источник. После проверки копии настроить POLIV_DATA_ROOT до
+обновления checkout. Пользовательские абсолютные пути/архивы вне checkout копировать
+отдельно; старые пути в archive_exports сохраняются и требуют проверки доступности.
+
+Опциональный UI smoke без реального сервера: установить playwright, выполнить
+`python -m playwright install --with-deps chromium`, затем
+`python -m server.tools.browser_smoke`. Playwright не добавлен в runtime lock.

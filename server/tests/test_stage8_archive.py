@@ -318,15 +318,17 @@ def test_restore_events_roundtrip(h6, tmp_path):
     assert s.restore_export(exp["id"])["restored"] == 0
 
 
-def test_restore_flow_not_implemented(h6, tmp_path):
+def test_restore_flow_roundtrip(h6, tmp_path):
     c = mk_controller(h6)
     yday = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
     add_flow_daily(h6, date=yday, cid=c["id"])
     s = svc(h6, tmp_path)
     s.rotate("flow", target_date=yday)
     exp = s.list_exports("flow")[0]
-    with pytest.raises(NotImplementedError):
-        s.restore_export(exp["id"])
+    assert s.restore_export(exp["id"])["restored"] == 1
+    restored = h6.conn.execute("SELECT * FROM flow_daily").fetchone()
+    assert restored["total_volume_l"] == 10.0
+    assert s.restore_export(exp["id"])["restored"] == 0
 
 
 def test_restore_missing_export_raises(h6, tmp_path):
