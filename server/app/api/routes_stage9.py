@@ -118,6 +118,7 @@ def register_api_routes_stage9(app,cfg,conn,schedules,commands):
             if k=='target' and v not in ('reduce_peaks','smooth_consumption'):raise NormalizationError('Неверная цель')
         with conn:
             for k,v in body.items():conn.execute("UPDATE settings SET value_json=?,updated_at=datetime('now') WHERE key=?",(json.dumps(v),'normalization.'+k))
+            normal._audit(conn,'normalization.settings',0,user['username'],body)
         return config(conn)
 
     templates=Jinja2Templates(directory=str(Path(app.state.app_dir)/'templates'))

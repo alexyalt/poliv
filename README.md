@@ -138,3 +138,24 @@ POLIV_DATA_ROOT задаётся до импорта приложения. Су�
 в копии БД. Проверяйте `runtime-copy.json`: ready=true и список external_files.
 Исходники/исходная БД сохраняются; при ошибке ready=false и копия не пригодна к запуску.
 Текущая итоговая матрица F01–F16 — `docs/spec/current-status.md`, история — WorkBook.
+
+
+## Этап 9 — блокировки зон и нормализация
+
+Реализованы 9A/9B в `feature/stage9-locks-normalization` от 9cab288. Страница
+`/stage9` для operator/admin: интервальные auto/all/service блокировки, быстрые
+час/24 часа, снятие, предложения day/week с before/after и подтверждением.
+Миграция 0013 additive, старые данные сохраняются. Полная приёмка и ограничения:
+[инструкция](docs/ИНСТРУКЦИЯ_ЭТАП9.md), [ADR-19](docs/adr/ADR-19-stage9.md).
+
+Optimizer отдельный, переносит целые runs внутри исходного дня/окна. Не меняет
+water/soak, parallel membership, погоду и программы. Нужно >=3 корректных одиночных
+события каждой зоны за 90 дней. Apply требует confirm, отвергает stale snapshot,
+создаёт версии полного горизонта и использует existing next_run delivery. Future
+heatmap — подтверждённый ACK план, не факт. Offline box не получает физический запрет
+до доставки; UI возвращает delivery/ошибки. Firmware safety/клавиатура — этап 10.
+
+`python -m server.tools.stage9_smoke` проверяет Chromium→FastAPI→SQLite с fake MQTT;
+Mosquitto smoke также проверяет stage9 manual block/release на настоящем broker.
+CI runs feature/**, tests/browser/mqtt. Сохранение прогресса: каждый checkpoint
+commit включает запись WorkBook и промежуточный push; docs/STAGE9_PROGRESS.md.

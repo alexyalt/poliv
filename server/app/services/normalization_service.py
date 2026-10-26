@@ -59,6 +59,8 @@ class NormalizationService:
         if not isinstance(data,dict):raise NormalizationError('Ожидается объект')
         cfg=config(self.conn)
         if not cfg['enabled']:raise NormalizationError('Нормализация отключена')
+        if set(data)-{'scope','date','controller_ids','target','respect_zone_blocks','respect_season','respect_weather','window_start_minute','window_end_minute'}:
+            raise NormalizationError('Неизвестное поле задачи')
         scope=data.get('scope',cfg['default_mode']);target=data.get('target',cfg['target'])
         if scope not in ('day','week') or target not in ('reduce_peaks','smooth_consumption'):raise NormalizationError('Неверный scope/target')
         try:day=date.fromisoformat(data.get('date',date.today().isoformat()))
@@ -135,11 +137,14 @@ class NormalizationService:
                         cursor=end
                     return True
                 proposal=optimize(all_runs,target=target,window_start=lo,window_end=hi,allowed=allowed)
+                target_metric='peak_lpm' if target=='reduce_peaks' else 'squared_load'
+                if proposal['metrics_after'][target_metric]>proposal['metrics_before'][target_metric]:
+                    proposal['constraint_warning']='Заданное окно увеличивает нагрузку относительно исходного расписания'
                 proposal.update(statistics=statistics,source_snapshot=snapshot_hash(conn),
                                 window_start_minute=lo,window_end_minute=hi,
                                 timezone_offsets=offsets,
                                 warnings=['Оценка по одиночным событиям; давление сети не измеряется. Новая параллельность не создаётся.',
-                                          'Переносы только внутри исходного дня; суммарные water/soak длительности сохранены.'])
+                                          'Переносы только внутри исходного дня; суммарные water/soak длительности сохранены.'] + ([proposal['constraint_warning']] if 'constraint_warning' in proposal else []))
                 conn.execute('''INSERT INTO normalization_proposals(job_id,payload_json,before_hash,after_hash,warnings_json)
                     VALUES(?,?,?,?,?)''',(identity,json.dumps(proposal,ensure_ascii=False),digest(proposal['before']),digest(proposal['after']),json.dumps(proposal['warnings'],ensure_ascii=False)))
                 conn.execute("UPDATE normalization_jobs SET status='ready',finished_at=datetime('now') WHERE id=?",(identity,))
@@ -156,7 +161,7 @@ class NormalizationService:
         with self.schedules._lock, transaction(self.conn) as conn:
             service=NormalizationService(conn,self.cfg)
             job=service.get(identity);row=service.proposal(identity);payload=row['payload']
-            if job['status']=='applied':return {'applied':True,'already_applied':True}
+            if job['status']=='applied':return {'applied':True,'already_applied':True,'schedule_ids':payload.get('applied_schedule_ids',[])}
             if job['status']!='ready' or row['status']!='proposed':raise NormalizationError('Предложение не готово к применению')
             if payload['source_snapshot']!=snapshot_hash(conn):raise StaleProposal('Данные изменились; создайте новое предложение')
             if not config(conn)['enabled']:raise NormalizationError('Нормализация отключена')
@@ -187,6 +192,8 @@ class NormalizationService:
                 item.schedule_hash=_canonical_hash(item.payload);item.payload['schedule_hash']=item.schedule_hash
                 sid,_=persist_schedule(conn,item,data_dir=self.cfg.data_dir,status='compiled',created_by=actor)
                 schedule_ids.append(sid)
+            payload['applied_schedule_ids']=schedule_ids
+            conn.execute('UPDATE normalization_proposals SET payload_json=? WHERE job_id=?',(json.dumps(payload,ensure_ascii=False),identity))
             conn.execute("UPDATE normalization_jobs SET status='applied' WHERE id=?",(identity,))
             conn.execute("UPDATE normalization_proposals SET status='applied',applied_by=?,applied_at=datetime('now') WHERE job_id=?",(actor,identity))
             self._audit(conn,'normalization.applied',identity,actor,{'schedule_ids':schedule_ids,'before_hash':row['before_hash'],'after_hash':row['after_hash']})

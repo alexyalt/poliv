@@ -292,7 +292,7 @@ def build_heatmap(conn: sqlite3.Connection, date: str, *,
     # ---- активные блокировки зон (zone_locks) -------------------------------
     all_zone_ids = [z["id"] for zz in by_ctrl.values() for z in zz]
     lock_rows = conn.execute(
-        """SELECT zl.zone_id, zl.locked_at, zl.unlock_at FROM zone_locks zl
+        """SELECT zl.zone_id, zl.locked_at, zl.unlock_at, zl.start_ts, zl.end_ts FROM zone_locks zl
             WHERE zl.active = 1 AND zl.zone_id IN (%s)"""
         % ",".join("?" * len(all_zone_ids)), all_zone_ids).fetchall() if all_zone_ids else []
     for lr in lock_rows:
@@ -315,8 +315,15 @@ def build_heatmap(conn: sqlite3.Connection, date: str, *,
                 ua = datetime.fromisoformat(lr["unlock_at"]).timestamp()
             except (ValueError, TypeError):
                 ua = None
+        if lr['start_ts'] is not None:
+            la=lr['start_ts'];ua=lr['end_ts']
+            if la>=hi or (ua is not None and ua<=lo):
+                continue
+            end_limit=hi
+        else:
+            end_limit=day_end
         a = _slot_of(max(int(la), lo))
-        b = n - 1 if ua is None else _slot_of(min(int(ua) - 1, day_end - 1))
+        b = n - 1 if ua is None else _slot_of(min(int(ua) - 1, end_limit - 1))
         _paint(pos[0], pos[1], "blocked", a, b)
 
     # ---- offline: ни одного раскрашенного слота + контроллер офлайн --------

@@ -25,7 +25,7 @@ from pathlib import Path
 # (например, 0.2.0+fd22a77), чтобы по заголовку вкладки видно, какие изменения
 # реально загружены на локальную машину. Если git недоступен (запуск из копии
 # без .git, продакшен-сборка) — остаётся только базовая версия.
-APP_VERSION_BASE = "0.8.0"
+APP_VERSION_BASE = "0.9.0"
 
 
 def _git_short_hash() -> str:
@@ -167,7 +167,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "stage": 8}
+        return {"status": "ok", "stage": 9}
 
     @app.get("/ready")
     def ready():

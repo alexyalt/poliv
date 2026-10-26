@@ -25,3 +25,14 @@
 существующих запусков в пределах их исходного дня (week оптимизирует 7 дней).
 Разбиение/перенос между днями не требуется как обязательный метод: это может менять
 агрономические интервалы и оставлено будущей версии, без заявления реализации.
+
+
+## Текущая контрольная точка
+
+Ядро 9A, proposal lifecycle 9B, API/UI, BlockEnforcer, preserve-horizon apply и
+acknowledged-plan heatmap реализованы. Последний функциональный checkpoint:
+86d652f. После него добавлены отказ atomic rollback, сохранение schedule_ids при
+повторе apply, история applied/rejected в UI и docs. Целевые stage9 19 passed,
+Chromium/FastAPI/SQLite и настоящий Mosquitto stage9 smoke успешны.
+Текущий шаг: итоговый полный pytest/upgrade/CI и обновление WorkBook результатом.
+Не повторять применение уже applied job — сервис идемпотентен, сверить proposal.

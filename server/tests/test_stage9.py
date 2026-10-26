@@ -237,3 +237,43 @@ def test_apply_ack_and_heatmap_show_new_start(h6):
         slot=run['start_minute_local']//15
         assert row['zones'][0]['cells'][slot]=='water'
     service.schedules.close()
+
+
+def test_apply_is_atomic_on_conflicting_second_controller(h6,monkeypatch):
+    from datetime import timedelta
+    from server.app.services import normalization_service as ns
+    service,ids=normalization_fixture(h6)
+    job=service.create({'date':(date.today()+timedelta(days=1)).isoformat(),'controller_ids':ids},'op')
+    original=ns.persist_schedule;calls=[]
+    def fail_second(*args,**kwargs):
+        calls.append(1)
+        if len(calls)==2:raise RuntimeError('injected persist failure')
+        return original(*args,**kwargs)
+    monkeypatch.setattr(ns,'persist_schedule',fail_second)
+    with pytest.raises(RuntimeError):service.apply(job['id'],'op',True)
+    assert h6.conn.execute('SELECT count(*) FROM normalization_overrides').fetchone()[0]==0
+    assert h6.conn.execute('SELECT count(*) FROM controller_schedules').fetchone()[0]==0
+    assert service.get(job['id'])['status']=='ready'
+    service.schedules.close()
+
+
+def test_future_service_block_and_quick_validation(h6):
+    c,z,p=setup_program(h6)
+    now=int(time.time());svc=BlockService(h6.conn)
+    with pytest.raises(BlockError):svc.quick(z['id'],{'duration_hours':float('nan'),'reason':'x'},'op')
+    svc.create({'zone_id':z['id'],'start_ts':now+100,'end_ts':now+200,'kind':'service','reason':'future'},'op')
+    from server.app.services.block_service import check_manual
+    check_manual(h6.conn,c['id'],'zone_open',{'zone':1,'duration_sec':20})
+    with pytest.raises(BlockError):check_manual(h6.conn,c['id'],'zone_open',{'zone':1,'duration_sec':120})
+
+
+def test_future_block_visible_on_heatmap(h6):
+    from datetime import timedelta
+    from server.app.services.heatmap_service import build_heatmap
+    c,z,_=setup_program(h6)
+    day=date.today()+timedelta(days=1)
+    lo=int(datetime.combine(day,datetime.min.time()).timestamp())
+    BlockService(h6.conn).create({'zone_id':z['id'],'start_ts':lo+3600,'end_ts':lo+7200,'reason':'future'},'op')
+    cells=build_heatmap(h6.conn,day.isoformat())['rows'][0]['zones'][0]['cells']
+    assert cells[4:8]==['blocked']*4
+    assert cells[3]=='idle' and cells[8]=='idle'

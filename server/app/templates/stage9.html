@@ -39,7 +39,7 @@ async function refresh(){
  const [blocks,jobs]=await Promise.all([api('zone-blocks'),api('normalization/jobs')]);
  by('blocks').replaceChildren();by('jobs').replaceChildren();
  blocks.items.forEach(b=>{const row=text(by('blocks'),'p',`#${b.id}, зона ${b.zone_id}: ${b.reason}; ${b.block_type||b.kind}; ${b.active?'активна':'снята'}; ${b.start_ts?new Date(b.start_ts*1000).toLocaleString():b.locked_at} — ${b.end_ts?new Date(b.end_ts*1000).toLocaleString():'бессрочно'}`);if(b.active)button(row,'Снять',async()=>{by('delivery').textContent=JSON.stringify(await api('zone-blocks/'+b.id,'DELETE'),null,2);await refresh();});});
- jobs.items.forEach(j=>{const row=text(by('jobs'),'p',`#${j.id}: ${j.scope} ${j.date_from} — ${j.status}${j.error_message?' — '+j.error_message:''}`);if(j.status==='ready')button(row,'Просмотреть',()=>loadProposal(j.id));});
+ jobs.items.forEach(j=>{const row=text(by('jobs'),'p',`#${j.id}: ${j.scope} ${j.date_from} — ${j.status}${j.error_message?' — '+j.error_message:''}`);if(['ready','applied','rejected'].includes(j.status))button(row,'Просмотреть',()=>loadProposal(j.id));});
 }
 function blockData(){return {zone_id:Number(by('block-zone').value),kind:by('block-kind').value,reason:by('block-reason').value};}
 async function quick(hours){const data=blockData();by('delivery').textContent=JSON.stringify(await api('zones/'+data.zone_id+'/quick-block','POST',{...data,duration_hours:hours}),null,2);await refresh();}
@@ -52,6 +52,7 @@ async function loadProposal(id){
  const table=text(box,'table','');const head=text(table,'tr','');['Контроллер','Программа','Дата','Было (мин)','Станет (мин)'].forEach(v=>text(head,'th',v));
  p.changes.forEach(c=>{const row=text(table,'tr','');[c.controller_id,c.program_id,c.date,c.before_minute,c.after_minute].forEach(v=>text(row,'td',v));});
  if(!p.changes.length)text(box,'p','Изменения не требуются.');
+ if(proposal.status!=='proposed'){text(box,'p','Состояние: '+proposal.status+'; версии: '+(p.applied_schedule_ids||[]).join(', '));return;}
  const label=text(box,'label','Подтверждаю применение новых версий расписаний ');const check=document.createElement('input');check.type='checkbox';check.id='norm-confirm';label.append(check);
  button(box,'Применить',async()=>{if(!check.checked)throw new Error('Подтвердите применение');by('delivery').textContent=JSON.stringify(await api('normalization/jobs/'+id+'/apply','POST',{confirm:true}),null,2);box.replaceChildren();await refresh();});
  button(box,'Отклонить',async()=>{await api('normalization/jobs/'+id+'/reject','POST',{});box.replaceChildren();await refresh();});

@@ -95,3 +95,13 @@ Backup до обновления. Python 3.13, requirements.lock, один worke
 производственные TLS/ACL, reverse proxy, Windows и длительная production нагрузка
 не проверялись. Regression 50×16×96 входит в полный pytest, но не заменяет нагрузку
 с реальной телеметрией. Эти эксплуатационные проверки не объявлены выполненными.
+
+
+## Этап 9 в отдельной feature-ветке
+
+Реализация 9A/9B: migration 0013; core/blocks + BlockService/Enforcer;
+core/normalization/optimizer + NormalizationService; API routes_stage9 + /stage9.
+Программная область и ограничения в ADR-19/ИНСТРУКЦИЯ_ЭТАП9.md. Основной main до
+слияния не изменяется. 9B только proposal/confirm, shifts whole runs внутри дня,
+без переписывания погоды/длительности. Week — семь исходных дней. До внедрения
+проверить реальный box/ACK, гидравлические ограничения и safe stop на стенде.

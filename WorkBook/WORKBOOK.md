@@ -607,3 +607,9 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Сделано:** подтверждённые будущие планы рисуются heatmap с planned_cells (не факт); metadata normalization стабильно при повторной компиляции; block skips раздельны по зоне/дате. CI включает feature/** и stage9_smoke; реальный Mosquitto smoke дополнен запретом publish blocked manual и разрешением после release.
 - **Проверки:** stage9+heatmap: 41 passed; Chromium→FastAPI→SQLite: quick block/release, preview, отказ без confirm, apply/ACK/heatmap успешны; настоящий Mosquitto stage9 block/release успешен.
 - **Следующий шаг:** документация ADR/инструкция/матрица, upgrade старой БД, полный pytest и remote CI. До полного итогового прогона этап не объявляется готовым.
+
+
+## [26.10.2026 UTC] Этап 9 — stage9: document acceptance and strengthen recovery invariants
+- **Сделано:** ADR-19, manual runbook и актуальная матрица/README; tests атомарного rollback двух controllers и будущей manual/service блокировки; applied schedule_ids сохраняются для restart/repeated apply, applied/rejected history доступна UI; future lock виден heatmap; настройки аудируются; версия 0.9.0/health stage9.
+- **Проверки:** предыдущий полный pytest 284 passed/1 skipped (152.29 с); актуальные stage9+heatmap 44 passed. Chromium→API→SQLite повторно успешен. Upgrade точной копии исторической БД через 0013 идемпотентен, users/controllers/zones/logs сохранены, integrity/FK OK.
+- **Следующий шаг:** только финальные полный pytest, browser+MQTT, remote CI и итоговая запись. Не расширять алгоритм на переносы дней/изменение water duration; ADR-19 фиксирует безопасный ограниченный метод.
