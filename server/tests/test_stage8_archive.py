@@ -29,6 +29,7 @@ from pathlib import Path
 import pytest
 
 from server.app.services import archive_service as ar
+from server.app.api.routes_reports import register_api_routes_reports
 from server.tests.test_stage6 import _Harness6
 
 
@@ -407,3 +408,107 @@ def test_start_stop_singleton(tmp_path, h6):
     finally:
         ar.stop_archive_daemon()
     assert ar._daemon is None
+
+
+# ------------------------------------------------- API архива (routes_reports)
+# Вспомогательные эндпоинты для ручной проверки ротации (ИНСТРУКЦИЯ_ЭТАП8 §3).
+class _HarnessArc(_Harness6):
+    def __init__(self):
+        super().__init__(with_web=True)
+        register_api_routes_reports(self.app, self.cfg, self.conn)
+
+
+@pytest.fixture()
+def harc(tmp_path):
+    h = _HarnessArc()
+    # Архив — во временный каталог теста, боевой data/ не трогаем.
+    h._orig_as = ar.ArchiveService
+    root = tmp_path / "data"
+
+    def _patched(conn, data_root=None):
+        return h._orig_as(conn, root)
+    ar.ArchiveService = _patched
+    yield h, root
+    ar.ArchiveService = h._orig_as
+    h.close()
+
+
+def test_api_archive_config(harc):
+    h, _ = harc
+    c = h.login_as("viewer")
+    r = c.get("/api/v1/archive/config")
+    assert r.status_code == 200
+    cfg = r.json()
+    assert cfg["retention_days"] == 365 and cfg["path"] == "archive"
+
+
+def test_api_archive_config_anonymous_401(harc):
+    h, _ = harc
+    assert h.client.get("/api/v1/archive/config").status_code == 401
+
+
+def test_api_archive_exports_empty(harc):
+    h, _ = harc
+    c = h.login_as("viewer")
+    r = c.get("/api/v1/archive/exports")
+    assert r.status_code == 200
+    assert r.json() == {"items": [], "total": 0}
+
+
+def test_api_archive_exports_bad_entity_422(harc):
+    h, _ = harc
+    c = h.login_as("viewer")
+    r = c.get("/api/v1/archive/exports?entity_type=nope")
+    assert r.status_code == 422
+
+
+def test_api_archive_rotate_requires_operator(harc):
+    h, _ = harc
+    v = h.login_as("viewer")
+    assert v.post("/api/v1/archive/rotate", json={}).status_code == 403
+
+
+def test_api_archive_rotate_dry_run(harc):
+    h, root = harc
+    c0 = mk_controller(h)
+    z = mk_zone(h, c0["id"], 1)
+    add_event(h, cid=c0["id"], uid="ev-dry", zone_id=z["id"],
+              start_ts=_ts(400))
+    op = h.login_as("operator")
+    r = op.post("/api/v1/archive/rotate",
+                json={"entity_type": "events",
+                      "target_date": ar.utc_date(400), "dry_run": True})
+    assert r.status_code == 200
+    res = r.json()["result"]
+    assert res["row_count"] == 1 and res["dry_run"] is True
+    # dry_run: файл не создан, строки на месте
+    assert not (root / "archive" / "events").exists()
+    assert h.conn.execute(
+        "SELECT COUNT(*) c FROM watering_events").fetchone()["c"] == 1
+
+
+def test_api_archive_rotate_and_journal(harc):
+    h, root = harc
+    c0 = mk_controller(h)
+    z = mk_zone(h, c0["id"], 1)
+    add_event(h, cid=c0["id"], uid="ev-api", zone_id=z["id"],
+              start_ts=_ts(400))
+    op = h.login_as("operator")
+    r = op.post("/api/v1/archive/rotate",
+                json={"entity_type": "events",
+                      "target_date": ar.utc_date(400)})
+    assert r.status_code == 200
+    res = r.json()["result"]
+    assert res["row_count"] == 1 and res["file_hash"]
+    assert Path(res["file_path"]).exists()
+    assert h.conn.execute(
+        "SELECT COUNT(*) c FROM watering_events").fetchone()["c"] == 0
+    j = op.get("/api/v1/archive/exports?entity_type=events").json()
+    assert j["total"] == 1 and j["items"][0]["row_count"] == 1
+
+
+def test_api_archive_rotate_all_bad_date_422(harc):
+    h, _ = harc
+    op = h.login_as("operator")
+    r = op.post("/api/v1/archive/rotate", json={"target_date": "2026-13-99"})
+    assert r.status_code == 422

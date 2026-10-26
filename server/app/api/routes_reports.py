@@ -26,6 +26,8 @@ read-эндпоинтах проекта). CSV собирается общей �
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, Request
@@ -33,7 +35,9 @@ from fastapi.responses import JSONResponse
 
 from ..infra.csv_export import csv_response
 from ..infra.logging import get_logger
+from ..services import archive_service as arcsvc
 from ..services import report_service as rs
+from ..services.archive_service import ArchiveService
 from .routes_stage3 import _user
 
 log = get_logger("poliv.api8.reports")
@@ -141,3 +145,69 @@ def register_api_routes_reports(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
             return csv_handler
 
         api("GET", f"/api/v1/reports/{_name}.csv")(make_csv_handler())
+
+    # ------------------------------------------------ Архив (блок 8.2, ADR-14)
+    # Вспомогательные эндпоинты для ручной проверки ротации без кода на сервере
+    # (см. docs/ИНСТРУКЦИЯ_ЭТАП8.md §3). Канонический корень данных — cfg-путь
+    # рядом с БД (data/), как в main.py при старте ArchiveDaemon.
+    data_root = getattr(cfg, "project_root", None) or Path("data").parent
+
+    def _archive_service() -> ArchiveService:
+        return ArchiveService(conn, data_root)
+
+    @app.get("/api/v1/archive/config")
+    async def archive_config(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+        return arcsvc.archive_config(conn)
+
+    @app.get("/api/v1/archive/exports")
+    async def archive_exports(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+        entity_type = request.query_params.get("entity_type") or None
+        if entity_type is not None and entity_type not in arcsvc.ENTITY_TYPES:
+            return JSONResponse({"detail": "неизвестный entity_type"},
+                                status_code=422)
+        limit = _int_param(request, "limit", 100, 1, 1000)
+        items = _archive_service().list_exports(entity_type, limit=limit)
+        return {"items": items, "total": len(items)}
+
+    @app.post("/api/v1/archive/rotate")
+    async def archive_rotate(request: Request):
+        denied = _check(request, "operator")
+        if denied is not None:
+            return denied
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        dry_run = bool(body.get("dry_run", False))
+        target_date = body.get("target_date")
+        entity_type = body.get("entity_type")
+        if target_date is not None:
+            try:
+                datetime.strptime(target_date, "%Y-%m-%d")
+            except ValueError:
+                return JSONResponse(
+                    {"detail": "target_date должен быть YYYY-MM-DD"},
+                    status_code=422)
+        svc = _archive_service()
+        try:
+            if entity_type is None:
+                results = svc.rotate_all(dry_run=dry_run,
+                                         target_date=target_date)
+                return {"dry_run": dry_run, "results": results}
+            if entity_type not in arcsvc.ENTITY_TYPES:
+                return JSONResponse({"detail": "неизвестный entity_type"},
+                                    status_code=422)
+            res = svc.rotate(entity_type, target_date=target_date,
+                             dry_run=dry_run)
+            return {"dry_run": dry_run, "result": res}
+        except Exception as exc:
+            log.exception("ARCHIVE: rotate через API упал")
+            return JSONResponse({"detail": str(exc)}, status_code=500)
