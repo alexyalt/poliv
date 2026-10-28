@@ -1,6 +1,6 @@
 # Windows 10/11: запуск и предфинальное ручное тестирование
 
-Рабочая ветка: **fix/windows-preflight-audit**. Она содержит предыдущую прошивку,
+Рабочая ветка для ручного тестирования: **main**. Она содержит предыдущую прошивку,
 монитор и погоду. Руководство — для PowerShell, Python 3.13 x64 и Mosquitto 2.x
 на самой Windows, без WSL. Поддерживаемый сценарий этой приёмки: локальный браузер,
 один ESP32 по Wi-Fi, прошивка по USB, одна зона на контроллере одновременно.
@@ -34,7 +34,7 @@ New-Item -ItemType Directory -Force C:\PolivLab | Out-Null
 Set-Location C:\PolivLab
 git clone https://github.com/alexyalt/poliv.git
 Set-Location .\poliv
-git switch fix/windows-preflight-audit
+git switch main
 py -3.13 --version
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -q -r requirements.lock

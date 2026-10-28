@@ -743,3 +743,9 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Реальный Windows runner:** зависимости и pip check SUCCESS; полный pytest: 307 passed/1 skipped/1 failed — runtime_copy test не закрывал sqlite connection перед rename. Linux позволял rename открытого файла, Windows нет. Исправлено явным close, без skip теста.
 - **Дополнено:** cleanup временных DB test harness, UI reset с подтверждением и browser отказ/completed; emulator clear_error включён в коммит. Локальный чистый полный прогон после cleanup: 308 passed/1 skipped. Повтор Windows запускается после push.
 - **Ограничение:** готовность всего проекта/OTA не объявляется. Локальный USB стенд — отдельная допускаемая матрица.
+
+## [28.10.2026] Финальная проверка GitHub и разрешённый merge
+- **Запрос:** проверить failed run, исправить, загрузить все данные, слить с main после зелёных проверок.
+- **Результат:** 4011035 Windows CI SUCCESS (40748512661); audit tests/browser/MQTT SUCCESS (40748512598); firmware SUCCESS (40748512409). SQLite file-lock в failed run устранён без skip теста.
+- **Merge review:** origin/main является предком ветки, конфликтов нет; diff --check чисто; секреты/локальные runtime не включаются. Последние изменения — только запись результатов и переключение инструкции на main.
+- **Готовность:** начало предфинального ручного Windows/USB теста по WINDOWS_MANUAL_TEST.md; аппаратная/OTA/production приёмка не заявляется. Пользователь явно разрешил merge.

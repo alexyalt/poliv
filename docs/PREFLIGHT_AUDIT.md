@@ -48,3 +48,11 @@ stage9, настоящий Mosquitto retries/stop/replay/reset и TLS/ACL; pip c
 
 Начало ручного тестирования: WINDOWS_MANUAL_TEST.md. Шаблон отчёта:
 MANUAL_ACCEPTANCE_REPORT.md. Полевой непрерывный режим требует отдельного решения.
+
+## Подтверждённый Windows CI
+
+Коммит 4011035: Windows job SUCCESS — установка locked dependencies, pip check,
+полный pytest, Chromium weather/monitor/reset, ESP32 cross-build, PowerShell parse.
+Также SUCCESS audit-checks (tests/browser/MQTT) и firmware-checks.
+Windows run: https://github.com/alexyalt/poliv/actions/runs/40748512661 .
+Это Windows runner без USB-платы; реальный COM/клапаны остаются ручной приёмкой.
