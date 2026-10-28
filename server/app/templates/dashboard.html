@@ -28,7 +28,7 @@
   const zones = JSON.parse(document.getElementById('dash-zones').textContent);
   const root = document.getElementById('dashboard-tiles');
   const dialog = document.getElementById('start-dialog');
-  let current = [], stale = false, problemsOnly = false;
+  let current = [], stale = false, problemsOnly = false, dialogController = null;
   document.querySelector('#start-form input[name=duration_sec]').value=preferences['dashboard.manual_seconds'] || 60;
   const make = (tag, cls, text) => {const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
   function state(c) {
@@ -43,6 +43,7 @@
   }
   function zoneName(c,n) {const z=zones.find(z=>z.controller_id===c.id && z.zone_number===n);return z?z.name:'Зона '+n;}
   function start(c,n) {
+    dialogController=c.id;
     document.getElementById('start-controller').textContent=c.name;
     const select=document.getElementById('start-zone');select.replaceChildren();
     for(const z of zones.filter(z=>z.controller_id===c.id && z.enabled && !z.deleted_at)) {
@@ -81,7 +82,11 @@
     return card;
   }
   function render(data) {
-    current=data;root.replaceChildren();let count=0;
+    current=data;
+    if(dialog.open){const c=data.find(v=>v.id===dialogController);if(!c || stale || ['offline','error','service','paused'].includes(state(c)[0]))dialog.close();}
+    const focused=document.activeElement;const focusedCard=focused && focused.closest('[data-controller-id]');
+    const focusId=focusedCard && focusedCard.dataset.controllerId;const focusText=focused && focused.tagName==='BUTTON'?focused.textContent:null;
+    root.replaceChildren();let count=0;
     const priority={error:0,offline:1,warning:2,watering:3,paused:4,soak:5,service:6,ready:7};
     const sorted=[...data].sort((a,b)=>(priority[state(a)[0]]-priority[state(b)[0]]) || a.name.localeCompare(b.name,'ru'));
     for(const c of sorted) {
@@ -91,6 +96,7 @@
         for(const n of c.active_zones){root.append(tile(c,n));count++;}
       } else {root.append(tile(c));count++;}
     }
+    if(focusId && focusText){const card=root.querySelector('[data-controller-id="'+focusId+'"]');const button=card && [...card.querySelectorAll('button')].find(b=>b.textContent===focusText);if(button && !button.disabled)button.focus({preventScroll:true});}
     document.getElementById('dash-empty').hidden=count>0 || stale;
     const summary=document.getElementById('dash-summary');summary.replaceChildren();
     for(const [text,value,kind] of [['Всего',data.length,''],['Полив',data.filter(c=>state(c)[0]==='watering').length,'watering'],['Аварии',data.filter(c=>state(c)[0]==='error').length,'error'],['Нет связи',data.filter(c=>state(c)[0]==='offline').length,'offline']]){const badge=make('span','summary-chip '+kind);badge.append(make('strong','',value),document.createTextNode(' '+text));summary.append(badge);}
@@ -98,6 +104,7 @@
     health.className='monitor-health '+(issues?'has-issues':'all-clear');health.textContent=stale?'Данные устарели':(issues?'Требуют внимания: '+issues:'Все контроллеры без обнаруженных проблем')+' · Обновлено '+new Date().toLocaleTimeString('ru-RU');
     if(problemsOnly && !count)document.getElementById('dash-empty').textContent='Проблем по выбранному фильтру нет';
   }
+  document.getElementById('start-form').onsubmit=e=>{const c=current.find(v=>v.id===dialogController);if(stale || !c || ['offline','error','service','paused'].includes(state(c)[0])){e.preventDefault();dialog.close();}};
   document.getElementById('problems-only').onchange=e=>{problemsOnly=e.target.checked;render(current);};
   const modeButton=document.getElementById('monitor-mode');
   modeButton.onclick=async()=>{document.body.classList.toggle('monitor-mode');const on=document.body.classList.contains('monitor-mode');modeButton.textContent=on?'Выйти из монитора':'На весь экран';try{if(on && !document.fullscreenElement)await document.documentElement.requestFullscreen();else if(!on && document.fullscreenElement)await document.exitFullscreen();}catch{}};

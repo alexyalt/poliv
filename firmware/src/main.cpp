@@ -96,6 +96,7 @@ class Journal : public IJournal {
   std::deque<String> events;
   bool healthy=false;
   uint32_t startPulses=0;
+  String startedUid;
   bool save(const Cursor& c,const std::vector<std::string>& done) override {
     if(!healthy)return false;
     JsonDocument d;d["version"]=version;d["run"]=c.run;d["step"]=c.step;
@@ -115,6 +116,8 @@ class Journal : public IJournal {
     JsonDocument d;base(d);d["event_uid"]=uid();d["source"]=source;
     d["status"]=status=="started"?"started":status=="aborted"?"stopped":"finished";
     d["buffered"]=true;d["aborted"]=status=="aborted";
+    if(status=="started")startedUid=d["event_uid"].as<String>();
+    else if(startedUid.length())d["started_event_uid"]=startedUid;
     if(source=="schedule")d["run_id"]=run;
     int64_t end=time(nullptr);d["start_ts"]=end-seconds;
     if(status!="started") {
@@ -187,7 +190,7 @@ void receive(String& topic,String& raw) {
 }
 void process(Incoming message) {
  JsonDocument d;if(deserializeJson(d,message.raw))return;
- if(d["protocol_version"]!="1.0" || d["box_id"]!=box)return;
+ if(!acceptsEnvelope(d,message.topic.c_str(),box.c_str()))return;
  if(message.topic==prefix+"time") {
   int64_t ts=d["unix_ts"] | int64_t(0);if(ts>1735689600){timeval tv={time_t(ts),0};settimeofday(&tv,nullptr);}return;
  }

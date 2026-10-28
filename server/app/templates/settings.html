@@ -1,27 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Настройки{% endblock %}
 {% block content %}
-<h1>Настройки</h1>
-<p class="muted">Значения хранятся в таблице settings (JSON), редактируются только администратором. Настройки не хардкодятся в коде.</p>
-
-<div class="card">
-  <form method="post" action="/settings/save">
-    <table>
-      <tr><th>Ключ</th><th>Описание</th><th>Значение</th><th>Изменено</th></tr>
-      {% for s in settings %}
-      <tr>
-        <td><code>{{ s.key }}</code></td>
-        <td>{{ s.description or '—' }}</td>
-        <td><input type="text" name="setting:{{ s.key }}" value="{{ s.value_json }}"></td>
-        <td class="muted">{{ (s.updated_at or '')[:16] }}<br>{{ s.updated_by or '' }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    {% if user.role == 'admin' %}
-    <button type="submit" class="btn btn-primary">Сохранить настройки</button>
-    {% else %}
-    <p class="muted">Просмотр значений. Изменение доступно администратору.</p>
-    {% endif %}
-  </form>
-</div>
+<h1>Настройки участка и системы</h1>
+<p class="muted">Изменения доступны администратору. Координаты задают точку прогноза; погодные подсказки не управляют поливом. Настройки монитора применяются после перезагрузки страницы.</p>
+{% set groups = [('weather','Погода и предупреждения'),('dashboard','Монитор и быстрые команды'),('adjustment','Корректировка полива'),('schedules','Расписания'),('safety','Безопасность'),('flow','Расходомер'),('notifications','Уведомления'),('archive','Архив'),('other','Прочие параметры')] %}
+{% set names = {'weather.latitude':'Широта','weather.longitude':'Долгота','weather.enabled':'Погода включена','weather.rules_enabled':'Автоматические погодные правила','weather.wind_warning_ms':'Порывы ветра: предупреждение, м/с','weather.frost_warning_c':'Риск заморозка, °C','weather.heat_warning_c':'Жара, °C','weather.rain_warning_mm':'Осадки за 24 ч: предупреждение, мм','weather.update_interval_min':'Обновление погоды, минут','dashboard.columns':'Колонки на широком мониторе','dashboard.refresh_sec':'Обновление плиток, секунд','dashboard.pause_minutes':'Пауза с плитки, минут','dashboard.manual_seconds':'Ручной полив по умолчанию, секунд'} %}
+{% set ranges = {'weather.latitude':[-90,90,0.000001],'weather.longitude':[-180,180,0.000001],'weather.wind_warning_ms':[1,50,0.1],'weather.frost_warning_c':[-15,10,0.5],'weather.heat_warning_c':[15,50,0.5],'weather.rain_warning_mm':[0.1,100,0.1],'weather.update_interval_min':[5,1440,1],'dashboard.columns':[2,8,1],'dashboard.refresh_sec':[3,60,1],'dashboard.pause_minutes':[1,1440,1],'dashboard.manual_seconds':[1,3600,1]} %}
+{% set known = ['weather','dashboard','adjustment','schedules','safety','flow','notifications','archive'] %}
+{% for prefix,title in groups %}
+{% set ns=namespace(items=[]) %}{% for s in settings %}{% if s.key.split('.')[0]==prefix or (prefix=='other' and s.key.split('.')[0] not in known) %}{% set ns.items=ns.items+[s] %}{% endif %}{% endfor %}
+{% if ns.items %}<details class="settings-section card" {% if prefix in ['weather','dashboard'] %}open{% endif %}><summary>{{ title }}</summary>
+<form method="post" action="/settings/save" class="settings-form"><div class="settings-grid">
+{% for s in ns.items %}<label>{{ names.get(s.key,s.description or s.key) }}
+{% if s.key in ranges %}{% set r=ranges[s.key] %}<input type="number" name="setting:{{ s.key }}" value="{{ s.value_json }}" min="{{ r[0] }}" max="{{ r[1] }}" step="{{ r[2] }}" required {% if user.role!='admin' %}disabled{% endif %}>
+{% elif s.value_json in ['true','false'] %}<select name="setting:{{ s.key }}" {% if user.role!='admin' %}disabled{% endif %}><option value="true" {% if s.value_json=='true' %}selected{% endif %}>Включено</option><option value="false" {% if s.value_json=='false' %}selected{% endif %}>Выключено</option></select>
+{% else %}<input type="text" name="setting:{{ s.key }}" value="{{ s.value_json }}" {% if user.role!='admin' %}readonly{% endif %}>{% endif %}
+<span class="muted small setting-key">{{ s.key }}</span></label>{% endfor %}</div>
+{% if user.role=='admin' %}<button type="submit" class="btn btn-primary">Сохранить</button>{% endif %}
+</form></details>{% endif %}{% endfor %}
 {% endblock %}

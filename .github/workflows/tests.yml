@@ -57,6 +57,7 @@ jobs:
           python -m server.tools.browser_smoke
           python -m server.tools.stage9_smoke
           python -m server.tools.dashboard_smoke
+          python -m server.tools.weather_monitor_smoke
 
   mqtt:
     runs-on: ubuntu-latest

@@ -704,3 +704,9 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Монитор:** аварии/нет связи первыми, постоянная контрастная рамка и текст (без мигания), счётчики, filter problems, fullscreen, адаптивная сетка. Правила погоды свернуты под прогнозом.
 - **Проверки:** stage7+stage11 44 passed; stage11+stage5 18 passed; dashboard Chromium OK; weather monitor 4 passed.
 - **Далее:** реальные данные Open-Meteo и расширенный UI smoke/негативные сценарии/полная регрессия; незавершённые OTA/аппаратные этапы зафиксировать отдельно.
+
+## [28.10.2026] Монитор/погода — браузер и совместимость прошивки
+- **Проверки:** реальный Open-Meteo HTTP 200 для 44.423062/34.06452, Europe/Simferopol, ветер m/s; Chromium/FastAPI/SQLite: 50 плиток, приоритет аварий, filter/fullscreen, offline/recovery, 390/768/1366/1920px, viewer, графики 24ч/7д, settings save и смена координат. weather tests 6 passed; native 11 passed и ESP32 build SUCCESS.
+- **Исправлено:** серверные command/time не содержат box_id (адрес — topic); firmware теперь принимает такой envelope, проверяя topic и optional box_id. manual finished связан started_event_uid. Регрессионный native-тест добавлен.
+- **Settings:** сгруппированы, числовые ограничения, viewer readonly, prevalidation всех полей до записи. Диалог старта закрывается при offline/error в очередном poll; фокус клавиатуры сохраняется после обновления.
+- **Уточнение предыдущей записи:** первый запуск weather-monitor теста выявил пограничное fetched_at на доли секунды позже test-now; исправлен допуск -30сек, все 6 тестов теперь проходят. Проверки окончательной версии ниже.

@@ -71,3 +71,9 @@ void canonical(JsonVariantConst value,std::string& out,int context=0) {
 }
 }
 std::string poliv::canonicalContent(JsonDocument& d) { std::string out;canonical(d.as<JsonVariantConst>(),out,1);return out; }
+bool poliv::acceptsEnvelope(JsonDocument& d,const std::string& topic,const std::string& box) {
+ if(d["protocol_version"]!="1.0")return false;
+ if(!d["box_id"].isNull() && (!d["box_id"].is<const char*>() || d["box_id"].as<std::string>()!=box))return false;
+ const auto prefix="poliv/"+box+"/";
+ return topic==prefix+"command" || topic==prefix+"time" || topic==prefix+"schedule";
+}

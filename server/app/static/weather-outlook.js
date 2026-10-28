@@ -46,7 +46,7 @@
     if(!data)return;charts.replaceChildren();values.replaceChildren();alerts.replaceChildren();
     meta.textContent=`${data.latitude}, ${data.longitude} · ${data.timezone} · `+(data.fetched_at?'обновлено '+new Date(data.fetched_at).toLocaleString('ru-RU'): 'нет сохранённого прогноза');
     if(data.status!=='fresh')alerts.append(node('p',data.status==='disabled'?'Погодный модуль выключен':data.status==='stale'?'Прогноз устарел или неполон. Не используйте его как актуальный.':'Прогноз пока недоступен. Проверьте настройки и обновите погоду.', 'weather-notice warning'));
-    for(const a of data.advisories||[])alerts.append(node('p',a.text,'weather-notice '+a.kind));
+    for(const a of data.advisories||[])alerts.append(node('p',(data.status==='stale'?'По устаревшему прогнозу: ':'')+a.text,'weather-notice '+a.kind));
     const rows=data[horizon]||[];if(!rows.length)return;
     for(const group of groups[horizon])charts.append(chart(rows,...group));
     const table=node('table'),thead=node('thead'),head=node('tr');const fields=groups[horizon].flatMap(g=>g[2]).filter((s,i,a)=>a.findIndex(v=>v[0]===s[0])===i);

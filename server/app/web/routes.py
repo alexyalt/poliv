@@ -786,9 +786,20 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             return redirect("/settings", error=err)
         form = await request.form()
         try:
+            updates = []
             for key, value in form.items():
                 if key.startswith("setting:"):
-                    catalog.set_setting(key[len("setting:"):], value, user["username"])
+                    name = key[len("setting:"):]
+                    try:
+                        parsed = json.loads(value)
+                    except (ValueError, TypeError):
+                        parsed = value
+                    catalog._validate_setting_value(name, parsed)
+                    if not conn.execute("SELECT 1 FROM settings WHERE key=?", (name,)).fetchone():
+                        raise ValidationError("Неизвестная настройка")
+                    updates.append((name, value))
+            for name, value in updates:
+                catalog.set_setting(name, value, user["username"])
         except ValidationError as exc:
             return redirect("/settings", error=str(exc))
         auth.write_log(user["id"], user["username"], "settings.updated", "setting", None)

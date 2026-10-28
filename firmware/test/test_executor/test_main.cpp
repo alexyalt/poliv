@@ -94,4 +94,12 @@ void provisioning_validation() {
  d["port"]=1883;d["tls"]=false;d["host"]="mqtt://host/path";TEST_ASSERT_FALSE(decodeNetwork(d,c));
  d["host"]="192.168.1.2";TEST_ASSERT_TRUE(decodeNetwork(d,c));
 }
-int main() {UNITY_BEGIN();RUN_TEST(provisioning_validation);RUN_TEST(event_failure_prevents_opening);RUN_TEST(boot_load_does_not_overwrite_cursor);RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}
+void server_envelope_without_box() {
+ JsonDocument d;deserializeJson(d,R"({"protocol_version":"1.0","command":"ping","command_id":"cid","ts":1})");
+ TEST_ASSERT_TRUE(acceptsEnvelope(d,"poliv/5B2338/command","5B2338"));
+ TEST_ASSERT_TRUE(acceptsEnvelope(d,"poliv/5B2338/time","5B2338"));
+ TEST_ASSERT_FALSE(acceptsEnvelope(d,"poliv/OTHER/command","5B2338"));
+ d["box_id"]="OTHER";TEST_ASSERT_FALSE(acceptsEnvelope(d,"poliv/5B2338/command","5B2338"));
+ d["box_id"]="5B2338";TEST_ASSERT_TRUE(acceptsEnvelope(d,"poliv/5B2338/command","5B2338"));
+}
+int main() {UNITY_BEGIN();RUN_TEST(server_envelope_without_box);RUN_TEST(provisioning_validation);RUN_TEST(event_failure_prevents_opening);RUN_TEST(boot_load_does_not_overwrite_cursor);RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}

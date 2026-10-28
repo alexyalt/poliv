@@ -85,3 +85,24 @@ def test_outlook_route_auth_and_page(h,monkeypatch):
     r=viewer.get('/weather')
     assert r.status_code==200 and 'weather-outlook' in r.text
     assert '24 часа' in r.text and '7 дней' in r.text
+
+
+def test_settings_form_prevalidates_all_fields_and_viewer_cannot_save(h):
+    admin=h.login_as('admin')
+    old=outlook.weather_config(h.conn)['latitude']
+    response=admin.post('/settings/save',data={'setting:weather.latitude':'40','setting:weather.longitude':'999'})
+    assert 'error=' in response.headers.get('location','') or 'диапазон' in response.text
+    assert outlook.weather_config(h.conn)['latitude']==old
+    viewer=h.login_as('viewer')
+    viewer.post('/settings/save',data={'setting:weather.latitude':'40'})
+    assert outlook.weather_config(h.conn)['latitude']==old
+
+
+def test_upgrade_only_replaces_unset_coordinates(h):
+    from server.app.infra.db import _load_module,MIGRATIONS_DIR
+    module=_load_module(MIGRATIONS_DIR/'0014_weather_monitor.py')
+    h.conn.execute("UPDATE settings SET value_json='null' WHERE key='weather.latitude'")
+    h.conn.execute("UPDATE settings SET value_json='41' WHERE key='weather.longitude'")
+    module.upgrade(h.conn)
+    assert outlook.weather_config(h.conn)['latitude']==44.423062
+    assert outlook.weather_config(h.conn)['longitude']==41

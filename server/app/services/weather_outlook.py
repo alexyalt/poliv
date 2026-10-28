@@ -81,7 +81,7 @@ def view(conn, now=None):
         return result
     result.update(payload)
     result.update(hourly=future[:24], daily=daily, fetched_at=row['fetched_at'],
-                  status='fresh' if timedelta(0) <= now-fetched <= timedelta(hours=3) and len(future)>=24 and len(daily)>=7 else 'stale')
+                  status='fresh' if timedelta(seconds=-30) <= now-fetched <= timedelta(hours=3) and len(future)>=24 and len(daily)>=7 else 'stale')
     def numbers(key):
         return [h[key] for h in result['hourly'] if isinstance(h.get(key), (int, float)) and math.isfinite(h[key])]
     def setting(key, default):

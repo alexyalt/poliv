@@ -43,7 +43,7 @@ def main():
                 path = req.request.url.split('http://testserver', 1)[1]
                 if path.startswith('/static/'):
                     f = Path(__file__).resolve().parents[1] / 'app' / path.split('?', 1)[0].lstrip('/')
-                    req.fulfill(status=200, body=f.read_bytes(), content_type='text/css')
+                    req.fulfill(status=200, body=f.read_bytes(), content_type='text/javascript' if f.suffix=='.js' else 'text/css')
                     return
                 response = client.request(req.request.method, path,
                                           content=req.request.post_data, follow_redirects=False)
