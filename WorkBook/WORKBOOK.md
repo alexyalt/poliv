@@ -637,3 +637,11 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Решения:** многозонные шаги должны отклоняться адаптером; при ошибке записи закрываем выходы. Ручной прогон не восстанавливается после перезагрузки.
 - **Проверки:** pio test -e native: 5 passed; python -m pytest server/tests -q: 287 passed, 1 skipped.
 - **Восстановление:** docs/STAGE10_PROGRESS.md. Далее ESP32 HAL/MQTT/storage, сборка и документация.
+
+## [28.10.2026] Этап 10 — ESP32 HAL, MQTT и storage
+- **Сделано:** firmware/src/main.cpp; 74HC595 GPIO13/12/14; MQTT topics/status/hello/LWT/schedule_ack/command_ack/event/flow; LittleFS atomic JSON cursor/schedule/events; NVS-ready command dedup; watchdog; pulse flow meter; boot recovery.
+- **Безопасность:** `OUTPUTS_VERIFIED=false` по умолчанию закрывает физические выходы; одна зона за раз; stop выполняется до сетевых операций; bounded payload/events; неизвестные/старые/параллельные расписания отклоняются.
+- **Контракт:** серверные статусы `idle/schedule/manual/paused/error/service`, `applied` для schedule_ack и `completed` для command_ack; события `started/finished/stopped`.
+- **Проверки:** `pio test -e native`: 5 passed; `pio run -e esp32dev`: SUCCESS, Flash 885921/1638400 (54.1%), RAM 45844/327680 (14.0%).
+- **Документация:** docs/ИНСТРУКЦИЯ_ЭТАП10.md; физический стенд ещё не проверен.
+- **Восстановление:** следующий шаг — проверить MQTT schema на broker/emulator, затем ручной стенд; не включать OUTPUTS_VERIFIED без проверки полярности.

@@ -66,6 +66,7 @@ bool Executor::openStep() {
   elapsed_ = 0;
   if (!checkpoint()) return false;
   phase_ = st.phase; zone_ = st.zone;
+  if (!record("started")) return false;
   relays_.select(zone_);
   return true;
 }
@@ -105,7 +106,10 @@ void Executor::tick(int64_t unixSeconds, uint32_t mono, bool timeValid) {
         if (!marked(cursor_.run)) done_.push_back(cursor_.run);
         cursor_ = {}; checkpoint();
       } else { openStep(); }
-    } else { cursor_.remaining -= delta; elapsed_ += delta; }
+    } else {
+      cursor_.remaining -= delta; elapsed_ += delta;
+      if (delta && elapsed_ / 5 != (elapsed_ - delta) / 5) checkpoint();
+    }
     return;
   }
   if (!timeValid) return;
@@ -127,7 +131,9 @@ bool Executor::manual(uint8_t zone, uint32_t seconds, uint32_t mono) {
   cursor_ = {"manual-" + std::to_string(mono), 0, seconds, true};
   if (!checkpoint()) return false;
   lastMono_ = mono; clockStarted_ = true; elapsed_ = 0;
-  zone_ = zone; phase_ = "water"; relays_.select(zone_); return true;
+  zone_ = zone; phase_ = "water";
+  if (!record("started")) return false;
+  relays_.select(zone_); return true;
 }
 void Executor::stop() {
   relays_.select(0);
@@ -152,6 +158,6 @@ bool Executor::clearFault() {
 std::string Executor::mode() const {
   if (!error_.empty()) return "error";
   if (paused_) return "paused";
-  return manual_ ? "manual" : "auto";
+  return manual_ ? "manual" : cursor_.active ? "schedule" : "idle";
 }
 }

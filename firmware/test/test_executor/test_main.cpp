@@ -17,7 +17,7 @@ void offline_execution() {
  e.tick(0,11,false); TEST_ASSERT_EQUAL(0,r.zone); TEST_ASSERT_EQUAL_STRING("soak",e.phase().c_str());
  e.tick(0,16,false); TEST_ASSERT_EQUAL(2,r.zone);
  e.tick(100,23,false); TEST_ASSERT_EQUAL(0,r.zone);
- e.tick(100,24,true); TEST_ASSERT_EQUAL(0,r.zone); TEST_ASSERT_EQUAL(3,j.events);
+ e.tick(100,24,true); TEST_ASSERT_EQUAL(0,r.zone); TEST_ASSERT_EQUAL(6,j.events);
 }
 void manual_pause_stop() {
  Relay r; Journal j; Executor e(r,j); e.apply(plan());e.tick(100,0,true);e.tick(101,3,true);
