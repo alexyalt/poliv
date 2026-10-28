@@ -1,0 +1,33 @@
+name: windows-preflight
+on:
+  push:
+    branches: ['fix/windows-preflight-audit']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -q -r requirements.lock
+      - run: python -m pip check
+      - run: python -m pytest server/tests -q --tb=short
+      - run: python -m pip install -q playwright==1.64.1 platformio==6.2.0 pyserial==3.5
+      - run: python -m playwright install chromium
+      - run: python -m server.tools.weather_monitor_smoke
+      - run: pio run -d firmware -e esp32dev
+      - name: Parse PowerShell entrypoint
+        shell: pwsh
+        run: |
+          $Tokens=$null; $ParseErrors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile("$pwd/scripts/windows/Start-Poliv.ps1",[ref]$Tokens,[ref]$ParseErrors) | Out-Null
+          if ($ParseErrors.Count) { throw ($ParseErrors | Out-String) }
+      - run: git diff --exit-code -- data logs server/poliv.db

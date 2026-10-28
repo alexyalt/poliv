@@ -224,7 +224,7 @@ void process(Incoming message) {
   if(cmd=="ping")ok=true;
   else if(cmd=="stop_all")ok=true;
   else if(cmd=="zone_close") {if(p["zone"].as<int>()==executor.zone())executor.stop();ok=true;}
-  else if(cmd=="zone_open" && OUTPUTS_VERIFIED && p["zone"].is<int>() && p["duration_sec"].is<uint32_t>()) {
+  else if(cmd=="zone_open" && OUTPUTS_VERIFIED && validTime() && p["zone"].is<int>() && p["duration_sec"].is<uint32_t>()) {
    int z=p["zone"];if(z>=1 && z<=16)ok=executor.manual(z,p["duration_sec"],mono());
   }
   else if(cmd=="pause_controller") {
@@ -241,7 +241,7 @@ void process(Incoming message) {
    if(!executor.zone() && (!FLOW_ENABLED || mono()-flowQuietSince>=3)) {
     std::string previousFault=executor.error();
     if(executor.clearFault()) {
-     ok=nvs.putString("fault","")>0;
+     ok=!nvs.isKey("fault") || nvs.remove("fault");
      if(!ok)executor.fault(previousFault.empty()?"storage_error":previousFault);
     }
    }
@@ -260,7 +260,7 @@ void connectMqtt() {
  if(!mqtt.connect(("poliv-"+box).c_str(),networkConfig.user.c_str(),networkConfig.password.c_str()))return;
  mqtt.subscribe(prefix+"command",1);mqtt.subscribe(prefix+"schedule",1);mqtt.subscribe(prefix+"time",1);
  JsonDocument d;base(d);d["online"]=true;publish("lwt",d,true);
- d.clear();base(d);d["firmware_version"]="0.11.0";d["hardware_model"]="ESP32-DevKit-74HC595";
+ d.clear();base(d);d["online"]=true;d["firmware_version"]="0.11.0";d["hardware_model"]="ESP32-DevKit-74HC595";
  d["zones_total"]=16;d["ip_address"]=WiFi.localIP().toString();d["mac"]=WiFi.macAddress();
  d["schedule_version"]=executor.schedule().version;d["schedule_hash"]=executor.schedule().hash;
  d["flow_enabled"]=FLOW_ENABLED;d["time_valid"]=validTime();publish("hello",d);
@@ -371,7 +371,7 @@ void loop() {
     } else Serial.println("Некорректная конфигурация");
    }
    if(serialCommand=="NETWORK_RESET" && !OUTPUTS_VERIFIED){executor.stop();nvs.remove("network");ESP.restart();}
-   if(serialCommand=="FORMAT" && !OUTPUTS_VERIFIED) {executor.stop();LittleFS.end();if(LittleFS.format())ESP.restart();}
+   if(serialCommand=="FORMAT" && !OUTPUTS_VERIFIED) {executor.stop();LittleFS.end();if(LittleFS.format()){if(!nvs.isKey("fault") || nvs.remove("fault"))ESP.restart();else Serial.println("Ошибка сброса fault NVS");}}
    serialCommand="";serialOverflow=false;
   } else if(serialCommand.length()<8192)serialCommand+=c;else serialOverflow=true;
  }

@@ -4,11 +4,9 @@ import json
 import os
 from pathlib import Path
 import platform
-import socket
 import sqlite3
 import ssl
 import threading
-from . import runtime_snapshot
 
 
 def inspect_runtime(root):
@@ -44,6 +42,7 @@ def mqtt_check(config,root):
     cfg=config.get('mqtt',{})
     connected=threading.Event();result=[]
     def on_connect(_c,_u,_f,reason,_p):result.append(not reason.is_failure);connected.set()
+    c.connect_timeout=5
     c.on_connect=on_connect
     try:
         configure_tls(c,cfg,root)

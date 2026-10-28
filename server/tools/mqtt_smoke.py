@@ -164,6 +164,7 @@ def main():
                 # A later QoS1 ping/ACK proves the subscriber processed prior messages.
                 mode['value'] = 'ack'
                 assert send('SMOKE-A', 'ping')['status'] == 'completed'
+                assert send('SMOKE-A', 'clear_error', {'reason':'audit reset'})['status'] == 'completed'
                 assert count_events() == 0, 'archived event was replayed'
                 assert not callback_errors, callback_errors
                 print('Real Mosquitto: hello, QoS1 retry/same ID, ACK, independent stop, stage9 block/release, archive replay OK')

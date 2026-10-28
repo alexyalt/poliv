@@ -102,4 +102,11 @@ void server_envelope_without_box() {
  d["box_id"]="OTHER";TEST_ASSERT_FALSE(acceptsEnvelope(d,"poliv/5B2338/command","5B2338"));
  d["box_id"]="5B2338";TEST_ASSERT_TRUE(acceptsEnvelope(d,"poliv/5B2338/command","5B2338"));
 }
-int main() {UNITY_BEGIN();RUN_TEST(server_envelope_without_box);RUN_TEST(provisioning_validation);RUN_TEST(event_failure_prevents_opening);RUN_TEST(boot_load_does_not_overwrite_cursor);RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}
+void critical_faults_are_not_remotely_resettable() {
+ Relay r;Journal j;Executor e(r,j);
+ for(const auto& code:{"storage_error","invalid_cursor","network_config","invalid_schedule","deadline_timer"}) {
+  e.fault(code);TEST_ASSERT_FALSE(e.clearFault());TEST_ASSERT_EQUAL(0,r.zone);
+ }
+ e.fault("no_flow");TEST_ASSERT_TRUE(e.clearFault());TEST_ASSERT_EQUAL(0,r.zone);
+}
+int main() {UNITY_BEGIN();RUN_TEST(critical_faults_are_not_remotely_resettable);RUN_TEST(server_envelope_without_box);RUN_TEST(provisioning_validation);RUN_TEST(event_failure_prevents_opening);RUN_TEST(boot_load_does_not_overwrite_cursor);RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}

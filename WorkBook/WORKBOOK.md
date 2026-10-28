@@ -732,3 +732,9 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Reset:** clear_error теперь командный контракт server/emulator/ESP32; server lock снимается только completed ACK, rejected/error/timeout/duplicate/offline сохраняют lock; критические ошибки storage/config/cursor прошивка не разрешает сбрасывать как flow fault. NVS запись проверяется.
 - **Firmware:** GPIO write до setup из глобального Executor constructor устранён guard инициализации; несовпадение cursor version блокирует работу; NVS latch не перекрывает новую storage/config ошибку.
 - **Windows:** windows_setup (отдельный runtime/пароли/ACL), PowerShell launcher и read-only preflight. Физический Windows/USB ещё не проверены; тесты/инструкция далее.
+
+## [28.10.2026] Windows preflight — инструкция и комплексный прогон
+- **Выполнено:** полный pytest 308 passed/1 skipped; 12 native passed; ESP32 build; browser weather-monitor/dashboard/heatmap/stage9; реальные MQTT retries/stop/reset/replay/TLS/ACL и windows generated broker paths с пробелами; pip check чисто.
+- **Дополнительные находки:** hello online, NVS пустой string return=0, service FORMAT latch, незалежимые macro defaults, validTime manual guard. Исправлены. Физические проверки не подменяем программными.
+- **Документы:** WINDOWS_MANUAL_TEST.md (PowerShell/COM/Firewall/отдельные окна/doctor/USB/матрица/backup), MANUAL_ACCEPTANCE_REPORT.md, PREFLIGHT_AUDIT.md. Старый handoff reset пункт закрыт этой веткой; OTA и active replacement остаются ограничениями.
+- **Windows CI:** добавлен windows-latest pytest/browser/ESP32/PowerShell parse; результат будет проверен после push, до этого не заявляется passed.

@@ -12,6 +12,7 @@ from server.tools.broker_config import acl_for
 
 def create(root, host, boxes, admin_password, mqtt_password, mosquitto_dir):
     root=Path(root).resolve()
+    if '\n' in str(root) or '\r' in str(root):raise ValueError('Runtime path contains a newline')
     if root.exists():raise ValueError('Runtime destination must not exist')
     if len(admin_password)<12 or len(mqtt_password)<12:
         raise ValueError('Passwords must contain at least 12 characters')
@@ -28,12 +29,12 @@ def create(root, host, boxes, admin_password, mqtt_password, mosquitto_dir):
         f'[server]\nsecret_key={quote(secrets.token_hex(32))}\ncookie_secure=false\n'
         f'[admin]\nusername="admin"\npassword={quote(admin_password)}\nmust_change_password=true\n'
         '[test_data]\nenabled=false\n'
-        f'[mqtt]\nhost="127.0.0.1"\nport=1883\nusername="poliv_server"\npassword={quote(mqtt_password)}\n',encoding='utf-8')
+        f'[mqtt]\nhost="127.0.0.1"\nport=1883\nusername="poliv_server"\noffline_threshold_min=1\npassword={quote(mqtt_password)}\n',encoding='utf-8')
     (broker/'poliv.acl').write_text(acl,encoding='utf-8')
     (broker/'mosquitto.conf').write_text(
         f'listener 1883 {host}\nlistener 1883 127.0.0.1\nallow_anonymous false\n'
-        f'password_file {quote((broker/"poliv.passwd").as_posix())}\n'
-        f'acl_file {quote((broker/"poliv.acl").as_posix())}\n'
+        f'password_file {(broker/"poliv.passwd").as_posix()}\n'
+        f'acl_file {(broker/"poliv.acl").as_posix()}\n'
         f'persistence true\npersistence_location {broker.as_posix()+"/"}\n'
         'log_dest stdout\nmax_packet_size 17408\n',encoding='utf-8')
     (root/'setup.json').write_text(json.dumps({'lan_host':host,'boxes':boxes,

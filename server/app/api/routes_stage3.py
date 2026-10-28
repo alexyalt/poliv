@@ -40,6 +40,7 @@ ROLE_LEVELS = {"viewer": 0, "operator": 1, "admin": 2}
 # Действия Этапа 3 и минимально необходимые роли (reboot — только admin).
 ACTION_ROLES: dict[str, str] = {name: "operator" for name in COMMAND_NAMES}
 ACTION_ROLES["reboot"] = "admin"
+ACTION_ROLES["clear_error"] = "admin"  # operator uses audited /clear-error endpoint
 
 
 def _user(request: Request) -> Optional[dict]:

@@ -187,3 +187,11 @@ commit включает запись WorkBook и промежуточный push
 UV). Координаты по умолчанию 44.423062, 34.06452 меняются в сгруппированных
 настройках. Руководство и тест-матрица: `docs/WEATHER_MONITOR_ACCEPTANCE.md`.
 Открытые этапы и восстановление работы: `docs/SESSION_HANDOFF_MONITOR.md`.
+
+## Предфинальная ручная проверка на Windows 10/11
+
+Начните с **docs/WINDOWS_MANUAL_TEST.md** на ветке `fix/windows-preflight-audit`.
+Добавлены отдельный runtime, генератор Windows Mosquitto/ACL, PowerShell запуск
+и read-only doctor. Матрица W01–W16 и вопросы по оборудованию — в инструкции;
+шаблон отчёта — `docs/MANUAL_ACCEPTANCE_REPORT.md`, аудит — `docs/PREFLIGHT_AUDIT.md`.
+Локальный сценарий использует USB-обновление; OTA/rollback ещё не реализованы.
