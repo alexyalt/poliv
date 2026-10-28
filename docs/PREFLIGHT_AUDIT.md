@@ -6,6 +6,8 @@
 
 | Находка | Исправление / доказательство |
 |---|---|
+| Windows rename regression in runtime test | явное conn.close, sqlite context manager сам не закрывает файл |
+| test harness оставлял DB/temp после close | shutdown command workers, conn.close и удаление своего temp |
 | requirements.lock включал uvloop без платформы | sys_platform marker + colorama; тест Windows selection, Windows CI |
 | clear-error снимал lock до устройства | dedicated ACK команда; 6 отрицательных outcomes сохраняют lock; completed снимает |
 | error/config/cursor можно было reset как flow fault | whitelist локального reset; native regression |

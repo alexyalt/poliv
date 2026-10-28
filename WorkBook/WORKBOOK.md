@@ -738,3 +738,8 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Дополнительные находки:** hello online, NVS пустой string return=0, service FORMAT latch, незалежимые macro defaults, validTime manual guard. Исправлены. Физические проверки не подменяем программными.
 - **Документы:** WINDOWS_MANUAL_TEST.md (PowerShell/COM/Firewall/отдельные окна/doctor/USB/матрица/backup), MANUAL_ACCEPTANCE_REPORT.md, PREFLIGHT_AUDIT.md. Старый handoff reset пункт закрыт этой веткой; OTA и active replacement остаются ограничениями.
 - **Windows CI:** добавлен windows-latest pytest/browser/ESP32/PowerShell parse; результат будет проверен после push, до этого не заявляется passed.
+
+## [28.10.2026] Windows CI — найден и исправлен file lock
+- **Реальный Windows runner:** зависимости и pip check SUCCESS; полный pytest: 307 passed/1 skipped/1 failed — runtime_copy test не закрывал sqlite connection перед rename. Linux позволял rename открытого файла, Windows нет. Исправлено явным close, без skip теста.
+- **Дополнено:** cleanup временных DB test harness, UI reset с подтверждением и browser отказ/completed; emulator clear_error включён в коммит. Локальный чистый полный прогон после cleanup: 308 passed/1 skipped. Повтор Windows запускается после push.
+- **Ограничение:** готовность всего проекта/OTA не объявляется. Локальный USB стенд — отдельная допускаемая матрица.

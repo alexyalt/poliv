@@ -237,7 +237,11 @@ class _Harness:
             "SELECT * FROM logs WHERE action=? ORDER BY id", (action,)).fetchall()
 
     def close(self):
+        self.cmd.close()
         self.mqtt.stop()
+        self.conn.close()
+        import shutil
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
 
 
 # ===================================================================== БЛОК 8

@@ -221,8 +221,7 @@ notepad .\firmware\include\secrets.h
 Проверка no_flow не доказывает восстановление подачи: перед reset оператор физически
 устраняет причину; нужен минимум 3 сек спокойного входа flow. Неисправности flash,
 курсора и конфигурации исправляются на стенде, а не кнопкой «сбросить».
-UI сброса — раздел событий/уведомлений или детали контроллера, если такой control
-доступен; API — POST /api/controllers/{id}/clear-error с ролью operator/admin.
+UI сброса — кнопка «Сброс аварии» в деталях контроллера с подтверждением причины; API — POST /api/controllers/{id}/clear-error с ролью operator/admin.
 После успеха дождаться свежего device status; не продолжать при error_code.
 Новая версия во время активного прогона может быть rejected: дождаться idle и
 повторить отправку. Для этой ручной приёмки не использовать immediate replacement.
@@ -257,6 +256,10 @@ POLIV_CONFIG_LOCAL — на исходный защищённый конфиг; 
 .\.venv\Scripts\python.exe -m server.tools.weather_monitor_smoke
 .\.venv\Scripts\python.exe -m server.tools.dashboard_smoke
 ```
+
+Перед полным pytest оставить не менее 8 ГБ свободного места в `%TEMP%`. При прерванных
+прогонах тестовые SQLite каталоги могут остаться: после закрытия всех тестов удалять
+только созданные тестами временные `poliv-*`, не рабочие каталоги.
 
 Native C++ tests требуют host C++ compiler; для первого Windows запуска достаточно
 уже выполненных native-тестов + cross-build ESP32, не ставить компилятор ради USB.

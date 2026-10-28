@@ -24,6 +24,8 @@ def main():
         old_fetch=weather_outlook.meteo._http_get
         try:
             register_api_routes_weather(h.app,h.cfg,h.conn)
+            from server.app.api.routes_stage6 import register_api_routes_stage6
+            register_api_routes_stage6(h.app,h.cfg,h.conn)
             def forecast_http(url,params):
                 raw=fixture()
                 if params.get('timeformat')=='unixtime':return raw
@@ -117,6 +119,17 @@ def main():
                 assert sent[-1][1]=='stop_all'
                 with page.expect_navigation():page.locator('[data-box="MONITOR01"] .tile-detail').click()
                 assert '/controllers/' in page.url
+                reset_id=sent[-1][0]
+                h.set_live('MONITOR01',emergency_lock_until_ts=9999999999,device_error_code='no_flow')
+                h.cmd.send_command_for_controller=lambda *args,**kwargs:{'status':'rejected'}
+                page.locator('#clear-device-error').click()
+                page.locator('#reset-send').click()
+                page.wait_for_function("document.querySelector('#reset-result').textContent.includes('Блокировка не снята')")
+                assert h.conn.execute('SELECT emergency_lock_until_ts FROM controllers WHERE id=?',(reset_id,)).fetchone()[0]==9999999999
+                h.cmd.send_command_for_controller=lambda *args,**kwargs:{'status':'completed'}
+                page.locator('#clear-device-error').click();page.locator('#reset-send').click()
+                page.wait_for_function("document.querySelector('#reset-result').textContent.includes('Сброс подтверждён')")
+                assert h.conn.execute('SELECT emergency_lock_until_ts FROM controllers WHERE id=?',(reset_id,)).fetchone()[0] is None
                 page.goto('http://testserver/')
                 assert 'state-error' in page.locator('.controller-tile').first.get_attribute('class')
                 assert 'Нет потока воды' in page.locator('[data-box="MONITOR11"]').inner_text()
