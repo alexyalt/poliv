@@ -1,0 +1,9 @@
+<section id="weather-outlook" aria-label="Прогноз Open-Meteo">
+<div class="weather-toolbar"><div><strong>Прогноз для участка</strong><p id="outlook-meta" class="muted small" role="status">Загрузка прогноза…</p></div><div class="dash-tabs" role="group" aria-label="Горизонт прогноза"><button type="button" class="btn" data-horizon="hourly" aria-pressed="true">24 часа</button><button type="button" class="btn" data-horizon="daily" aria-pressed="false">7 дней</button>{% if user.role in ['admin','operator'] %}<button type="button" class="btn" id="outlook-refresh">Обновить прогноз</button>{% endif %}</div></div>
+<div id="weather-summary" class="weather-summary"></div>
+<div id="weather-alerts" aria-live="polite"></div>
+<div class="weather-chart-grid" id="weather-charts"></div>
+<details class="weather-table"><summary>Все значения прогноза</summary><div class="table-scroll" id="weather-values"></div></details>
+<p class="muted small">Источник: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open‑Meteo</a> · Модельный прогноз. Влажность и температура почвы — расчётные, не датчик участка. ET₀ — эталонная эвапотранспирация, а не готовая норма полива. Подсказки не меняют расписание.</p>
+</section>
+<script src="/static/weather-outlook.js?v={{ app_version }}" defer></script>

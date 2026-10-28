@@ -622,3 +622,130 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Файлы приёмки:** docs/ИНСТРУКЦИЯ_ЭТАП9.md, docs/adr/ADR-19-stage9.md, docs/STAGE9_PROGRESS.md.
 - **Отклонения/пределы:** optimizer эвристический, shifts whole runs внутри исходного дня; week обрабатывает 7 дней, не перераспределяет суточные объёмы и не дробит программы. Давление не измеряется, дополнительная parallel не создаётся. Недостаток статистики/stale/нет confirm запрещают apply. Offline запрет не физически гарантирован до ACK/остановки; ESP32/железо — отдельный этап/стенд.
 - **Возобновление после сбоя:** функциональный код завершён. Прочитать последний remote commit и текущий progress; повторить CI при необходимости; следующий шаг review/стенд/merge пользователем. Applied предложения не применять повторно обходными SQL/ручной отправкой. Финальный commit/push сохраняет эту запись вместе с progress.
+
+
+## [27.10.2026] Этап 10 — начало реализации ESP32
+- **Контекст/запрос:** следующий этап после принятого этапа 9 (main 5977a3f); промежуточные коммиты и журнал для восстановления.
+- **План:** переносимое ядро исполнения и native-тесты; ESP32 HAL/74HC595, MQTT и локальное хранение; сборка, регрессии, инструкция и матрица приёмки.
+- **Соответствие плану Этапа 0:** этап 10 и подготовка 10.0; OTA A/B инфраструктура, эксплуатационное OTA относится к этапу 11.
+- **Ограничения:** физическая ESP32 и USB недоступны; аппаратную приёмку нельзя объявлять выполненной. Полярность реле требует проверки на стенде.
+- **Восстановление:** ветка feature/stage10-esp32; продолжить по docs/STAGE10_PROGRESS.md (будет создан). Секреты не сохранять в репозитории.
+
+## [28.10.2026] Этап 10 — переносимое ядро и первая проверка
+- **Сделано:** firmware/include/executor.h, src/executor.cpp, PlatformIO native/ESP32, таблица OTA A/B по 1600 КиБ, native-тесты.
+- **Соответствие ТЗ:** этап 10, автономное выполнение, HAL, безопасное закрытие, bounded duration, recovery skip/resume.
+- **Решения:** многозонные шаги должны отклоняться адаптером; при ошибке записи закрываем выходы. Ручной прогон не восстанавливается после перезагрузки.
+- **Проверки:** pio test -e native: 5 passed; python -m pytest server/tests -q: 287 passed, 1 skipped.
+- **Восстановление:** docs/STAGE10_PROGRESS.md. Далее ESP32 HAL/MQTT/storage, сборка и документация.
+
+## [28.10.2026] Этап 10 — ESP32 HAL, MQTT и storage
+- **Сделано:** firmware/src/main.cpp; 74HC595 GPIO13/12/14; MQTT topics/status/hello/LWT/schedule_ack/command_ack/event/flow; LittleFS atomic JSON cursor/schedule/events; NVS-ready command dedup; watchdog; pulse flow meter; boot recovery.
+- **Безопасность:** `OUTPUTS_VERIFIED=false` по умолчанию закрывает физические выходы; одна зона за раз; stop выполняется до сетевых операций; bounded payload/events; неизвестные/старые/параллельные расписания отклоняются.
+- **Контракт:** серверные статусы `idle/schedule/manual/paused/error/service`, `applied` для schedule_ack и `completed` для command_ack; события `started/finished/stopped`.
+- **Проверки:** `pio test -e native`: 5 passed; `pio run -e esp32dev`: SUCCESS, Flash 885921/1638400 (54.1%), RAM 45844/327680 (14.0%).
+- **Документация:** docs/ИНСТРУКЦИЯ_ЭТАП10.md; физический стенд ещё не проверен.
+- **Восстановление:** следующий шаг — проверить MQTT schema на broker/emulator, затем ручной стенд; не включать OUTPUTS_VERIFIED без проверки полярности.
+
+## [28.10.2026] Этап 10 — усиление сохранности и контрактный тест
+- **Сделано:** независимый esp_timer закрытия по duration; NVS latch аварии и pause; CRC32 + atomic rename для LittleFS; отсутствие auto-format; ручной FORMAT по Serial разрешён только в service-сборке; 64 события, входящий payload 16 КиБ.
+- **Контракты:** общий protocol.cpp проверен на fixture настоящего compile_schedule/persist_schedule; SHA-256 canonical JSON совпадает с сервером (schedule_version для hash нормализуется в 0 как до persist).
+- **Восстановление:** boot больше не перезаписывает курсор до его проверки; apply(persist=false) загружает план без записи начального курсора. Resume — checkpoint каждые 5 секунд, default skip.
+- **Проверки:** 7 native passed; ESP32 SUCCESS, Flash 896549/1638400, RAM 46008/327680.
+- **Осталось:** CI/документация и окончательные проверки; аппаратная проверка не выполнена.
+
+## [28.10.2026] Этап 10 — CI, инструкция и границы готовности
+- **Сделано:** workflow firmware-checks (native + ESP32 + CI artifact); инструкция первой настройки/FORMAT/upload; ADR-20 с матрицей ограничений; README и recovery handoff актуализированы; APP_VERSION_BASE=0.10.0 по AGENTS.
+- **Отклонения:** активная смена schedule пока отклоняется; DS3231/кнопка/OTA runtime/backup не реализованы. End-to-end server ACK событий отсутствует. Внешняя аппаратная приёмка недоступна; этап не объявляется принятым.
+- **Состояние:** программная база собрана, fixture проверяет реальный серверный формат и canonical hash; проверяем финальную регрессию.
+
+## [28.10.2026] Этап 10 — итоговая проверка и контрольная точка
+- **Проверки:** python -m pytest server/tests -q: 287 passed, 1 skipped (3 существующих deprecation warnings); pio test -d firmware -e native: 9 passed; pio run -d firmware -e esp32dev: SUCCESS. git diff --check: чисто.
+- **Добавленные regressions:** ошибка записи события не открывает реле; загрузка плана при boot не перезаписывает курсор; отсутствующий/повреждённый cursor блокирует восстановление, вместо повторного запуска расписания.
+- **Продолжение:** читать docs/STAGE10_PROGRESS.md и ADR-20, затем подключить стенд; код опубликован в feature/stage10-esp32, main не изменён. Нельзя считать весь этап завершённым: аппаратная и сетевая приёмка, активная смена расписания и перечисленные в ADR-20 функции ещё не закрыты.
+
+## [28.10.2026] Этап 11 — запуск и новые дашборды
+- **Запрос:** продолжить без физической платы; два минималистичных дашборда, инструкция реальной машины/ESP32.
+- **План:** плитки контроллеров и активных зон, live refresh, роли и команды; deployment doctor и LAN broker ACL; пошаговая инструкция, проверки, промежуточные коммиты.
+- **Ограничения:** аппаратная приёмка этапа 10 остаётся открытой; OTA/provisioning не объявлять завершёнными. Ветка feature/stage11-dashboards от fb54c1a.
+
+## [28.10.2026] Этап 11 — эксплуатационная база и браузерная проверка
+- **Сделано:** генератор broker_config с индивидуальными ACL, запретом anonymous и без перезаписи файлов; systemd unit с Restart и одним worker; два дашборда с polling, offline запретом команд и ролями.
+- **Проверки:** Chromium через FastAPI/SQLite: поток 12.5, диалог выбора зоны, обновление активных зон при offline, disabled кнопки, viewer и мобильная ширина 390 px; тесты stage11+stage5.
+- **Следующий шаг:** подробная инструкция Linux/Windows, резервная копия/restore, интеграционная проверка ACL и полный pytest.
+
+## [28.10.2026] Этап 11 — итоговые проверки и инструкция
+- **Сделано:** docs/ИНСТРУКЦИЯ_РЕАЛЬНАЯ_МАШИНА.md: Linux/Windows, эмулятор, LAN MQTT ACL/пароли, оба дашборда, ESP32 USB/FORMAT/реле/flow, автономность, резервная копия и автозапуск. runtime_snapshot backup/verify/restore на базе prepare_runtime, без перезаписи источника/назначения.
+- **Исправлено:** прошивка учитывает duration_sec/until_ts паузы и сохраняет deadline NVS; версия приложения 0.11.0.
+- **Проверки:** полный pytest 290 passed, 1 skipped; native 9 passed; ESP32 SUCCESS; Chromium desktop/mobile OK. Тест snapshot проверяет восстановление и отказ при повреждении.
+- **Границы:** этап 11 частично выполнен; OTA/provisioning/TLS, аппаратная приёмка и пилот этапа 12 остаются открытыми. Не заявляем реальных испытаний платы/systemd.
+- **Восстановление:** docs/STAGE11_PROGRESS.md; ветка feature/stage11-dashboards. Следующий шаг — стендовая проверка по инструкции и отдельная реализация безопасного OTA/provisioning.
+
+## [28.10.2026] Этап 11 — USB provisioning и TLS
+- **План:** service-only CONFIG по USB, atomic NVS network blob, hostname/CA validation TLS на ESP32, server TLS config и broker TLS profile; тесты и инструкция.
+- **Границы:** конфигурация физического active-level остаётся compile-time; OTA отдельно, аппаратная приёмка не выполнена.
+
+## [28.10.2026] Этап 11 — provisioning/TLS контрольная точка
+- **Сделано:** USB service CONFIG/NETWORK_RESET, validated network JSON в одном NVS ключе; CLI с getpass и paced serial; ESP32 WiFiClientSecure с CA и запретом handshake до validTime; сервер strict TLS context, broker --tls профиль 8883.
+- **Проверки:** 10 native passed; ESP32 build SUCCESS; stage11 5 passed. Ошибка CA на сервере прерывает старт MQTT до connect/loop, без перехода на plaintext.
+- **Осталось в сессии:** реальный broker TLS smoke (hostname/CA/ACL), полная регрессия, обновить инструкцию.
+
+## [28.10.2026] Этап 11 — TLS приёмка без платы и инструкция
+- **Проверки:** настоящий временный Mosquitto + TLS: доверенный CA, отказ hostname mismatch/unknown CA, wrong password и cross-device publish; полный pytest 292 passed/1 skipped; native 10 passed; ESP32 SUCCESS.
+- **Сделано:** mqtt_tls_smoke в CI, пошаговая ИНСТРУКЦИЯ_USB_TLS.md (CA/SAN, конфиг брокера/сервера/USB, отказные сценарии); основная инструкция и STAGE11_PROGRESS дополнены.
+- **Ограничения:** ESP32 TLS/provisioning не проверены физически; NVS не зашифрован; CONFIG только service build; NTP обязателен до TLS; эмулятор ещё plaintext. OTA и rollback остаются открытыми.
+
+## [28.10.2026] Монитор и агропрогноз — начало
+- **Запрос:** завершать программные задачи, проверить интерфейс/компактность, выделить проблемы на мониторе, Open-Meteo 24ч/7д, ветер и полезные растениям показатели; координаты 44.423062/34.06452.
+- **План:** snapshot с точными координатами/свежестью, графики температуры/осадков/ветра/ET0, рекомендации и null-safe UI; monitor mode/приоритет аварий/фильтр; настраиваемые пороги, refresh/плотность/команды; браузерные и регрессионные проверки.
+- **Восстановление:** feature/weather-monitor от 6d01347. Аппаратные испытания и OTA/rollback не объявлять выполненными; отдельный handoff в конце сессии.
+
+## [28.10.2026] Монитор/прогноз — первая контрольная точка
+- **Сделано:** migration 0014, snapshot Open-Meteo по координатам, 24ч/7д с ветром/порывами/ET0/VPD/почвой/UV; SVG charts без CDN, null-safe таблица; advisory thresholds; настройки monitor columns/refresh/pause/manual duration.
+- **Монитор:** аварии/нет связи первыми, постоянная контрастная рамка и текст (без мигания), счётчики, filter problems, fullscreen, адаптивная сетка. Правила погоды свернуты под прогнозом.
+- **Проверки:** stage7+stage11 44 passed; stage11+stage5 18 passed; dashboard Chromium OK; weather monitor 4 passed.
+- **Далее:** реальные данные Open-Meteo и расширенный UI smoke/негативные сценарии/полная регрессия; незавершённые OTA/аппаратные этапы зафиксировать отдельно.
+
+## [28.10.2026] Монитор/погода — браузер и совместимость прошивки
+- **Проверки:** реальный Open-Meteo HTTP 200 для 44.423062/34.06452, Europe/Simferopol, ветер m/s; Chromium/FastAPI/SQLite: 50 плиток, приоритет аварий, filter/fullscreen, offline/recovery, 390/768/1366/1920px, viewer, графики 24ч/7д, settings save и смена координат. weather tests 6 passed; native 11 passed и ESP32 build SUCCESS.
+- **Исправлено:** серверные command/time не содержат box_id (адрес — topic); firmware теперь принимает такой envelope, проверяя topic и optional box_id. manual finished связан started_event_uid. Регрессионный native-тест добавлен.
+- **Settings:** сгруппированы, числовые ограничения, viewer readonly, prevalidation всех полей до записи. Диалог старта закрывается при offline/error в очередном poll; фокус клавиатуры сохраняется после обновления.
+- **Уточнение предыдущей записи:** первый запуск weather-monitor теста выявил пограничное fetched_at на доли секунды позже test-now; исправлен допуск -30сек, все 6 тестов теперь проходят. Проверки окончательной версии ниже.
+
+## [28.10.2026] Монитор/погода — итог и незавершённые этапы
+- **Сделано:** диагностика error_code/buffer_size сохранена в БД и live API (0015); расшифровки на плитке; карточки погодной сводки, ручное обновление с ролью operator+, stale/null проверки в Chromium; docs/WEATHER_MONITOR_ACCEPTANCE.md, SESSION_HANDOFF_MONITOR.md.
+- **Тесты до последней диагностической правки:** полный pytest 298 passed/1 skipped; Chromium heatmap/reports/stage9/dashboard/monitor-weather OK; настоящий MQTT и TLS smoke OK; live Open-Meteo HTTP200. После правки diagnostics targeted 21 passed/1 skipped, расширенный weather Chromium OK. Итоговый полный прогон ниже.
+- **Открыто:** OTA signed/rollback/backup, аппаратная приёмка/DS3231/button, active schedule replacement/outbox powercut, пилот 50 плат. Выявлен отдельный блокер: серверный clear-error снимает только server lock, для NVS fault прошивки нужен end-to-end ACK reset. В этой сессии не исправлен, подробно передан в handoff.
+- **План продолжения:** начать с clear_error/ACK и native/integration тестов, затем signed OTA и стенд; перечень дополнительных настроек (Kc/почва/NTP/kiosk/сертификаты) в handoff. Не называть исходные этапы 10–12 полностью завершёнными.
+
+## [28.10.2026] Монитор/погода — финальная опубликованная контрольная точка
+- **Итоговый полный прогон:** 299 pytest passed, 1 skipped, 3 существующих deprecation warnings; 11 native passed; ESP32 SUCCESS (1027177/1638400 bytes Flash); git diff --check чисто.
+- **Chromium после последних изменений:** weather_monitor_smoke повторно прошёл; в том числе расшифровка no_flow, реальная отправка web forms в backend test harness, forecast refresh, stale/null, location change, 50 плиток/4 ширины/roles/offline/fullscreen. Тестовые данные не выдаются за живые состояния оборудования.
+- **Публикация:** feature/weather-monitor, промежуточные коммиты 315216c, 33b610c, 023b129 и финальная запись; main не меняется. Handoff и инструкция в docs, снимки и архив подготовлены пользователю.
+
+## [28.10.2026] Предфинальный аудит Windows — начало
+- **План in_progress:** audit критических контрактов/reset/recovery; Windows setup/start/doctor; тесты/инструкция/критерии.
+- **Контрольная база:** 5923975, ветка fix/windows-preflight-audit. Прогресс коммитить и публиковать.
+- **Приёмка:** отдельно USB/service и один клапан; OTA и production readiness не приравнивать к готовности локального стенда.
+
+## [28.10.2026] Windows audit — критические исправления и checkpoint
+- **Найдено/исправлено:** unconditional uvloop в requirements.lock ломал Windows install; добавлен platform marker/colorama. WeatherUpdater перекрывал Thread._stop и мог ломать join; переименован stop event.
+- **Reset:** clear_error теперь командный контракт server/emulator/ESP32; server lock снимается только completed ACK, rejected/error/timeout/duplicate/offline сохраняют lock; критические ошибки storage/config/cursor прошивка не разрешает сбрасывать как flow fault. NVS запись проверяется.
+- **Firmware:** GPIO write до setup из глобального Executor constructor устранён guard инициализации; несовпадение cursor version блокирует работу; NVS latch не перекрывает новую storage/config ошибку.
+- **Windows:** windows_setup (отдельный runtime/пароли/ACL), PowerShell launcher и read-only preflight. Физический Windows/USB ещё не проверены; тесты/инструкция далее.
+
+## [28.10.2026] Windows preflight — инструкция и комплексный прогон
+- **Выполнено:** полный pytest 308 passed/1 skipped; 12 native passed; ESP32 build; browser weather-monitor/dashboard/heatmap/stage9; реальные MQTT retries/stop/reset/replay/TLS/ACL и windows generated broker paths с пробелами; pip check чисто.
+- **Дополнительные находки:** hello online, NVS пустой string return=0, service FORMAT latch, незалежимые macro defaults, validTime manual guard. Исправлены. Физические проверки не подменяем программными.
+- **Документы:** WINDOWS_MANUAL_TEST.md (PowerShell/COM/Firewall/отдельные окна/doctor/USB/матрица/backup), MANUAL_ACCEPTANCE_REPORT.md, PREFLIGHT_AUDIT.md. Старый handoff reset пункт закрыт этой веткой; OTA и active replacement остаются ограничениями.
+- **Windows CI:** добавлен windows-latest pytest/browser/ESP32/PowerShell parse; результат будет проверен после push, до этого не заявляется passed.
+
+## [28.10.2026] Windows CI — найден и исправлен file lock
+- **Реальный Windows runner:** зависимости и pip check SUCCESS; полный pytest: 307 passed/1 skipped/1 failed — runtime_copy test не закрывал sqlite connection перед rename. Linux позволял rename открытого файла, Windows нет. Исправлено явным close, без skip теста.
+- **Дополнено:** cleanup временных DB test harness, UI reset с подтверждением и browser отказ/completed; emulator clear_error включён в коммит. Локальный чистый полный прогон после cleanup: 308 passed/1 skipped. Повтор Windows запускается после push.
+- **Ограничение:** готовность всего проекта/OTA не объявляется. Локальный USB стенд — отдельная допускаемая матрица.
+
+## [28.10.2026] Финальная проверка GitHub и разрешённый merge
+- **Запрос:** проверить failed run, исправить, загрузить все данные, слить с main после зелёных проверок.
+- **Результат:** 4011035 Windows CI SUCCESS (40748512661); audit tests/browser/MQTT SUCCESS (40748512598); firmware SUCCESS (40748512409). SQLite file-lock в failed run устранён без skip теста.
+- **Merge review:** origin/main является предком ветки, конфликтов нет; diff --check чисто; секреты/локальные runtime не включаются. Последние изменения — только запись результатов и переключение инструкции на main.
+- **Готовность:** начало предфинального ручного Windows/USB теста по WINDOWS_MANUAL_TEST.md; аппаратная/OTA/production приёмка не заявляется. Пользователь явно разрешил merge.

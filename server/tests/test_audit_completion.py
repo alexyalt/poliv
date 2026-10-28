@@ -322,12 +322,14 @@ def test_runtime_copy_remaps_local_archive_and_schedule(h6,tmp_path):
         conn.execute('INSERT INTO controller_schedules VALUES(1,?)',('data/schedules/B/v1.json',))
         conn.execute('INSERT INTO archive_exports VALUES(1,?,2,?,?)',
                      (str(archive),hashlib.sha256(archive.read_bytes()).hexdigest(),hashlib.sha256(manifest.read_bytes()).hexdigest()))
+    conn.close()  # sqlite context manager commits but does not close; Windows locks source.
     result=prepare(source,destination)
     assert result['ready'] and len(result['relocated_files'])==2
     assert result['external_files']==[]
     with sqlite3.connect(destination/'data/poliv.db') as conn:
         copied_schedule=Path(conn.execute('SELECT payload_path FROM controller_schedules').fetchone()[0])
         copied_archive=Path(conn.execute('SELECT file_path FROM archive_exports').fetchone()[0])
+    conn.close()
     assert copied_schedule==destination/'data/schedules/B/v1.json'
     assert copied_archive==destination/'data/archive/events/one.json'
     # Detaching source demonstrates that copied DB uses only the new local paths.

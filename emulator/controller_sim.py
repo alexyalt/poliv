@@ -394,6 +394,13 @@ class ControllerSim:
 
     def _execute(self, command: str, params: dict) -> tuple[bool, str]:
         with self._lock:
+            if command == "clear_error":
+                if self.active_zones:
+                    return False, "Закройте зоны перед сбросом"
+                self.error_code = None
+                self.mode, self.phase = "idle", "idle"
+                self._publish_status(force=True)
+                return True, "Авария сброшена"
             if command == "ping":
                 return True, "pong"
             if command == "zone_open":

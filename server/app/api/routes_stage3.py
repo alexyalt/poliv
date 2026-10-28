@@ -40,6 +40,7 @@ ROLE_LEVELS = {"viewer": 0, "operator": 1, "admin": 2}
 # Действия Этапа 3 и минимально необходимые роли (reboot — только admin).
 ACTION_ROLES: dict[str, str] = {name: "operator" for name in COMMAND_NAMES}
 ACTION_ROLES["reboot"] = "admin"
+ACTION_ROLES["clear_error"] = "admin"  # operator uses audited /clear-error endpoint
 
 
 def _user(request: Request) -> Optional[dict]:
@@ -92,6 +93,8 @@ def live_view(row: sqlite3.Row) -> dict:
         "instant_lpm": d.get("instant_lpm"),
         "service_mode_active": bool(d.get("service_mode_active")),
         "ip_address": d.get("ip_address"),
+        "error_code": d.get("device_error_code"),
+        "buffer_size": d.get("event_buffer_size"),
     }
 
 
@@ -101,7 +104,7 @@ LIVE_SELECT = """
            current_mode, current_phase, primary_zone, active_zones_json,
            display_zones_json, phase_end_ts, run_end_ts, pause_until_ts,
            emergency_lock_until_ts, flow_enabled, flow_total_liters,
-           instant_lpm, service_mode_active, ip_address
+           instant_lpm, service_mode_active, ip_address, device_error_code, event_buffer_size
     FROM controllers
 """
 

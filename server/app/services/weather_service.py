@@ -103,8 +103,8 @@ def weather_config(conn: sqlite3.Connection) -> dict:
     """Снимок настроек weather.* (с дефолтами Артефакта 0.7 §17.7)."""
     return {
         "enabled": bool(get_weather_setting(conn, "weather.enabled", True)),
-        "latitude": get_weather_setting(conn, "weather.latitude", None),
-        "longitude": get_weather_setting(conn, "weather.longitude", None),
+        "latitude": get_weather_setting(conn, "weather.latitude", 44.423062),
+        "longitude": get_weather_setting(conn, "weather.longitude", 34.06452),
         "update_interval_min": int(get_weather_setting(
             conn, "weather.update_interval_min", 60) or 60),
         "offline_policy": str(get_weather_setting(
@@ -618,13 +618,13 @@ class WeatherUpdater(threading.Thread):
     def __init__(self, db_path: str, *, initial_delay_sec: float = 5.0):
         super().__init__(daemon=True, name="poliv-weather-updater")
         self.db_path = db_path
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
         self._initial_delay = initial_delay_sec
 
     def run(self) -> None:
-        if self._stop.wait(self._initial_delay):
+        if self._stop_event.wait(self._initial_delay):
             return
-        while not self._stop.is_set():
+        while not self._stop_event.is_set():
             interval_min = 60
             try:
                 conn = connect_path(self.db_path)
@@ -634,15 +634,17 @@ class WeatherUpdater(threading.Thread):
                     if cfgw["enabled"]:
                         update_observations(conn)
                         update_forecasts(conn)
+                    from .weather_outlook import update as update_outlook
+                    update_outlook(conn)
                 finally:
                     conn.close()
             except Exception:
                 log.exception("WEATHER: цикл обновления упал — продолжаем")
-            if self._stop.wait(interval_min * 60):
+            if self._stop_event.wait(interval_min * 60):
                 return
 
     def stop(self) -> None:
-        self._stop.set()
+        self._stop_event.set()
 
 
 _updater: Optional[WeatherUpdater] = None

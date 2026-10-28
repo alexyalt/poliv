@@ -339,7 +339,7 @@ def test_api_notifications_lifecycle(h6):
     assert viewer.post("/api/notifications/read-all").json()["marked"] == 0
 
 
-def test_api_clear_error_operator(h6):
+def test_api_clear_error_operator(h6, monkeypatch):
     operator = h6.login_as("operator")
     c = h6.controller("BOX-A5")
     # активируем аварию через событие (путь сервиса)
@@ -347,10 +347,16 @@ def test_api_clear_error_operator(h6):
                                                reason_code="over_flow",
                                                aborted=True))
     assert h6.flow.is_emergency_locked(c["id"])
+    calls=[]
+    def completed(*args, **kwargs):
+        calls.append(args)
+        return {"status":"completed"}
+    monkeypatch.setattr(h6.cmd,"send_command_for_controller",completed)
     r = operator.post(f"/api/controllers/{c['id']}/clear-error",
                       json={"reason": "проверка"})
     assert r.status_code == 200
     assert r.json()["cleared"] is True
+    assert calls[-1][1]=="clear_error"
     assert not h6.flow.is_emergency_locked(c["id"])
     assert h6.row("BOX-A5")["emergency_lock_until_ts"] is None
     # уведомления аварии помечены разрешёнными

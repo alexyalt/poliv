@@ -11,7 +11,8 @@
   <div class="brand">💧 Автополив (v.{{ app_version }})</div>
   {% if user %}
   <nav class="mainnav">
-    <a href="/" class="{{ 'active' if nav == 'dashboard' or not nav else '' }}">Дашборд</a>
+    <a href="/" class="{{ 'active' if nav == 'dashboard' or not nav else '' }}">Монитор</a>
+    <a href="/active-zones">Активные зоны</a>
     <a href="/controllers" class="{{ 'active' if nav == 'controllers' else '' }}">Контроллеры</a>
     <a href="/zones" class="{{ 'active' if nav == 'zones' else '' }}">Зоны</a>
     <a href="/programs" class="{{ 'active' if nav.startswith('program') else '' }}">Программы</a>

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+import json
 
 from fastapi import Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -170,6 +171,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         return resp
 
     @app.get("/", response_class=HTMLResponse)
+    @app.get("/active-zones", response_class=HTMLResponse)
     def dashboard(request: Request):
         # Этап 5: плитки дашборда с живым состоянием + ошибки/объём за сегодня
         # (тот же расчёт, что у view-API /api/dashboard-view).
@@ -232,6 +234,9 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             "dashboard.html",
             controllers=catalog.list_controllers(),
             live=tiles,
+            active_view=request.url.path == "/active-zones",
+            dashboard_zones=catalog.list_zones(),
+            monitor_settings={s["key"]: json.loads(s["value_json"]) for s in catalog.list_settings() if s["key"].startswith("dashboard.")},
             summary=summary,
             programs=catalog.list_programs(),
             zones_count=len(catalog.list_zones()),
@@ -781,9 +786,20 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             return redirect("/settings", error=err)
         form = await request.form()
         try:
+            updates = []
             for key, value in form.items():
                 if key.startswith("setting:"):
-                    catalog.set_setting(key[len("setting:"):], value, user["username"])
+                    name = key[len("setting:"):]
+                    try:
+                        parsed = json.loads(value)
+                    except (ValueError, TypeError):
+                        parsed = value
+                    catalog._validate_setting_value(name, parsed)
+                    if not conn.execute("SELECT 1 FROM settings WHERE key=?", (name,)).fetchone():
+                        raise ValidationError("Неизвестная настройка")
+                    updates.append((name, value))
+            for name, value in updates:
+                catalog.set_setting(name, value, user["username"])
         except ValidationError as exc:
             return redirect("/settings", error=str(exc))
         auth.write_log(user["id"], user["username"], "settings.updated", "setting", None)

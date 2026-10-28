@@ -40,7 +40,7 @@ PROTOCOL_VERSION = "1.0"
 # Команды Этапа 3 (список — Артефакт 0.5 §5.2; полные контракты параметров — §5.3..§5.12)
 COMMAND_NAMES = {
     "ping", "zone_open", "zone_close", "stop_all",
-    "pause_controller", "resume_controller", "reboot",
+    "pause_controller", "resume_controller", "reboot", "clear_error",
 }
 
 ACK_FINAL_STATUSES = {"completed", "rejected", "error", "ignored_duplicate"}
@@ -152,7 +152,7 @@ def validate_command_params(command: str, params: dict) -> dict:
             cleaned["abort_current"] = params["abort_current"]
     elif command == "resume_controller":
         cleaned["reason"] = _clean_reason(params.get("reason"))
-    elif command == "reboot":
+    elif command in ("reboot", "clear_error"):
         cleaned["reason"] = _clean_reason(params.get("reason"))
     else:
         raise CommandError(f"Неизвестная команда: {command}")

@@ -39,6 +39,8 @@ box_id = "TESTBOX-0001"
 zones = 8
 
 [mqtt]
+tls_enabled = false
+tls_ca_file = ""  # empty uses system CA; private CA: absolute PEM path
 # Этап 3: серверный MQTT-клиент (Артефакт 0.7 §17.10).
 # ВНИМАНИЕ: пароль MQTT хранится ТОЛЬКО в config/config.local.toml ([mqtt] password="...")
 # и никогда не попадает в репозиторий.

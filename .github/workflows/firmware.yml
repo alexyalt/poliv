@@ -1,0 +1,27 @@
+name: firmware-checks
+on:
+  push:
+    branches: [main, 'feature/**', 'fix/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -q platformio==6.2.0
+      - run: pio test -d firmware -e native
+      - run: pio run -d firmware -e esp32dev
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esp32-service-firmware
+          path: |
+            firmware/.pio/build/esp32dev/firmware.bin
+            firmware/.pio/build/esp32dev/bootloader.bin
+            firmware/.pio/build/esp32dev/partitions.bin

@@ -48,7 +48,32 @@
         <form method="post" action="/controllers/{{ controller.id }}/action/resume_controller" class="inline-form">
           <button type="submit" class="btn btn-small">Продолжить</button>
         </form>
+        <button type="button" id="clear-device-error" class="btn btn-small btn-secondary">Сброс аварии</button>
       </div>
+      <p id="reset-result" role="status" class="muted small"></p>
+      <dialog id="reset-confirm"><h2>Причина аварии устранена?</h2>
+        <p>Проверьте подачу воды, закрытие клапанов и датчик. Сброс не запускает полив.</p>
+        <button type="button" id="reset-send" class="btn">Подтвердить сброс</button>
+        <button type="button" id="reset-cancel" class="btn">Отмена</button>
+      </dialog>
+      <script>
+      (()=>{
+        const dialog=document.getElementById('reset-confirm'), button=document.getElementById('clear-device-error');
+        const message=document.getElementById('reset-result'), send=document.getElementById('reset-send');
+        button.onclick=()=>dialog.showModal();
+        document.getElementById('reset-cancel').onclick=()=>dialog.close();
+        send.onclick=async()=>{
+          dialog.close();button.disabled=true;message.textContent='Ожидаем подтверждение контроллера…';
+          try{
+            const r=await fetch('/api/controllers/{{ controller.id }}/clear-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:'Причина проверена оператором'}),signal:AbortSignal.timeout(45000)});
+            const data=await r.json();
+            if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'Сброс не подтверждён');
+            message.textContent='Сброс подтверждён устройством. Дождитесь обновления статуса.';
+          }catch(error){message.textContent='Блокировка не снята: '+error.message;}
+          finally{button.disabled=false;}
+        };
+      })();
+      </script>
       {% endif %}
     </div>
   </section>

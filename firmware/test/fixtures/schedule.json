@@ -1,0 +1,73 @@
+{
+  "protocol_version": "1.0",
+  "box_id": "5B2338",
+  "schedule_version": 1,
+  "schedule_hash": "46e38d10c93ba83dd988692a3d6f86cd272476046b739fa7047a5f9df0c8b024",
+  "valid_from_date": "2026-10-28",
+  "valid_to_date": "2026-10-29",
+  "timezone_offset_min": 180,
+  "generated_ts": 1793205629,
+  "source": "auto",
+  "options": {
+    "max_catchup_sec": 600,
+    "max_start_delay_sec": 120,
+    "parallel_enabled": false,
+    "soak_display": "display_zones"
+  },
+  "runs": [
+    {
+      "run_id": "79b4ea49-036c-5810-b28a-f1b854175cca",
+      "program_id": 1,
+      "date": "2026-10-28",
+      "start_minute_local": 360,
+      "enabled": true,
+      "mode": "parallel_group",
+      "steps": [
+        {
+          "seq": 1,
+          "duration_sec": 60,
+          "phase": "water",
+          "active_zones": [
+            1
+          ]
+        },
+        {
+          "seq": 2,
+          "duration_sec": 60,
+          "phase": "soak",
+          "active_zones": [],
+          "display_zones": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "run_id": "fa65bf3f-16b7-585a-99c8-6349b99c598d",
+      "program_id": 1,
+      "date": "2026-10-29",
+      "start_minute_local": 360,
+      "enabled": true,
+      "mode": "parallel_group",
+      "steps": [
+        {
+          "seq": 1,
+          "duration_sec": 60,
+          "phase": "water",
+          "active_zones": [
+            1
+          ]
+        },
+        {
+          "seq": 2,
+          "duration_sec": 60,
+          "phase": "soak",
+          "active_zones": [],
+          "display_zones": [
+            1
+          ]
+        }
+      ]
+    }
+  ]
+}
