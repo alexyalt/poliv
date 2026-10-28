@@ -1,0 +1,25 @@
+[Unit]
+Description=Poliv irrigation server
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=poliv
+Group=poliv
+WorkingDirectory=/opt/poliv
+Environment=POLIV_DATA_ROOT=/var/lib/poliv
+Environment=POLIV_CONFIG_LOCAL=/etc/poliv/config.local.toml
+ExecStart=/opt/poliv/.venv/bin/python -m uvicorn server.main:app --host 0.0.0.0 --port 8080 --workers 1
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/poliv
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
