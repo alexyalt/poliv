@@ -688,3 +688,8 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Сделано:** USB service CONFIG/NETWORK_RESET, validated network JSON в одном NVS ключе; CLI с getpass и paced serial; ESP32 WiFiClientSecure с CA и запретом handshake до validTime; сервер strict TLS context, broker --tls профиль 8883.
 - **Проверки:** 10 native passed; ESP32 build SUCCESS; stage11 5 passed. Ошибка CA на сервере прерывает старт MQTT до connect/loop, без перехода на plaintext.
 - **Осталось в сессии:** реальный broker TLS smoke (hostname/CA/ACL), полная регрессия, обновить инструкцию.
+
+## [28.10.2026] Этап 11 — TLS приёмка без платы и инструкция
+- **Проверки:** настоящий временный Mosquitto + TLS: доверенный CA, отказ hostname mismatch/unknown CA, wrong password и cross-device publish; полный pytest 292 passed/1 skipped; native 10 passed; ESP32 SUCCESS.
+- **Сделано:** mqtt_tls_smoke в CI, пошаговая ИНСТРУКЦИЯ_USB_TLS.md (CA/SAN, конфиг брокера/сервера/USB, отказные сценарии); основная инструкция и STAGE11_PROGRESS дополнены.
+- **Ограничения:** ESP32 TLS/provisioning не проверены физически; NVS не зашифрован; CONFIG только service build; NTP обязателен до TLS; эмулятор ещё plaintext. OTA и rollback остаются открытыми.

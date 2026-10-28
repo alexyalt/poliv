@@ -74,4 +74,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq mosquitto
       - name: Check real MQTT ACK, retry, independent stop and replay
-        run: python -m server.tools.mqtt_smoke
+        run: |
+          python -m server.tools.mqtt_smoke
+          python -m server.tools.mqtt_tls_smoke

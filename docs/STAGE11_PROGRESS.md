@@ -24,3 +24,19 @@ runtime/rollback, DS3231/failsafe button; испытания на 50 физич�
 OTA с проверкой подписи и rollback, и настройку без пересборки прошивки.
 Текущая прошивка обновляется USB. Broker ACL и systemd проверены генерацией/
 тестами, unit ещё требует реального host service test.
+
+## Продолжение 28.10.2026 — USB provisioning / TLS
+
+Реализовано: service-only USB CONFIG/NETWORK_RESET; отдельная CLI с getpass;
+сетевой профиль одним NVS значением; строгая валидация длины/полей; ESP32 TLS
+с CA/hostname без insecure, после NTP; сервер TLS >=1.2 с hostname verification;
+broker generator --tls на 8883. Настройки переживают USB-прошивку. Физические
+параметры реле остаются compile-time, NVS без шифрования. Wi-Fi captive portal
+и массовый onboarding пока отсутствуют.
+
+Проверено: 292 pytest passed / 1 skipped, 10 native passed, ESP32 SUCCESS.
+Реальный Mosquitto: правильный CA, отказ чужого CA/hostname/пароля, собственные
+события и запрет публикации в топик другой платы. Smoke включён в CI.
+Инструкция: docs/ИНСТРУКЦИЯ_USB_TLS.md. Плата не проверена. OTA/rollback остаются
+следующей программной задачей; предыдущий список «TLS/provisioning не выполнено»
+теперь относится к аппаратной приёмке/массовому onboarding, не к отсутствию кода.
