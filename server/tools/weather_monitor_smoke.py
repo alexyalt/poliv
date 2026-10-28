@@ -45,7 +45,7 @@ def main():
                 h.set_live(box,connection_status='online' if i%7 else 'offline',
                            current_mode='error' if i%11==0 else 'manual' if i%3==0 else 'idle',
                            current_phase='water' if i%3==0 else 'idle',
-                           active_zones_json='[1]' if i%3==0 else '[]',time_valid=1,flow_enabled=1,instant_lpm=8.5)
+                           active_zones_json='[1]' if i%3==0 else '[]',time_valid=1,flow_enabled=1,instant_lpm=8.5,device_error_code='no_flow' if i==11 else None)
             with sync_playwright() as p:
                 browser=p.chromium.launch(headless=True,args=['--no-sandbox'])
                 page=browser.new_page(viewport={'width':1920,'height':1080})
@@ -119,6 +119,7 @@ def main():
                 assert '/controllers/' in page.url
                 page.goto('http://testserver/')
                 assert 'state-error' in page.locator('.controller-tile').first.get_attribute('class')
+                assert 'Нет потока воды' in page.locator('[data-box="MONITOR11"]').inner_text()
                 if args.screenshots:page.screenshot(path=str(folder/'monitor-50.png'),full_page=True)
                 page.locator('#problems-only').check()
                 assert page.locator('.controller-tile').count()<50

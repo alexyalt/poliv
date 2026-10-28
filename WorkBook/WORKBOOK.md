@@ -716,3 +716,8 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Тесты до последней диагностической правки:** полный pytest 298 passed/1 skipped; Chromium heatmap/reports/stage9/dashboard/monitor-weather OK; настоящий MQTT и TLS smoke OK; live Open-Meteo HTTP200. После правки diagnostics targeted 21 passed/1 skipped, расширенный weather Chromium OK. Итоговый полный прогон ниже.
 - **Открыто:** OTA signed/rollback/backup, аппаратная приёмка/DS3231/button, active schedule replacement/outbox powercut, пилот 50 плат. Выявлен отдельный блокер: серверный clear-error снимает только server lock, для NVS fault прошивки нужен end-to-end ACK reset. В этой сессии не исправлен, подробно передан в handoff.
 - **План продолжения:** начать с clear_error/ACK и native/integration тестов, затем signed OTA и стенд; перечень дополнительных настроек (Kc/почва/NTP/kiosk/сертификаты) в handoff. Не называть исходные этапы 10–12 полностью завершёнными.
+
+## [28.10.2026] Монитор/погода — финальная опубликованная контрольная точка
+- **Итоговый полный прогон:** 299 pytest passed, 1 skipped, 3 существующих deprecation warnings; 11 native passed; ESP32 SUCCESS (1027177/1638400 bytes Flash); git diff --check чисто.
+- **Chromium после последних изменений:** weather_monitor_smoke повторно прошёл; в том числе расшифровка no_flow, реальная отправка web forms в backend test harness, forecast refresh, stale/null, location change, 50 плиток/4 ширины/roles/offline/fullscreen. Тестовые данные не выдаются за живые состояния оборудования.
+- **Публикация:** feature/weather-monitor, промежуточные коммиты 315216c, 33b610c, 023b129 и финальная запись; main не меняется. Handoff и инструкция в docs, снимки и архив подготовлены пользователю.
