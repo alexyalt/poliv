@@ -47,6 +47,11 @@
     meta.textContent=`${data.latitude}, ${data.longitude} · ${data.timezone} · `+(data.fetched_at?'обновлено '+new Date(data.fetched_at).toLocaleString('ru-RU'): 'нет сохранённого прогноза');
     if(data.status!=='fresh')alerts.append(node('p',data.status==='disabled'?'Погодный модуль выключен':data.status==='stale'?'Прогноз устарел или неполон. Не используйте его как актуальный.':'Прогноз пока недоступен. Проверьте настройки и обновите погоду.', 'weather-notice warning'));
     for(const a of data.advisories||[])alerts.append(node('p',(data.status==='stale'?'По устаревшему прогнозу: ':'')+a.text,'weather-notice '+a.kind));
+    const summary=document.getElementById('weather-summary');summary.replaceChildren();
+    const temperatures=(data.hourly||[]).map(h=>h.temperature_2m).filter(numeric);
+    const gusts=(data.hourly||[]).map(h=>h.wind_gusts_10m).filter(numeric);
+    const et=(data.daily||[]).map(d=>d.et0_fao_evapotranspiration);
+    for(const [title,value]of [['Температура · 24 ч',temperatures.length?num(Math.min(...temperatures))+'…'+num(Math.max(...temperatures))+' °C':'—'],['Осадки · 24 ч',numeric(data.rain_24h_mm)?num(data.rain_24h_mm)+' мм':'—'],['Порывы · 24 ч',gusts.length?num(Math.max(...gusts))+' м/с':'—'],['ET₀ · 7 дней',et.length===7&&et.every(numeric)?num(et.reduce((a,b)=>a+b,0))+' мм':'—']]){const metric=node('div',undefined,'weather-summary-item');metric.append(node('span',title,'muted small'),node('strong',value));summary.append(metric);}
     const rows=data[horizon]||[];if(!rows.length)return;
     for(const group of groups[horizon])charts.append(chart(rows,...group));
     const table=node('table'),thead=node('thead'),head=node('tr');const fields=groups[horizon].flatMap(g=>g[2]).filter((s,i,a)=>a.findIndex(v=>v[0]===s[0])===i);
@@ -55,6 +60,8 @@
     thead.append(head);table.append(thead);const body=node('tbody');for(const r of rows){const tr=node('tr');tr.append(node('td',label(r.time)));for(const f of fields)tr.append(node('td',num(r[f[0]])));if(horizon==='hourly')tr.append(node('td',num(r.wind_direction_10m)),node('td',numeric(r.soil_moisture_0_to_1cm)?r.soil_moisture_0_to_1cm.toFixed(3):'—'));body.append(tr);}table.append(body);values.append(table);
   }
   el.querySelectorAll('[data-horizon]').forEach(b=>b.onclick=()=>{horizon=b.dataset.horizon;el.querySelectorAll('[data-horizon]').forEach(v=>v.setAttribute('aria-pressed',String(v===b)));render();});
-  async function load(){try{const r=await fetch('/api/v1/weather/outlook',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error();data=await r.json();render();}catch{meta.textContent='Не удалось получить прогноз. Данные на экране могли устареть.';alerts.replaceChildren(node('p','Нет связи с сервером погоды','weather-notice warning'));}finally{setTimeout(load,60000);}}
+  async function load(schedule=true){try{const r=await fetch('/api/v1/weather/outlook',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error();data=await r.json();render();}catch{meta.textContent='Не удалось получить прогноз. Данные на экране могли устареть.';alerts.replaceChildren(node('p','Нет связи с сервером погоды','weather-notice warning'));}finally{if(schedule)setTimeout(load,60000);}}
+  const refresh=document.getElementById('outlook-refresh');
+  if(refresh)refresh.onclick=async()=>{refresh.disabled=true;refresh.textContent='Обновление…';try{const r=await fetch('/api/v1/weather/refresh',{method:'POST',signal:AbortSignal.timeout(45000)});if(!r.ok)throw Error();await load(false);}catch{alerts.replaceChildren(node('p','Не удалось обновить прогноз. Сохранённые данные не удалены.','weather-notice warning'));}finally{refresh.disabled=false;refresh.textContent='Обновить прогноз';}};
   load();
 })();

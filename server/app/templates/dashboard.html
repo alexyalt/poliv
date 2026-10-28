@@ -33,12 +33,14 @@
   const make = (tag, cls, text) => {const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
   function state(c) {
     if(stale || c.connection_status !== 'online')return ['offline','Нет связи'];
-    if(c.mode==='error' || (c.emergency_lock_until_ts && c.emergency_lock_until_ts>Date.now()/1000))return ['error','Авария'];
+    if(c.error_code || c.mode==='error' || (c.emergency_lock_until_ts && c.emergency_lock_until_ts>Date.now()/1000))return ['error','Авария'];
     if(c.mode==='paused')return ['paused','Пауза'];
     if(c.service_mode_active || c.mode==='service')return ['service','Сервис'];
     if(c.active_zones.length && c.phase==='water')return ['watering','Полив'];
     if(c.phase==='soak')return ['soak','Впитывание'];
+    if(c.mode==='updating' || c.mode==='provisioning')return ['service','Обслуживание'];
     if(!c.time_valid)return ['warning','Нет времени'];
+    if(c.buffer_size>=48)return ['warning','Очередь событий'];
     return ['ready','Готов'];
   }
   function zoneName(c,n) {const z=zones.find(z=>z.controller_id===c.id && z.zone_number===n);return z?z.name:'Зона '+n;}
@@ -68,7 +70,7 @@
     link.setAttribute('aria-label','Настройки: '+c.name+(n?' · '+zoneName(c,n):''));
     const head=make('div','tile-title');head.append(make('h2','',n?zoneName(c,n):c.name),make('span','tile-status',label));link.append(head);
     link.append(make('p','tile-subtitle',n?c.name:c.box_id));
-    if(['error','warning'].includes(kind))link.append(make('p','tile-problem',kind==='error'?'Аварийная блокировка · проверьте контроллер':'Время не синхронизировано'));
+    if(['error','warning'].includes(kind))link.append(make('p','tile-problem',kind==='error'?({'no_flow':'Нет потока воды','unexpected_flow':'Поток при закрытых клапанах','storage_error':'Ошибка хранилища','event_buffer_full':'Переполнен журнал','valve_timeout':'Превышено время клапана'}[c.error_code]||c.error_code||'Аварийная блокировка · проверьте контроллер'):(c.buffer_size>=48?'Событий в очереди: '+c.buffer_size:'Время не синхронизировано')));
     const metrics=make('div','tile-metrics');
     const water=make('div');water.append(make('span','metric-label','Работает'),make('strong','',c.connection_status==='online' && !stale?(n?zoneName(c,n):c.active_zones.map(z=>zoneName(c,z)).join(', ')||'—'):'Нет данных'));
     const flow=make('div');flow.append(make('span','metric-label',n && c.active_zones.length>1?'Поток контроллера':'Поток воды'),make('strong','',!stale && c.connection_status==='online' && c.flow_enabled && c.instant_lpm!=null?Number(c.instant_lpm).toLocaleString('ru-RU',{maximumFractionDigits:1})+' л/мин':'—'));
@@ -92,7 +94,7 @@
     for(const c of sorted) {
       if(problemsOnly && !['error','warning','offline'].includes(state(c)[0]))continue;
       if(activeView) {
-        if(stale || c.connection_status!=='online' || c.phase!=='water' || ['paused','error','service'].includes(c.mode))continue;
+        if(stale || state(c)[0]!=='watering')continue;
         for(const n of c.active_zones){root.append(tile(c,n));count++;}
       } else {root.append(tile(c));count++;}
     }

@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 import tempfile
 from playwright.sync_api import sync_playwright
+import json
+from datetime import datetime,timezone
 from server.tests.test_stage5 import _Harness5
 from server.tests.test_weather_monitor import fixture
 from server.app.api.routes_weather import register_api_routes_weather
@@ -22,9 +24,20 @@ def main():
         old_fetch=weather_outlook.meteo._http_get
         try:
             register_api_routes_weather(h.app,h.cfg,h.conn)
-            weather_outlook.meteo._http_get=lambda *a:fixture()
+            def forecast_http(url,params):
+                raw=fixture()
+                if params.get('timeformat')=='unixtime':return raw
+                raw['hourly']['time']=[datetime.fromtimestamp(t,timezone.utc).isoformat() for t in raw['hourly']['time']]
+                raw['current']={'time':datetime.now(timezone.utc).isoformat(),'temperature_2m':12}
+                return raw
+            weather_outlook.meteo._http_get=forecast_http
             weather_outlook.update(h.conn)
             client=h.login_as('admin')
+            sent=[]
+            def send(controller_id,action,params,**kwargs):
+                sent.append((controller_id,action,params))
+                return 'browser-test-command-id'
+            h.cmd.send_command_async=send
             for i in range(50):
                 box=f'MONITOR{i:02d}'
                 c=h.catalog.create_controller({'box_id':box,'name':f'Участок {i+1:02d}'})
@@ -52,8 +65,11 @@ def main():
                 page.goto('http://testserver/weather')
                 page.wait_for_selector('.weather-chart svg')
                 assert page.locator('.weather-chart').count()==6
+                page.get_by_role('button',name='Обновить прогноз',exact=True).click()
+                page.wait_for_function("!document.querySelector('#outlook-refresh').disabled",timeout=12000)
+                assert page.locator('.weather-summary-item').count()==4
                 assert '44.423062' in page.locator('#outlook-meta').inner_text()
-                assert page.locator('.weather-notice.danger').count()==1
+                assert page.locator('.weather-notice.danger').count()==1, page.locator('#weather-alerts').inner_text()
                 page.get_by_role('button',name='7 дней',exact=True).click()
                 assert page.locator('.weather-chart').count()==5
                 assert 'ET₀' in page.locator('#weather-charts').inner_text()
@@ -65,6 +81,18 @@ def main():
                 page.get_by_role('button',name='24 часа',exact=True).click()
                 assert page.locator('#weather-values tbody tr').count()==24
                 if args.screenshots:page.screenshot(path=str(folder/'weather-24hours.png'),full_page=True)
+                h.conn.execute("UPDATE weather_outlooks SET fetched_at='2020-01-01T00:00:00+00:00'")
+                page.reload()
+                page.wait_for_function("document.querySelector('#weather-alerts').textContent.includes('устарел')")
+                assert page.locator('.weather-chart').count()==6
+                weather_outlook.update(h.conn)
+                cached=json.loads(h.conn.execute('SELECT payload_json FROM weather_outlooks').fetchone()[0])
+                for row in cached['hourly']:row['temperature_2m']=None
+                h.conn.execute('UPDATE weather_outlooks SET payload_json=?',(json.dumps(cached),))
+                h.conn.commit()
+                page.reload();page.wait_for_selector('.weather-chart svg')
+                assert page.locator('.weather-chart').first.locator('path').get_attribute('d').strip()==''
+                weather_outlook.update(h.conn)
                 page.goto('http://testserver/settings')
                 latitude=page.locator('input[name="setting:weather.latitude"]')
                 assert latitude.input_value()=='44.423062'
@@ -78,6 +106,18 @@ def main():
                 assert 'недоступен' in page.locator('#weather-alerts').inner_text()
                 page.goto('http://testserver/')
                 assert page.locator('.controller-tile').count()==50
+                healthy=page.locator('[data-box="MONITOR01"]')
+                healthy.get_by_role('button',name='Старт',exact=True).click()
+                page.locator('#start-form input[name=duration_sec]').fill('30')
+                with page.expect_navigation():page.locator('#start-form button[type=submit]').click()
+                assert sent[-1][1]=='zone_open' and sent[-1][2]['duration_sec']=='30'
+                with page.expect_navigation():page.locator('[data-box="MONITOR01"]').get_by_role('button',name='Пауза',exact=True).click()
+                assert sent[-1][1]=='pause_controller' and int(sent[-1][2]['duration_sec'])==3600
+                with page.expect_navigation():page.locator('[data-box="MONITOR01"]').get_by_role('button',name='Стоп',exact=True).click()
+                assert sent[-1][1]=='stop_all'
+                with page.expect_navigation():page.locator('[data-box="MONITOR01"] .tile-detail').click()
+                assert '/controllers/' in page.url
+                page.goto('http://testserver/')
                 assert 'state-error' in page.locator('.controller-tile').first.get_attribute('class')
                 if args.screenshots:page.screenshot(path=str(folder/'monitor-50.png'),full_page=True)
                 page.locator('#problems-only').check()
@@ -93,12 +133,21 @@ def main():
                 fail_live=False
                 page.wait_for_selector('#net-banner[hidden]',state='attached',timeout=12000)
                 assert page.locator('#dashboard-tiles button:not(:disabled)').count()>0
+                weather_outlook.meteo._http_get=forecast_http
+                h.catalog.set_setting('weather.latitude',44.423062)
                 for width in (390,768,1366,1920):
                     page.set_viewport_size({'width':width,'height':900})
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),width
+                    page.goto('http://testserver/weather')
+                    page.wait_for_selector('.weather-chart svg')
+                    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),('weather',width)
+                    page.goto('http://testserver/')
                 client=h.login_as('viewer')
                 page.goto('http://testserver/')
                 assert page.locator('#dashboard-tiles button').count()==0
+                page.goto('http://testserver/weather')
+                page.wait_for_selector('.weather-chart svg')
+                assert page.locator('#outlook-refresh').count()==0
                 page.goto('http://testserver/settings')
                 assert page.locator('.settings-form button[type=submit]').count()==0
                 assert not errors,errors

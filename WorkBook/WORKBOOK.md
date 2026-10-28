@@ -710,3 +710,9 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Исправлено:** серверные command/time не содержат box_id (адрес — topic); firmware теперь принимает такой envelope, проверяя topic и optional box_id. manual finished связан started_event_uid. Регрессионный native-тест добавлен.
 - **Settings:** сгруппированы, числовые ограничения, viewer readonly, prevalidation всех полей до записи. Диалог старта закрывается при offline/error в очередном poll; фокус клавиатуры сохраняется после обновления.
 - **Уточнение предыдущей записи:** первый запуск weather-monitor теста выявил пограничное fetched_at на доли секунды позже test-now; исправлен допуск -30сек, все 6 тестов теперь проходят. Проверки окончательной версии ниже.
+
+## [28.10.2026] Монитор/погода — итог и незавершённые этапы
+- **Сделано:** диагностика error_code/buffer_size сохранена в БД и live API (0015); расшифровки на плитке; карточки погодной сводки, ручное обновление с ролью operator+, stale/null проверки в Chromium; docs/WEATHER_MONITOR_ACCEPTANCE.md, SESSION_HANDOFF_MONITOR.md.
+- **Тесты до последней диагностической правки:** полный pytest 298 passed/1 skipped; Chromium heatmap/reports/stage9/dashboard/monitor-weather OK; настоящий MQTT и TLS smoke OK; live Open-Meteo HTTP200. После правки diagnostics targeted 21 passed/1 skipped, расширенный weather Chromium OK. Итоговый полный прогон ниже.
+- **Открыто:** OTA signed/rollback/backup, аппаратная приёмка/DS3231/button, active schedule replacement/outbox powercut, пилот 50 плат. Выявлен отдельный блокер: серверный clear-error снимает только server lock, для NVS fault прошивки нужен end-to-end ACK reset. В этой сессии не исправлен, подробно передан в handoff.
+- **План продолжения:** начать с clear_error/ACK и native/integration тестов, затем signed OTA и стенд; перечень дополнительных настроек (Kc/почва/NTP/kiosk/сертификаты) в handoff. Не называть исходные этапы 10–12 полностью завершёнными.

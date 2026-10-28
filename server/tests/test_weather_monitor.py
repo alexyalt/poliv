@@ -106,3 +106,14 @@ def test_upgrade_only_replaces_unset_coordinates(h):
     module.upgrade(h.conn)
     assert outlook.weather_config(h.conn)['latitude']==44.423062
     assert outlook.weather_config(h.conn)['longitude']==41
+
+
+def test_device_diagnostics_roundtrip_and_explicit_reset(h):
+    c=h.controller('DIAGNOSTIC')
+    h.mqtt._apply_state_fields('DIAGNOSTIC',{'mode':'error','error_code':'no_flow','buffer_size':49},hello=False)
+    client=h.login_as('viewer')
+    data=client.get(f"/api/controllers/{c['id']}/live").json()
+    assert data['error_code']=='no_flow' and data['buffer_size']==49
+    h.mqtt._apply_state_fields('DIAGNOSTIC',{'mode':'idle','error_code':None,'buffer_size':0},hello=False)
+    data=client.get(f"/api/controllers/{c['id']}/live").json()
+    assert data['error_code'] is None and data['buffer_size']==0

@@ -323,6 +323,10 @@ class MqttServerClient:
             v = p.get(key)
             if isinstance(v, int) and not isinstance(v, bool):
                 sets[key] = v
+        if "error_code" in p and (p["error_code"] is None or isinstance(p["error_code"], str)):
+            sets["device_error_code"] = p["error_code"][:96] if p["error_code"] else None
+        if isinstance(p.get("buffer_size"), int) and not isinstance(p["buffer_size"], bool) and 0 <= p["buffer_size"] <= 100000:
+            sets["event_buffer_size"] = p["buffer_size"]
         # buffer_size — неотправленные события; на Этапе 3 принимаем и логируем,
         # хранилище событий — Этап 6.
         bs = p.get("buffer_size")

@@ -701,6 +701,10 @@ class CatalogService:
             'dashboard.refresh_sec': (3,60), 'dashboard.columns': (2,8),
             'dashboard.pause_minutes': (1,1440), 'dashboard.manual_seconds': (1,3600),
         }
+        if key in ('weather.enabled','weather.rules_enabled'):
+            if not isinstance(parsed, bool):
+                raise ValidationError('Ожидается true или false')
+            return parsed
         if key in limits:
             if isinstance(parsed, bool):
                 raise ValidationError('Ожидается число')
