@@ -618,13 +618,13 @@ class WeatherUpdater(threading.Thread):
     def __init__(self, db_path: str, *, initial_delay_sec: float = 5.0):
         super().__init__(daemon=True, name="poliv-weather-updater")
         self.db_path = db_path
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
         self._initial_delay = initial_delay_sec
 
     def run(self) -> None:
-        if self._stop.wait(self._initial_delay):
+        if self._stop_event.wait(self._initial_delay):
             return
-        while not self._stop.is_set():
+        while not self._stop_event.is_set():
             interval_min = 60
             try:
                 conn = connect_path(self.db_path)
@@ -640,11 +640,11 @@ class WeatherUpdater(threading.Thread):
                     conn.close()
             except Exception:
                 log.exception("WEATHER: цикл обновления упал — продолжаем")
-            if self._stop.wait(interval_min * 60):
+            if self._stop_event.wait(interval_min * 60):
                 return
 
     def stop(self) -> None:
-        self._stop.set()
+        self._stop_event.set()
 
 
 _updater: Optional[WeatherUpdater] = None

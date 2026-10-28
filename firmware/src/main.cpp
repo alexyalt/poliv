@@ -24,7 +24,7 @@ bool validTime() { return time(nullptr) > 1735689600; }
 class Relays : public IRelayDriver {
  public:
   void begin() {
-    pinMode(13,OUTPUT);pinMode(12,OUTPUT);pinMode(14,OUTPUT);select(0);
+    pinMode(13,OUTPUT);pinMode(12,OUTPUT);pinMode(14,OUTPUT);initialized=true;select(0);
     esp_timer_create_args_t args={};args.callback=[](void* self){static_cast<Relays*>(self)->check();};
     args.arg=this;args.name="valve-deadline";
     if(esp_timer_create(&args,&timer)!=ESP_OK || esp_timer_start_periodic(timer,25000)!=ESP_OK) {
@@ -33,6 +33,7 @@ class Relays : public IRelayDriver {
   }
   void setTimeout(uint32_t seconds) override { timeout=seconds; }
   void select(uint8_t zone) override {
+    if(!initialized)return;
     portENTER_CRITICAL(&mux);
     if(!enabled || !OUTPUTS_VERIFIED)zone=0;
     deadline=zone ? esp_timer_get_time()+int64_t(timeout)*1000000 : 0;
@@ -43,6 +44,7 @@ class Relays : public IRelayDriver {
  private:
   portMUX_TYPE mux=portMUX_INITIALIZER_UNLOCKED;
   esp_timer_handle_t timer=nullptr;
+  bool initialized=false;
   uint32_t timeout=0;
   int64_t deadline=0;
   void write(uint8_t zone) {
@@ -154,6 +156,7 @@ portMUX_TYPE flowMux=portMUX_INITIALIZER_UNLOCKED;
 void IRAM_ATTR pulse() {portENTER_CRITICAL_ISR(&flowMux);++flowPulses;portEXIT_CRITICAL_ISR(&flowMux);}
 uint32_t pulses() {portENTER_CRITICAL(&flowMux);auto n=flowPulses;portEXIT_CRITICAL(&flowMux);return n;}
 float lpm=0, liters=0;
+uint32_t flowObserved=0, flowQuietSince=0;
 bool verifyHash(JsonDocument& d) {
  std::string canonical=canonicalContent(d);unsigned char digest[32];char hex[65];
  mbedtls_sha256_ret(reinterpret_cast<const unsigned char*>(canonical.data()),canonical.size(),digest,0);
@@ -233,7 +236,16 @@ void process(Incoming message) {
    }
   }
   else if(cmd=="resume_controller"){ok=nvs.putBool("paused",false)>0;if(ok){pauseUntil=0;nvs.putLong64("pause_until",0);executor.resume();}}
-  else if(cmd=="clear_error"){ok=executor.clearFault();if(ok)nvs.putString("fault","");}
+  else if(cmd=="clear_error") {
+   // Quiet flow input for 3 seconds is required; no-flow root cause is operator-checked.
+   if(!executor.zone() && (!FLOW_ENABLED || mono()-flowQuietSince>=3)) {
+    std::string previousFault=executor.error();
+    if(executor.clearFault()) {
+     ok=nvs.putString("fault","")>0;
+     if(!ok)executor.fault(previousFault.empty()?"storage_error":previousFault);
+    }
+   }
+  }
   else if(cmd=="reboot"){executor.stop();ok=true;reboot=true;}
   if(ok)result="completed";
  }
@@ -277,7 +289,7 @@ void setup() {
       Cursor cursor={c["run"] | "",c["step"] | 0u,c["remaining"] | 0u,c["active"] | false};
       std::vector<std::string> done;for(auto v:c["done"].as<JsonArray>())done.push_back(v.as<std::string>());
       executor.restore(cursor,done,RESUME_AFTER_POWER_LOSS);
-     }
+     } else executor.fault("invalid_cursor");
     }
    }
   }
@@ -286,7 +298,7 @@ void setup() {
    else for(auto v:d["ids"].as<JsonArray>())commands.push_back(v.as<String>());
   }
  }
- String latch=nvs.getString("fault","");if(latch.length())executor.fault(latch.c_str());
+ String latch=nvs.getString("fault","");if(latch.length() && executor.error().empty())executor.fault(latch.c_str());
  pauseUntil=nvs.getLong64("pause_until",0);
  if(nvs.getBool("paused",false))executor.pause();
  if(!relays.enabled)executor.fault("deadline_timer");
@@ -312,6 +324,7 @@ void loop() {
  static uint8_t previous=0;
  static uint32_t observed=0;
  uint32_t now=mono();
+ uint32_t observedFlow=pulses();if(observedFlow!=flowObserved){flowObserved=observedFlow;flowQuietSince=now;}
  if(executor.mode()=="paused" && pauseUntil && validTime() && time(nullptr)>=pauseUntil) {
   if(nvs.putBool("paused",false)>0){pauseUntil=0;nvs.putLong64("pause_until",0);executor.resume();}
  }

@@ -158,7 +158,8 @@ void Executor::fault(const std::string& code) {
   stop(); error_ = code; relays_.select(0); zone_ = 0;
 }
 bool Executor::clearFault() {
-  if (error_ == "storage_error" || error_ == "event_buffer_full") return false;
+  if (!error_.empty() && error_ != "no_flow" && error_ != "unexpected_flow" &&
+      error_ != "valve_timeout") return false;
   error_.clear(); return true;
 }
 std::string Executor::mode() const {

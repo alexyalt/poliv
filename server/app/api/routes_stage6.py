@@ -12,10 +12,8 @@
 - POST /api/controllers/{id}/clear-error — сброс аварийной блокировки (operator+).
 
 Роли/ошибки — как в routes_stage3/4/5: viewer на чтение, operator на действия;
-401/403/404 в {"detail": ...}. Команды clear_error в словаре COMMAND_NAMES
-прошивки нет (Этап 3) — серверный сброс выполняется локально; если MQTT
-подключён и контроллер онлайн, дополнительно шлётся ping как «разбудитель»
-статуса (отсутствие dedicated-команды — осознанное отличие от рекомендации).
+401/403/404 в {"detail": ...}. Сброс аварии подтверждается командой clear_error:
+локальная блокировка снимается только после completed ACK от устройства.
 """
 from __future__ import annotations
 
@@ -26,6 +24,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, Request
+from starlette.concurrency import run_in_threadpool
+from ..services.mqtt_command_service import CommandError, ControllerOffline, MqttUnavailable
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ..infra.csv_export import _csv_safe, csv_response  # noqa: F401
@@ -336,6 +336,22 @@ def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> N
             body = {}
         reason = str(body.get("reason") or "ручной сброс аварии")[:200]
 
+        command_service = getattr(app.state, "command_service", None)
+        if command_service is None:
+            return JSONResponse({"detail": "MQTT command service unavailable"}, status_code=503)
+        try:
+            result = await run_in_threadpool(
+                command_service.send_command_for_controller, controller_id, "clear_error",
+                {"reason": reason}, user_id=user["id"], username=user["username"])
+        except ControllerOffline:
+            return JSONResponse({"detail": "controller_offline; блокировка сохранена"}, status_code=409)
+        except (MqttUnavailable, CommandError) as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=503)
+        # ignored_duplicate is not proof a previous reset completed successfully.
+        if result.get("status") != "completed":
+            return JSONResponse({"detail": "Устройство не подтвердило сброс; блокировка сохранена",
+                                 "command": result}, status_code=409)
+
         svc = get_flow_service()
         cleared = False
         if svc is not None:
@@ -361,19 +377,8 @@ def register_api_routes_stage6(app: FastAPI, cfg, conn: sqlite3.Connection) -> N
                        WHERE controller_id=? AND type='flow_emergency'
                          AND resolved_at IS NULL""", (controller_id,))
 
-        #MQTT: если клиент подключён — пингуем контроллер, чтобы он прислал
-        # актуальный статус (специальной команды clear_error в прошивке нет).
-        mqtt = getattr(app.state, "mqtt", None)
-        if mqtt is not None and getattr(mqtt, "connected", False):
-            try:
-                mqtt.publish(f"poliv/{row['box_id']}/command", {
-                    "protocol_version": "1.0", "ts": __import__("time").time(),
-                    "command_id": "stage6-status-refresh",
-                    "command": "ping", "params": {},
-                }, qos=1)
-            except Exception:
-                log.exception("clear-error: не удалось отправить ping %s",
-                              row["box_id"])
+        with conn:
+            conn.execute("UPDATE controllers SET device_error_code=NULL WHERE id=?", (controller_id,))
 
         app.state.auth.write_log(
             user["id"], user["username"], "controller.clear_error",

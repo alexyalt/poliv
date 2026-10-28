@@ -721,3 +721,14 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Итоговый полный прогон:** 299 pytest passed, 1 skipped, 3 существующих deprecation warnings; 11 native passed; ESP32 SUCCESS (1027177/1638400 bytes Flash); git diff --check чисто.
 - **Chromium после последних изменений:** weather_monitor_smoke повторно прошёл; в том числе расшифровка no_flow, реальная отправка web forms в backend test harness, forecast refresh, stale/null, location change, 50 плиток/4 ширины/roles/offline/fullscreen. Тестовые данные не выдаются за живые состояния оборудования.
 - **Публикация:** feature/weather-monitor, промежуточные коммиты 315216c, 33b610c, 023b129 и финальная запись; main не меняется. Handoff и инструкция в docs, снимки и архив подготовлены пользователю.
+
+## [28.10.2026] Предфинальный аудит Windows — начало
+- **План in_progress:** audit критических контрактов/reset/recovery; Windows setup/start/doctor; тесты/инструкция/критерии.
+- **Контрольная база:** 5923975, ветка fix/windows-preflight-audit. Прогресс коммитить и публиковать.
+- **Приёмка:** отдельно USB/service и один клапан; OTA и production readiness не приравнивать к готовности локального стенда.
+
+## [28.10.2026] Windows audit — критические исправления и checkpoint
+- **Найдено/исправлено:** unconditional uvloop в requirements.lock ломал Windows install; добавлен platform marker/colorama. WeatherUpdater перекрывал Thread._stop и мог ломать join; переименован stop event.
+- **Reset:** clear_error теперь командный контракт server/emulator/ESP32; server lock снимается только completed ACK, rejected/error/timeout/duplicate/offline сохраняют lock; критические ошибки storage/config/cursor прошивка не разрешает сбрасывать как flow fault. NVS запись проверяется.
+- **Firmware:** GPIO write до setup из глобального Executor constructor устранён guard инициализации; несовпадение cursor version блокирует работу; NVS latch не перекрывает новую storage/config ошибку.
+- **Windows:** windows_setup (отдельный runtime/пароли/ACL), PowerShell launcher и read-only preflight. Физический Windows/USB ещё не проверены; тесты/инструкция далее.

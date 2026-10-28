@@ -31,7 +31,7 @@ def normalize(raw):
                 row[key] = v if isinstance(v, str) or (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)) else None
             result.append(row)
         return result
-    hourly, daily = rows('hourly', HOURLY, 192), rows('daily', DAILY, 7)
+    hourly, daily = rows('hourly', HOURLY, 192), rows('daily', DAILY, 8)
     if not hourly or not daily:
         return None
     return {'timezone': raw.get('timezone', 'UTC'), 'utc_offset_seconds': raw.get('utc_offset_seconds', 0),
