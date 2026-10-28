@@ -749,3 +749,7 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Результат:** 4011035 Windows CI SUCCESS (40748512661); audit tests/browser/MQTT SUCCESS (40748512598); firmware SUCCESS (40748512409). SQLite file-lock в failed run устранён без skip теста.
 - **Merge review:** origin/main является предком ветки, конфликтов нет; diff --check чисто; секреты/локальные runtime не включаются. Последние изменения — только запись результатов и переключение инструкции на main.
 - **Готовность:** начало предфинального ручного Windows/USB теста по WINDOWS_MANUAL_TEST.md; аппаратная/OTA/production приёмка не заявляется. Пользователь явно разрешил merge.
+
+## [28.10.2026] Main post-merge CI — граница часа
+- Windows 4011035, browser/MQTT/firmware прошли. Main 635ed63 выявил flaky forecast fixture import-time: час устаревал до проверки. Исправлено локальным fixture и фиксированным clock, строгое ожидание 24 сохранено.
+- Merge выполнен по запросу пользователя, Windows инструкция указывает main. Финальный CI исправления проверяется перед передачей.

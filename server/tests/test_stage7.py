@@ -408,8 +408,15 @@ def test_update_observations_and_forecasts_persist(conn, monkeypatch):
     _set_setting(conn, "weather.latitude", 55.0)
     _set_setting(conn, "weather.longitude", 37.0)
 
+    # Build forecast inside this test, independent of module-import time.
+    forecast = {"hourly": {**FORECAST_OK["hourly"], "time": _forecast_times()}}
+    class FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.fromisoformat(forecast["hourly"]["time"][0]).replace(tzinfo=timezone.utc)
+    monkeypatch.setattr(wx, "datetime", FixedClock)
     def fake_get(url, params=None, timeout=None, headers=None):
-        return _Resp(CURRENT_OK if "current" in params else FORECAST_OK)
+        return _Resp(CURRENT_OK if "current" in params else forecast)
 
     monkeypatch.setattr(omc.httpx, "get", fake_get)
     obs = wx.update_observations(conn)

@@ -1,7 +1,7 @@
 name: windows-preflight
 on:
   push:
-    branches: ['fix/windows-preflight-audit']
+    branches: [main, 'fix/windows-preflight-audit']
   pull_request:
   workflow_dispatch:
 permissions:
