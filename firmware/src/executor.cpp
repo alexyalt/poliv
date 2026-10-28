@@ -11,7 +11,7 @@ Executor::Executor(IRelayDriver& r, IJournal& j, uint32_t maxSeconds)
 bool Executor::marked(const std::string& id) const {
   return std::find(done_.begin(), done_.end(), id) != done_.end();
 }
-bool Executor::apply(const Schedule& s) {
+bool Executor::apply(const Schedule& s, bool persist) {
   if (!s.version || s.hash.empty() || s.runs.size() > 128 || s.maxDelay > 86400) return false;
   if (s.version < schedule_.version) return false;
   if (s.version == schedule_.version) return s.hash == schedule_.hash;
@@ -31,7 +31,7 @@ bool Executor::apply(const Schedule& s) {
   if (cursor_.active || suspended_.active) return false;
   schedule_ = s;
   done_.clear();
-  return checkpoint();
+  return !persist || checkpoint();
 }
 bool Executor::checkpoint() {
   if (journal_.save(manual_ ? suspended_ : cursor_, done_)) return true;
@@ -39,6 +39,7 @@ bool Executor::checkpoint() {
   return false;
 }
 bool Executor::record(const std::string& status) {
+  if (!zone_) return true;
   if (journal_.event(cursor_.run, zone_, status, manual_ ? "manual" : "schedule", elapsed_)) return true;
   relays_.select(0); zone_ = 0; error_ = "event_buffer_full"; phase_ = "idle";
   return false;
@@ -67,6 +68,7 @@ bool Executor::openStep() {
   if (!checkpoint()) return false;
   phase_ = st.phase; zone_ = st.zone;
   if (!record("started")) return false;
+  relays_.setTimeout(cursor_.remaining);
   relays_.select(zone_);
   return true;
 }
@@ -126,13 +128,16 @@ bool Executor::manual(uint8_t zone, uint32_t seconds, uint32_t mono) {
   if (!zone || zone > 16 || !seconds || seconds > maxSeconds_ || !error_.empty() || paused_) return false;
   if (manual_) finish(true);
   if (!error_.empty()) return false;
-  relays_.select(0); zone_ = 0;
+  relays_.select(0);
+  if (zone_ && !record("done")) return false;
+  zone_ = 0;
   suspended_ = cursor_; manual_ = true;
   cursor_ = {"manual-" + std::to_string(mono), 0, seconds, true};
   if (!checkpoint()) return false;
   lastMono_ = mono; clockStarted_ = true; elapsed_ = 0;
   zone_ = zone; phase_ = "water";
   if (!record("started")) return false;
+  relays_.setTimeout(cursor_.remaining);
   relays_.select(zone_); return true;
 }
 void Executor::stop() {
@@ -145,6 +150,7 @@ void Executor::pause() {
   relays_.select(0);
   // Finish a manual run; preserve the schedule's remaining step.
   if (manual_) finish(true);
+  if (zone_) record("done");
   zone_ = 0; phase_ = "idle"; paused_ = true; checkpoint();
 }
 void Executor::resume() { paused_ = false; }

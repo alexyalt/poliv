@@ -8,6 +8,7 @@ struct IRelayDriver {
   virtual ~IRelayDriver() = default;
   // 0 closes everything; 1..16 selects exactly one zone.
   virtual void select(uint8_t zone) = 0;
+  virtual void setTimeout(uint32_t) {}
 };
 struct Step { uint8_t zone = 0; uint32_t seconds = 0; std::string phase = "water"; };
 struct Run { std::string id; int64_t start = 0; std::vector<Step> steps; };
@@ -27,7 +28,7 @@ struct IJournal {
 class Executor {
  public:
   Executor(IRelayDriver& relays, IJournal& journal, uint32_t maxSeconds = 3600);
-  bool apply(const Schedule& schedule);
+  bool apply(const Schedule& schedule, bool persist = true);
   void restore(const Cursor& cursor, const std::vector<std::string>& done, bool resume);
   void tick(int64_t unixSeconds, uint32_t monotonicSeconds, bool timeValid);
   bool manual(uint8_t zone, uint32_t seconds, uint32_t mono);

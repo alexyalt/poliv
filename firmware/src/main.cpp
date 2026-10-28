@@ -11,44 +11,86 @@
 #include <deque>
 #include "executor.h"
 #include "settings.h"
+#include "protocol.h"
+#include <mbedtls/sha256.h>
 using namespace poliv;
 constexpr size_t MaxPayload = 48 * 1024;
-constexpr size_t MaxEvents = 128;
+constexpr size_t MaxEvents = 64;
 String box, prefix;
 uint32_t mono() { return uint32_t(esp_timer_get_time() / 1000000); }
 bool validTime() { return time(nullptr) > 1735689600; }
 class Relays : public IRelayDriver {
  public:
-  void begin() { pinMode(13,OUTPUT);pinMode(12,OUTPUT);pinMode(14,OUTPUT);select(0); }
+  void begin() {
+    pinMode(13,OUTPUT);pinMode(12,OUTPUT);pinMode(14,OUTPUT);select(0);
+    esp_timer_create_args_t args={};args.callback=[](void* self){static_cast<Relays*>(self)->check();};
+    args.arg=this;args.name="valve-deadline";
+    if(esp_timer_create(&args,&timer)!=ESP_OK || esp_timer_start_periodic(timer,25000)!=ESP_OK) {
+      enabled=false;
+    }
+  }
+  void setTimeout(uint32_t seconds) override { timeout=seconds; }
   void select(uint8_t zone) override {
-    uint16_t bits=relayBits(OUTPUTS_VERIFIED ? zone : 0, RELAY_ACTIVE_HIGH);
+    portENTER_CRITICAL(&mux);
+    if(!enabled || !OUTPUTS_VERIFIED)zone=0;
+    deadline=zone ? esp_timer_get_time()+int64_t(timeout)*1000000 : 0;
+    write(zone);portEXIT_CRITICAL(&mux);
+  }
+  volatile bool expired=false;
+  bool enabled=true;
+ private:
+  portMUX_TYPE mux=portMUX_INITIALIZER_UNLOCKED;
+  esp_timer_handle_t timer=nullptr;
+  uint32_t timeout=0;
+  int64_t deadline=0;
+  void write(uint8_t zone) {
+    uint16_t bits=relayBits(zone,RELAY_ACTIVE_HIGH);
     digitalWrite(14,LOW);shiftOut(13,12,MSBFIRST,bits >> 8);
     shiftOut(13,12,MSBFIRST,bits & 255);digitalWrite(14,HIGH);
   }
+  void check() {
+    portENTER_CRITICAL(&mux);
+    if(deadline && esp_timer_get_time()>=deadline) {write(0);deadline=0;expired=true;}
+    portEXIT_CRITICAL(&mux);
+  }
 } relays;
 WiFiClient network;
-MQTTClient mqtt(MaxPayload + 1024);
+constexpr size_t MaxInbound=16*1024;
+MQTTClient mqtt(MaxInbound + 1024);
 Preferences nvs;
 String uid() { char b[25];snprintf(b,sizeof(b),"%08lx%08lx%08lx",(unsigned long)esp_random(),(unsigned long)esp_random(),(unsigned long)esp_random());return String(b); }
 void base(JsonDocument& d) { d["protocol_version"]="1.0";d["box_id"]=box;d["ts"]=int64_t(time(nullptr)); }
 bool publish(const char* kind, JsonDocument& d, bool retained=false) {
  String raw;serializeJson(d,raw);return mqtt.connected() && mqtt.publish(prefix+kind,raw,retained,1);
 }
-// Atomic rename preserves the last valid record if a write fails. No auto-format on boot.
+// LittleFS atomic rename + CRC detects corruption; no automatic formatting.
+uint32_t crc(const String& raw) {
+ uint32_t c=0xffffffff;
+ for(size_t i=0;i<raw.length();++i) {
+  c^=uint8_t(raw[i]);for(int bit=0;bit<8;++bit)c=(c>>1)^(0xedb88320u&uint32_t(-int32_t(c&1)));
+ }return ~c;
+}
 bool atomicJson(const char* path, JsonDocument& d) {
+ String body;serializeJson(d,body);if(body.length()>MaxPayload)return false;
+ JsonDocument envelope;envelope["body"]=body;envelope["crc32"]=crc(body);
  String tmp=String(path)+".tmp";File f=LittleFS.open(tmp,"w");if(!f)return false;
- size_t written=serializeJson(d,f);f.flush();f.close();
- if(written!=measureJson(d)){LittleFS.remove(tmp);return false;}
+ size_t written=serializeJson(envelope,f);f.flush();f.close();
+ if(written!=measureJson(envelope)){LittleFS.remove(tmp);return false;}
  return LittleFS.rename(tmp,path);
 }
 bool readJson(const char* path, JsonDocument& d) {
- File f=LittleFS.open(path,"r");if(!f || f.size()>MaxPayload)return false;
- return !deserializeJson(d,f);
+ File f=LittleFS.open(path,"r");if(!f || f.size()>MaxPayload*2+128)return false;
+ JsonDocument envelope;if(deserializeJson(envelope,f))return false;
+ if(!envelope["body"].is<const char*>() || !envelope["crc32"].is<uint32_t>())return false;
+ String body=envelope["body"].as<String>();
+ return body.length()<=MaxPayload && crc(body)==envelope["crc32"].as<uint32_t>() && !deserializeJson(d,body);
 }
+uint32_t pulses();
 class Journal : public IJournal {
  public:
   std::deque<String> events;
   bool healthy=false;
+  uint32_t startPulses=0;
   bool save(const Cursor& c,const std::vector<std::string>& done) override {
     if(!healthy)return false;
     JsonDocument d;d["version"]=version;d["run"]=c.run;d["step"]=c.step;
@@ -69,8 +111,12 @@ class Journal : public IJournal {
     d["status"]=status=="started"?"started":status=="aborted"?"stopped":"finished";
     d["buffered"]=true;d["aborted"]=status=="aborted";
     if(source=="schedule")d["run_id"]=run;
-    int64_t end=time(nullptr);d["start_ts"]=end-seconds;d["end_ts"]=end;
-    d["water_sec"]=seconds;d["volume_liters"]=nullptr;
+    int64_t end=time(nullptr);d["start_ts"]=end-seconds;
+    if(status!="started") {
+      d["end_ts"]=end;d["water_sec"]=seconds;
+      if(FLOW_ENABLED)d["volume_liters"]=(pulses()-startPulses)/FLOW_PULSES_PER_LITER;
+      else d["volume_liters"]=nullptr;
+    } else startPulses=pulses();
     d["active_zones"].to<JsonArray>().add(zone);
     String raw;serializeJson(d,raw);events.push_back(raw);
     if(persistEvents())return true;events.pop_back();return false;
@@ -100,44 +146,11 @@ portMUX_TYPE flowMux=portMUX_INITIALIZER_UNLOCKED;
 void IRAM_ATTR pulse() {portENTER_CRITICAL_ISR(&flowMux);++flowPulses;portEXIT_CRITICAL_ISR(&flowMux);}
 uint32_t pulses() {portENTER_CRITICAL(&flowMux);auto n=flowPulses;portEXIT_CRITICAL(&flowMux);return n;}
 float lpm=0, liters=0;
-// Decode server date + local minute to UTC; reject normalized invalid dates.
-bool decode(JsonDocument& d,Schedule& s) {
- if(d["protocol_version"]!="1.0" || d["box_id"]!=box ||
-    !d["schedule_version"].is<uint32_t>() || !d["runs"].is<JsonArray>())return false;
- s.version=d["schedule_version"];s.hash=d["schedule_hash"] | "";
- s.maxDelay=d["options"]["max_start_delay_sec"] | 120u;
- int offset=d["timezone_offset_min"] | 0;if(offset < -840 || offset > 840)return false;
- if(d["runs"].size()>128)return false;
- size_t total=0;
- for(JsonObject r:d["runs"].as<JsonArray>()) {
-  if(r["enabled"].is<bool>() && !r["enabled"].as<bool>())continue;
-  Run run;run.id=r["run_id"] | "";
-  const char* date=r["date"] | "";int y=0,m=0,day=0;
-  if(strlen(date)!=10 || sscanf(date,"%4d-%2d-%2d",&y,&m,&day)!=3 || y<2025 || y>2099)return false;
-  int minute=r["start_minute_local"] | -1;if(minute<0 || minute>=1440)return false;
-  tm t={};t.tm_year=y-1900;t.tm_mon=m-1;t.tm_mday=day;
-  int64_t midnight=mktime(&t);
-  if(t.tm_year!=y-1900 || t.tm_mon!=m-1 || t.tm_mday!=day)return false;
-  run.start=midnight+minute*60-offset*60;
-  if(!r["steps"].is<JsonArray>())return false;
-  for(JsonObject st:r["steps"].as<JsonArray>()) {
-   if(++total>1024 || !st["duration_sec"].is<uint32_t>() || !st["active_zones"].is<JsonArray>())return false;
-   auto zones=st["active_zones"].as<JsonArray>();if(zones.size()>1)return false;
-   uint8_t zone=0;if(zones.size()) {
-    if(!zones[0].is<int>() || zones[0].as<int>()<1 || zones[0].as<int>()>16)return false;
-    zone=zones[0].as<uint8_t>();
-   }
-   run.steps.push_back({zone,st["duration_sec"].as<uint32_t>(),st["phase"] | "water"});
-  }
-  s.runs.push_back(std::move(run));
- }
- // Validate without touching running outputs or durable state.
- struct NullRelay:IRelayDriver{void select(uint8_t) override{}} r;
- struct NullJournal:IJournal{
-  bool save(const Cursor&,const std::vector<std::string>&) override{return true;}
-  bool event(const std::string&,uint8_t,const std::string&,const std::string&,uint32_t) override{return true;}
- } j;
- Executor candidate(r,j);return candidate.apply(s);
+bool verifyHash(JsonDocument& d) {
+ std::string canonical=canonicalContent(d);unsigned char digest[32];char hex[65];
+ mbedtls_sha256_ret(reinterpret_cast<const unsigned char*>(canonical.data()),canonical.size(),digest,0);
+ for(int i=0;i<32;++i)snprintf(hex+i*2,3,"%02x",digest[i]);
+ return d["schedule_hash"].is<const char*>() && strcmp(hex,d["schedule_hash"].as<const char*>())==0;
 }
 void status() {
  JsonDocument d;base(d);d["online"]=true;d["mode"]=!OUTPUTS_VERIFIED ? "service" : executor.mode();d["phase"]=executor.phase()=="gap" ? "waiting" : executor.phase();
@@ -161,8 +174,8 @@ bool remember(const String& id) {
 struct Incoming {String topic,raw;};
 std::deque<Incoming> incoming;
 void receive(String& topic,String& raw) {
- if(raw.length()>MaxPayload)return;
- if(incoming.size()>=4){executor.fault("inbound_overflow");return;}
+ if(raw.length()>MaxInbound)return;
+ if(incoming.size()>=2){executor.fault("inbound_overflow");return;}
  if(topic.endsWith("/command") && raw.indexOf("stop_all")>=0)incoming.push_front({topic,raw});
  else incoming.push_back({topic,raw});
 }
@@ -173,8 +186,11 @@ void process(Incoming message) {
   int64_t ts=d["unix_ts"] | int64_t(0);if(ts>1735689600){timeval tv={time_t(ts),0};settimeofday(&tv,nullptr);}return;
  }
  if(message.topic==prefix+"schedule") {
-  Schedule s;bool ok=decode(d,s);
-  if(ok && s.version==executor.schedule().version)ok=s.hash==executor.schedule().hash;
+  Schedule s;bool ok=decode(d,s,box.c_str()) && verifyHash(d);
+  if(ok && s.version==executor.schedule().version) {
+   ok=s.hash==executor.schedule().hash && s.runs.size()==executor.schedule().runs.size();
+   if(ok)for(size_t i=0;i<s.runs.size();++i)if(s.runs[i].id!=executor.schedule().runs[i].id)ok=false;
+  }
   else if(ok && s.version>executor.schedule().version && !executor.cursor().active && executor.mode()=="idle") {
    // Schedule is durable first. Version in cursor prevents using an old cursor after a power cut.
    ok=atomicJson("/schedule.json",d);
@@ -199,9 +215,9 @@ void process(Incoming message) {
   else if(cmd=="zone_open" && OUTPUTS_VERIFIED && p["zone"].is<int>() && p["duration_sec"].is<uint32_t>()) {
    int z=p["zone"];if(z>=1 && z<=16)ok=executor.manual(z,p["duration_sec"],mono());
   }
-  else if(cmd=="pause_controller"){executor.pause();ok=true;}
-  else if(cmd=="resume_controller"){executor.resume();ok=true;}
-  else if(cmd=="clear_error")ok=executor.clearFault();
+  else if(cmd=="pause_controller"){ok=nvs.putBool("paused",true)>0;if(ok)executor.pause();}
+  else if(cmd=="resume_controller"){ok=nvs.putBool("paused",false)>0;if(ok)executor.resume();}
+  else if(cmd=="clear_error"){ok=executor.clearFault();if(ok)nvs.putString("fault","");}
   else if(cmd=="reboot"){executor.stop();ok=true;reboot=true;}
   if(ok)result="completed";
  }
@@ -227,17 +243,18 @@ void setup() {
  setenv("TZ","UTC0",1);tzset();
  uint64_t mac=ESP.getEfuseMac();char id[7];snprintf(id,sizeof(id),"%02X%02X%02X",uint8_t(mac>>24),uint8_t(mac>>32),uint8_t(mac>>40));
  box=id;prefix="poliv/"+box+"/";
+ if(!nvs.begin("poliv",false))executor.fault("storage_error");
  if(!journal.load())executor.fault("storage_error");
  if(journal.healthy) {
   JsonDocument d;
   if(LittleFS.exists("/schedule.json")) {
    Schedule s;
-   if(!readJson("/schedule.json",d) || !decode(d,s))executor.fault("invalid_schedule");
+   if(!readJson("/schedule.json",d) || (!decode(d,s,box.c_str()) || !verifyHash(d)))executor.fault("invalid_schedule");
    else {
     // Read cursor before apply() creates an initial checkpoint.
     JsonDocument c;bool exists=LittleFS.exists("/cursor.json");bool valid=exists && readJson("/cursor.json",c);
     journal.version=s.version;
-    if(executor.apply(s)) {
+    if(executor.apply(s,false)) {
      if(exists && !valid)executor.fault("invalid_cursor");
      else if(valid && c["version"].as<uint32_t>()==s.version) {
       Cursor cursor={c["run"] | "",c["step"] | 0u,c["remaining"] | 0u,c["active"] | false};
@@ -252,6 +269,9 @@ void setup() {
    else for(auto v:d["ids"].as<JsonArray>())commands.push_back(v.as<String>());
   }
  }
+ String latch=nvs.getString("fault","");if(latch.length())executor.fault(latch.c_str());
+ if(nvs.getBool("paused",false))executor.pause();
+ if(!relays.enabled)executor.fault("deadline_timer");
  if(FLOW_ENABLED) {
   if(FLOW_PULSES_PER_LITER<=0)executor.fault("flow_config");
   pinMode(FLOW_GPIO,INPUT_PULLUP);attachInterrupt(digitalPinToInterrupt(FLOW_GPIO),pulse,RISING);
@@ -264,17 +284,19 @@ void setup() {
 void loop() {
  static uint32_t reconnect=0,lastStatus=0,lastFlow=0,lastCount=0,opened=0,lastPulse=0;
  static uint8_t previous=0;
+ static uint32_t observed=0;
  uint32_t now=mono();
+ if(relays.expired){relays.expired=false;executor.fault("valve_timeout");}
  if(OUTPUTS_VERIFIED)executor.tick(time(nullptr),now,validTime());
  uint8_t zone=executor.zone();uint32_t count=pulses();
  if(zone!=previous){opened=now;lastPulse=now;previous=zone;status();}
- if(count!=lastCount)lastPulse=now;
+ if(count!=observed){lastPulse=now;observed=count;}
  if(FLOW_ENABLED && zone && now-opened>=10 && now-lastPulse>=10)executor.fault("no_flow");
  if(now-lastFlow>=5) {
   uint32_t delta=count-lastCount;
   lpm=FLOW_ENABLED?delta*60.0f/FLOW_PULSES_PER_LITER/std::max(1u,now-lastFlow):0;
   liters=FLOW_ENABLED?count/FLOW_PULSES_PER_LITER:0;
-  if(FLOW_ENABLED && !zone && delta>0)executor.fault("unexpected_flow");
+  if(FLOW_ENABLED && !zone && now-opened>=10 && delta>0)executor.fault("unexpected_flow");
   lastCount=count;lastFlow=now;
   JsonDocument d;base(d);d["flow_enabled"]=FLOW_ENABLED;d["instant_lpm"]=lpm;d["total_liters"]=liters;
   auto a=d["active_zones"].to<JsonArray>();if(zone)a.add(zone);publish("flow",d);
@@ -288,5 +310,16 @@ void loop() {
  }
  if(mqtt.connected())mqtt.loop();
  if(!incoming.empty()) {auto msg=std::move(incoming.front());incoming.pop_front();process(std::move(msg));}
+ static String serialCommand;
+ while(Serial.available()) {
+  char c=Serial.read();
+  if(c=='\n') {
+   serialCommand.trim();
+   if(serialCommand=="FORMAT" && !OUTPUTS_VERIFIED) {executor.stop();LittleFS.end();if(LittleFS.format())ESP.restart();}
+   serialCommand="";
+  } else if(serialCommand.length()<32)serialCommand+=c;
+ }
+ static std::string savedFault;
+ if(executor.error()!=savedFault){savedFault=executor.error();nvs.putString("fault",savedFault.c_str());status();}
  esp_task_wdt_reset();delay(2);
 }

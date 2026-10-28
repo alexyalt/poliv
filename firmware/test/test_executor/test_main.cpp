@@ -1,5 +1,9 @@
 #include <unity.h>
 #include "executor.h"
+#include "protocol.h"
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
 using namespace poliv;
 struct Relay : IRelayDriver { uint8_t zone = 99; void select(uint8_t z) override {zone=z;} };
 struct Journal : IJournal {
@@ -17,7 +21,7 @@ void offline_execution() {
  e.tick(0,11,false); TEST_ASSERT_EQUAL(0,r.zone); TEST_ASSERT_EQUAL_STRING("soak",e.phase().c_str());
  e.tick(0,16,false); TEST_ASSERT_EQUAL(2,r.zone);
  e.tick(100,23,false); TEST_ASSERT_EQUAL(0,r.zone);
- e.tick(100,24,true); TEST_ASSERT_EQUAL(0,r.zone); TEST_ASSERT_EQUAL(6,j.events);
+ e.tick(100,24,true); TEST_ASSERT_EQUAL(0,r.zone); TEST_ASSERT_EQUAL(4,j.events);
 }
 void manual_pause_stop() {
  Relay r; Journal j; Executor e(r,j); e.apply(plan());e.tick(100,0,true);e.tick(101,3,true);
@@ -47,4 +51,24 @@ void fault_late_and_rollover() {
  TEST_ASSERT_TRUE(e.clearFault());TEST_ASSERT_TRUE(e.manual(2,1,2));
  TEST_ASSERT_EQUAL_HEX16(0x8000,relayBits(16,true));TEST_ASSERT_EQUAL_HEX16(0xffff,relayBits(0,false));
 }
-int main() {UNITY_BEGIN();RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}
+std::string fixture(const char* path) {std::ifstream f(path);std::stringstream s;s<<f.rdbuf();return s.str();}
+void server_contract_and_canonical_hash() {
+ setenv("TZ","UTC0",1);tzset();
+ JsonDocument d;TEST_ASSERT_FALSE(bool(deserializeJson(d,fixture("test/fixtures/schedule.json"))));
+ Schedule s;TEST_ASSERT_TRUE(decode(d,s,"5B2338"));TEST_ASSERT_EQUAL(1,s.version);
+ TEST_ASSERT_EQUAL(2,s.runs.size());TEST_ASSERT_EQUAL(1,s.runs[0].steps[0].zone);
+ TEST_ASSERT_EQUAL(60,s.runs[0].steps[0].seconds);TEST_ASSERT_EQUAL(0,s.runs[0].steps[1].zone);
+ TEST_ASSERT_EQUAL_INT64(1793156400,s.runs[0].start);
+ TEST_ASSERT_EQUAL_STRING(fixture("test/fixtures/canonical.json").c_str(),canonicalContent(d).c_str());
+}
+void reject_bad_wire_payload() {
+ JsonDocument d;deserializeJson(d,fixture("test/fixtures/schedule.json"));
+ Schedule s;TEST_ASSERT_FALSE(decode(d,s,"OTHER"));
+ d["runs"][0]["steps"][0]["active_zones"].as<JsonArray>().add(2);
+ s={};TEST_ASSERT_FALSE(decode(d,s,"5B2338"));
+ deserializeJson(d,fixture("test/fixtures/schedule.json"));d["runs"][0]["date"]="2026-02-30";
+ s={};TEST_ASSERT_FALSE(decode(d,s,"5B2338"));
+ deserializeJson(d,fixture("test/fixtures/schedule.json"));d["runs"][0]["steps"][0]["duration_sec"]=-1;
+ s={};TEST_ASSERT_FALSE(decode(d,s,"5B2338"));
+}
+int main() {UNITY_BEGIN();RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}

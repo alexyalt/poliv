@@ -645,3 +645,10 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Проверки:** `pio test -e native`: 5 passed; `pio run -e esp32dev`: SUCCESS, Flash 885921/1638400 (54.1%), RAM 45844/327680 (14.0%).
 - **Документация:** docs/ИНСТРУКЦИЯ_ЭТАП10.md; физический стенд ещё не проверен.
 - **Восстановление:** следующий шаг — проверить MQTT schema на broker/emulator, затем ручной стенд; не включать OUTPUTS_VERIFIED без проверки полярности.
+
+## [28.10.2026] Этап 10 — усиление сохранности и контрактный тест
+- **Сделано:** независимый esp_timer закрытия по duration; NVS latch аварии и pause; CRC32 + atomic rename для LittleFS; отсутствие auto-format; ручной FORMAT по Serial разрешён только в service-сборке; 64 события, входящий payload 16 КиБ.
+- **Контракты:** общий protocol.cpp проверен на fixture настоящего compile_schedule/persist_schedule; SHA-256 canonical JSON совпадает с сервером (schedule_version для hash нормализуется в 0 как до persist).
+- **Восстановление:** boot больше не перезаписывает курсор до его проверки; apply(persist=false) загружает план без записи начального курсора. Resume — checkpoint каждые 5 секунд, default skip.
+- **Проверки:** 7 native passed; ESP32 SUCCESS, Flash 896549/1638400, RAM 46008/327680.
+- **Осталось:** CI/документация и окончательные проверки; аппаратная проверка не выполнена.
