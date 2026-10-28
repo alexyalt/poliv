@@ -7,9 +7,9 @@
 using namespace poliv;
 struct Relay : IRelayDriver { uint8_t zone = 99; void select(uint8_t z) override {zone=z;} };
 struct Journal : IJournal {
- bool writable=true; int events=0; Cursor saved; std::vector<std::string> done;
+ bool writable=true, eventsWritable=true; int events=0; Cursor saved; std::vector<std::string> done;
  bool save(const Cursor& c,const std::vector<std::string>& d) override {saved=c;done=d;return writable;}
- bool event(const std::string&,uint8_t,const std::string&,const std::string&,uint32_t) override {++events;return writable;}
+ bool event(const std::string&,uint8_t,const std::string&,const std::string&,uint32_t) override {++events;return writable && eventsWritable;}
 };
 Schedule plan() {return {1,"hash",120,{{"r1",100,{{1,10,"water"},{0,5,"soak"},{2,7,"water"}}}}};}
 void setUp() {} void tearDown() {}
@@ -71,4 +71,16 @@ void reject_bad_wire_payload() {
  deserializeJson(d,fixture("test/fixtures/schedule.json"));d["runs"][0]["steps"][0]["duration_sec"]=-1;
  s={};TEST_ASSERT_FALSE(decode(d,s,"5B2338"));
 }
-int main() {UNITY_BEGIN();RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}
+void event_failure_prevents_opening() {
+ Relay r;Journal j;Executor e(r,j);TEST_ASSERT_TRUE(e.apply(plan()));j.eventsWritable=false;
+ e.tick(100,0,true);TEST_ASSERT_EQUAL(0,r.zone);TEST_ASSERT_EQUAL_STRING("event_buffer_full",e.error().c_str());
+ TEST_ASSERT_FALSE(e.clearFault());
+}
+void boot_load_does_not_overwrite_cursor() {
+ Relay r;Journal j;j.saved={"r1",0,4,true};Executor e(r,j);
+ TEST_ASSERT_TRUE(e.apply(plan(),false));TEST_ASSERT_EQUAL(4,j.saved.remaining);
+ e.restore(j.saved,{},true);e.tick(100,0,true);TEST_ASSERT_EQUAL(4,e.cursor().remaining);
+ auto old=plan();old.version=0;TEST_ASSERT_FALSE(e.apply(old));
+ auto newer=plan();newer.version=2;TEST_ASSERT_FALSE(e.apply(newer));
+}
+int main() {UNITY_BEGIN();RUN_TEST(event_failure_prevents_opening);RUN_TEST(boot_load_does_not_overwrite_cursor);RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}

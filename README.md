@@ -159,3 +159,11 @@ heatmap — подтверждённый ACK план, не факт. Offline bo
 Mosquitto smoke также проверяет stage9 manual block/release на настоящем broker.
 CI runs feature/**, tests/browser/mqtt. Сохранение прогресса: каждый checkpoint
 commit включает запись WorkBook и промежуточный push; docs/STAGE9_PROGRESS.md.
+
+## Разработка прошивки ESP32 (этап 10)
+
+Исходники находятся в `firmware/`, сборка: `pio run -d firmware -e esp32dev`,
+проверки: `pio test -d firmware -e native`. По умолчанию физические выходы
+заблокированы до проверки полярности реле. Инструкция: `docs/ИНСТРУКЦИЯ_ЭТАП10.md`;
+состояние и ограничения: `docs/STAGE10_PROGRESS.md`, `docs/adr/ADR-20-stage10-firmware.md`.
+Аппаратная приёмка этапа 10 ещё не выполнена.

@@ -215,7 +215,7 @@ void process(Incoming message) {
   else if(cmd=="zone_open" && OUTPUTS_VERIFIED && p["zone"].is<int>() && p["duration_sec"].is<uint32_t>()) {
    int z=p["zone"];if(z>=1 && z<=16)ok=executor.manual(z,p["duration_sec"],mono());
   }
-  else if(cmd=="pause_controller"){ok=nvs.putBool("paused",true)>0;if(ok)executor.pause();}
+  else if(cmd=="pause_controller"){executor.pause();ok=nvs.putBool("paused",true)>0;}
   else if(cmd=="resume_controller"){ok=nvs.putBool("paused",false)>0;if(ok)executor.resume();}
   else if(cmd=="clear_error"){ok=executor.clearFault();if(ok)nvs.putString("fault","");}
   else if(cmd=="reboot"){executor.stop();ok=true;reboot=true;}
@@ -255,7 +255,7 @@ void setup() {
     JsonDocument c;bool exists=LittleFS.exists("/cursor.json");bool valid=exists && readJson("/cursor.json",c);
     journal.version=s.version;
     if(executor.apply(s,false)) {
-     if(exists && !valid)executor.fault("invalid_cursor");
+     if(!exists || !valid)executor.fault("invalid_cursor");
      else if(valid && c["version"].as<uint32_t>()==s.version) {
       Cursor cursor={c["run"] | "",c["step"] | 0u,c["remaining"] | 0u,c["active"] | false};
       std::vector<std::string> done;for(auto v:c["done"].as<JsonArray>())done.push_back(v.as<std::string>());
@@ -286,8 +286,12 @@ void loop() {
  static uint8_t previous=0;
  static uint32_t observed=0;
  uint32_t now=mono();
- if(relays.expired){relays.expired=false;executor.fault("valve_timeout");}
+ std::string oldRun=executor.cursor().run;auto oldStep=executor.cursor().step;
  if(OUTPUTS_VERIFIED)executor.tick(time(nullptr),now,validTime());
+ if(relays.expired) {
+  relays.expired=false;
+  if(executor.zone() && executor.cursor().run==oldRun && executor.cursor().step==oldStep)executor.fault("valve_timeout");
+ }
  uint8_t zone=executor.zone();uint32_t count=pulses();
  if(zone!=previous){opened=now;lastPulse=now;previous=zone;status();}
  if(count!=observed){lastPulse=now;observed=count;}
