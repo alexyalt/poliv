@@ -4,11 +4,15 @@ Run: python -m server.tools.dashboard_smoke (requires playwright + chromium).
 from pathlib import Path
 import os
 import tempfile
+import argparse
 from playwright.sync_api import sync_playwright
 from server.tests.test_stage5 import _Harness5
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--screenshot')
+    args = parser.parse_args()
     temporary = tempfile.TemporaryDirectory(prefix='poliv-dash-')
     local = Path(temporary.name) / 'test.toml'
     local.write_text('[server]\nsecret_key="dashboard-smoke-isolated-test-key-1234567890"\n')
@@ -21,6 +25,15 @@ def main():
         h.set_live('DASHBOARD', connection_status='online', current_mode='manual',
                    current_phase='water', active_zones_json='[1]', flow_enabled=1,
                    instant_lpm=12.5, time_valid=1)
+        for box, name, mode, phase, connection in [
+            ('GARDEN', 'Сад', 'idle', 'idle', 'online'),
+            ('NORTH', 'Северный участок', 'paused', 'idle', 'online'),
+            ('PUMP', 'Насосная', 'error', 'idle', 'online'),
+            ('FIELD', 'Поле', 'idle', 'idle', 'offline')]:
+            other = h.catalog.create_controller({'box_id': box, 'name': name})
+            h.add_zone(other['id'], 1)
+            h.set_live(box, connection_status=connection, current_mode=mode,
+                       current_phase=phase, time_valid=1)
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
             page = browser.new_page(viewport={'width': 1280, 'height': 850})
@@ -39,6 +52,8 @@ def main():
                                      if k.lower() not in ('content-length', 'set-cookie')})
             page.route('http://testserver/**', route)
             page.goto('http://testserver/')
+            if args.screenshot:
+                page.screenshot(path=args.screenshot, full_page=True)
             card = page.locator('[data-box="DASHBOARD"]')
             assert '12,5 л/мин' in card.inner_text()
             assert 'state-watering' in card.get_attribute('class')

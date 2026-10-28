@@ -58,6 +58,7 @@ WiFiClient network;
 constexpr size_t MaxInbound=16*1024;
 MQTTClient mqtt(MaxInbound + 1024);
 Preferences nvs;
+int64_t pauseUntil=0;
 String uid() { char b[25];snprintf(b,sizeof(b),"%08lx%08lx%08lx",(unsigned long)esp_random(),(unsigned long)esp_random(),(unsigned long)esp_random());return String(b); }
 void base(JsonDocument& d) { d["protocol_version"]="1.0";d["box_id"]=box;d["ts"]=int64_t(time(nullptr)); }
 bool publish(const char* kind, JsonDocument& d, bool retained=false) {
@@ -158,6 +159,7 @@ void status() {
  if(executor.zone()){a.add(executor.zone());b.add(executor.zone());d["primary_zone"]=executor.zone();}
  else d["primary_zone"]=nullptr;
  d["schedule_version"]=executor.schedule().version;d["schedule_hash"]=executor.schedule().hash;
+ d["pause_until_ts"]=pauseUntil ? pauseUntil : 0;
  d["time_valid"]=validTime();d["buffer_size"]=journal.events.size();d["flow_enabled"]=FLOW_ENABLED;
  d["flow_total_liters"]=liters;d["instant_lpm"]=lpm;d["service_mode"]=!OUTPUTS_VERIFIED;
  if(executor.error().empty())d["error_code"]=nullptr;else d["error_code"]=executor.error();
@@ -215,8 +217,15 @@ void process(Incoming message) {
   else if(cmd=="zone_open" && OUTPUTS_VERIFIED && p["zone"].is<int>() && p["duration_sec"].is<uint32_t>()) {
    int z=p["zone"];if(z>=1 && z<=16)ok=executor.manual(z,p["duration_sec"],mono());
   }
-  else if(cmd=="pause_controller"){executor.pause();ok=nvs.putBool("paused",true)>0;}
-  else if(cmd=="resume_controller"){ok=nvs.putBool("paused",false)>0;if(ok)executor.resume();}
+  else if(cmd=="pause_controller") {
+   int64_t until=p["until_ts"] | int64_t(0);
+   if(p["duration_sec"].is<uint32_t>() && validTime())until=time(nullptr)+p["duration_sec"].as<uint32_t>();
+   if(validTime() && until>time(nullptr) && until-time(nullptr)<=604800) {
+    executor.pause();pauseUntil=until;
+    ok=nvs.putLong64("pause_until",pauseUntil)>0 && nvs.putBool("paused",true)>0;
+   }
+  }
+  else if(cmd=="resume_controller"){ok=nvs.putBool("paused",false)>0;if(ok){pauseUntil=0;nvs.putLong64("pause_until",0);executor.resume();}}
   else if(cmd=="clear_error"){ok=executor.clearFault();if(ok)nvs.putString("fault","");}
   else if(cmd=="reboot"){executor.stop();ok=true;reboot=true;}
   if(ok)result="completed";
@@ -270,6 +279,7 @@ void setup() {
   }
  }
  String latch=nvs.getString("fault","");if(latch.length())executor.fault(latch.c_str());
+ pauseUntil=nvs.getLong64("pause_until",0);
  if(nvs.getBool("paused",false))executor.pause();
  if(!relays.enabled)executor.fault("deadline_timer");
  if(FLOW_ENABLED) {
@@ -286,6 +296,9 @@ void loop() {
  static uint8_t previous=0;
  static uint32_t observed=0;
  uint32_t now=mono();
+ if(executor.mode()=="paused" && pauseUntil && validTime() && time(nullptr)>=pauseUntil) {
+  if(nvs.putBool("paused",false)>0){pauseUntil=0;nvs.putLong64("pause_until",0);executor.resume();}
+ }
  std::string oldRun=executor.cursor().run;auto oldStep=executor.cursor().step;
  if(OUTPUTS_VERIFIED)executor.tick(time(nullptr),now,validTime());
  if(relays.expired) {

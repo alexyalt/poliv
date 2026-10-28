@@ -672,3 +672,10 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Сделано:** генератор broker_config с индивидуальными ACL, запретом anonymous и без перезаписи файлов; systemd unit с Restart и одним worker; два дашборда с polling, offline запретом команд и ролями.
 - **Проверки:** Chromium через FastAPI/SQLite: поток 12.5, диалог выбора зоны, обновление активных зон при offline, disabled кнопки, viewer и мобильная ширина 390 px; тесты stage11+stage5.
 - **Следующий шаг:** подробная инструкция Linux/Windows, резервная копия/restore, интеграционная проверка ACL и полный pytest.
+
+## [28.10.2026] Этап 11 — итоговые проверки и инструкция
+- **Сделано:** docs/ИНСТРУКЦИЯ_РЕАЛЬНАЯ_МАШИНА.md: Linux/Windows, эмулятор, LAN MQTT ACL/пароли, оба дашборда, ESP32 USB/FORMAT/реле/flow, автономность, резервная копия и автозапуск. runtime_snapshot backup/verify/restore на базе prepare_runtime, без перезаписи источника/назначения.
+- **Исправлено:** прошивка учитывает duration_sec/until_ts паузы и сохраняет deadline NVS; версия приложения 0.11.0.
+- **Проверки:** полный pytest 290 passed, 1 skipped; native 9 passed; ESP32 SUCCESS; Chromium desktop/mobile OK. Тест snapshot проверяет восстановление и отказ при повреждении.
+- **Границы:** этап 11 частично выполнен; OTA/provisioning/TLS, аппаратная приёмка и пилот этапа 12 остаются открытыми. Не заявляем реальных испытаний платы/systemd.
+- **Восстановление:** docs/STAGE11_PROGRESS.md; ветка feature/stage11-dashboards. Следующий шаг — стендовая проверка по инструкции и отдельная реализация безопасного OTA/provisioning.

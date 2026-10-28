@@ -35,3 +35,26 @@ def test_two_dashboards_render_and_require_login():
             assert '/active-zones' in r.text
     finally:
         h.close()
+
+
+def test_runtime_backup_restore_and_corruption(tmp_path):
+    import sqlite3
+    from server.app.infra.db import migrate
+    from server.tools.runtime_snapshot import snapshot, restore, verify
+    source = tmp_path / 'runtime'
+    (source / 'data').mkdir(parents=True)
+    with sqlite3.connect(source / 'data/poliv.db') as conn:
+        conn.row_factory = sqlite3.Row
+        migrate(conn)
+    backup, restored = tmp_path / 'backup', tmp_path / 'restored'
+    snapshot(source, backup)
+    verify(backup)
+    restore(backup, restored)
+    verify(restored)
+    assert (source / 'data/poliv.db').exists()
+    with pytest.raises(ValueError, match="must not exist"):
+        snapshot(source, backup)
+    (backup / 'data/extra.txt').write_text('unexpected')
+    with pytest.raises(ValueError, match='mismatch'):
+        restore(backup, tmp_path / 'bad-restore')
+    assert not (tmp_path / 'bad-restore').exists()
