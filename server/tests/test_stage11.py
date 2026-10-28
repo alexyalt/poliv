@@ -58,3 +58,43 @@ def test_runtime_backup_restore_and_corruption(tmp_path):
     with pytest.raises(ValueError, match='mismatch'):
         restore(backup, tmp_path / 'bad-restore')
     assert not (tmp_path / 'bad-restore').exists()
+
+
+def test_tls_context_is_strict_and_configuration_errors_fail_closed(tmp_path):
+    import ssl
+    from server.app.infra.mqtt_tls import configure_tls
+    class Client:
+        context = None
+        def tls_set_context(self, context):
+            self.context = context
+    client = Client()
+    configure_tls(client, {'tls_enabled': True}, tmp_path)
+    assert client.context.verify_mode == ssl.CERT_REQUIRED
+    assert client.context.check_hostname
+    assert client.context.minimum_version >= ssl.TLSVersion.TLSv1_2
+    client = Client()
+    with pytest.raises(FileNotFoundError):
+        configure_tls(client, {'tls_enabled': True, 'tls_ca_file': 'missing.pem'}, tmp_path)
+    assert client.context is None
+    with pytest.raises(ValueError):
+        configure_tls(client, {'tls_enabled': 'false'}, tmp_path)
+    out = tmp_path / 'tls-broker'
+    generate(out, ['5B2338'], tls=True)
+    text = (out / 'poliv.conf').read_text()
+    assert 'listener 8883' in text and 'listener 1883' not in text
+    assert 'certfile ' in text and 'keyfile ' in text
+
+
+def test_provisioning_payload_keeps_passwords_out_of_arguments():
+    import json
+    from server.tools.provision_controller import payload
+    ca = '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----'
+    wire = payload('Теплица', 'wifi-secret', 'mqtt.local', 'box_5B2338', 'mqtt-secret', 8883, ca)
+    decoded = json.loads(wire.decode().removeprefix('CONFIG '))
+    assert decoded['tls'] is True and decoded['ca_pem'] == ca
+    assert decoded['wifi_password'] == 'wifi-secret'
+    for host in ['mqtt://broker', 'host/path', 'host\nCONFIG', 'évil.local']:
+        with pytest.raises(ValueError):
+            payload('wifi', '', host, 'box', 'secret', 1883)
+    with pytest.raises(ValueError):
+        payload('wifi', '', 'host', 'box', 'secret', 8883, 'not-a-ca')

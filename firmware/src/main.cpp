@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include "provisioning.h"
 #include <MQTT.h>
 #include <LittleFS.h>
 #include <Preferences.h>
@@ -55,6 +57,8 @@ class Relays : public IRelayDriver {
   }
 } relays;
 WiFiClient network;
+WiFiClientSecure secureNetwork;
+NetworkConfig networkConfig;
 constexpr size_t MaxInbound=16*1024;
 MQTTClient mqtt(MaxInbound + 1024);
 Preferences nvs;
@@ -237,10 +241,11 @@ void process(Incoming message) {
 void connectMqtt() {
  String will="{\"protocol_version\":\"1.0\",\"box_id\":\""+box+"\",\"online\":false}";
  mqtt.setWill((prefix+"lwt").c_str(),will.c_str(),true,1);
- if(!mqtt.connect(("poliv-"+box).c_str(),MQTT_USER,MQTT_PASSWORD))return;
+ if(networkConfig.tls && !validTime())return;
+ if(!mqtt.connect(("poliv-"+box).c_str(),networkConfig.user.c_str(),networkConfig.password.c_str()))return;
  mqtt.subscribe(prefix+"command",1);mqtt.subscribe(prefix+"schedule",1);mqtt.subscribe(prefix+"time",1);
  JsonDocument d;base(d);d["online"]=true;publish("lwt",d,true);
- d.clear();base(d);d["firmware_version"]="0.10.0";d["hardware_model"]="ESP32-DevKit-74HC595";
+ d.clear();base(d);d["firmware_version"]="0.11.0";d["hardware_model"]="ESP32-DevKit-74HC595";
  d["zones_total"]=16;d["ip_address"]=WiFi.localIP().toString();d["mac"]=WiFi.macAddress();
  d["schedule_version"]=executor.schedule().version;d["schedule_hash"]=executor.schedule().hash;
  d["flow_enabled"]=FLOW_ENABLED;d["time_valid"]=validTime();publish("hello",d);
@@ -286,8 +291,16 @@ void setup() {
   if(FLOW_PULSES_PER_LITER<=0)executor.fault("flow_config");
   pinMode(FLOW_GPIO,INPUT_PULLUP);attachInterrupt(digitalPinToInterrupt(FLOW_GPIO),pulse,RISING);
  }
- WiFi.mode(WIFI_STA);WiFi.begin(WIFI_SSID,WIFI_PASSWORD);configTime(0,0,"pool.ntp.org","time.google.com");
- mqtt.begin(MQTT_HOST,MQTT_PORT,network);mqtt.onMessage(receive);mqtt.setOptions(15,true,100);
+ networkConfig={WIFI_SSID,WIFI_PASSWORD,MQTT_HOST,MQTT_USER,MQTT_PASSWORD,"",MQTT_PORT,false};
+ String savedNetwork=nvs.getString("network","");
+ if(savedNetwork.length()) {
+  JsonDocument configDocument;
+  if(deserializeJson(configDocument,savedNetwork) || !decodeNetwork(configDocument,networkConfig))executor.fault("network_config");
+ }
+ if(networkConfig.tls)secureNetwork.setCACert(networkConfig.ca.c_str());
+ WiFi.mode(WIFI_STA);WiFi.begin(networkConfig.ssid.c_str(),networkConfig.wifiPassword.c_str());configTime(0,0,"pool.ntp.org","time.google.com");
+ if(networkConfig.tls)mqtt.begin(networkConfig.host.c_str(),networkConfig.port,secureNetwork);
+ else mqtt.begin(networkConfig.host.c_str(),networkConfig.port,network);mqtt.onMessage(receive);mqtt.setOptions(15,true,100);
  esp_task_wdt_init(5,true);esp_task_wdt_add(nullptr);
  Serial.printf("Полив %s: выходы %s, flash %s\n",box.c_str(),OUTPUTS_VERIFIED?"разрешены":"заблокированы",journal.healthy?"OK":"ошибка");
 }
@@ -328,13 +341,23 @@ void loop() {
  if(mqtt.connected())mqtt.loop();
  if(!incoming.empty()) {auto msg=std::move(incoming.front());incoming.pop_front();process(std::move(msg));}
  static String serialCommand;
+ static bool serialOverflow=false;
  while(Serial.available()) {
   char c=Serial.read();
   if(c=='\n') {
    serialCommand.trim();
+   if(!serialOverflow && serialCommand.startsWith("CONFIG ") && !OUTPUTS_VERIFIED) {
+    executor.stop();JsonDocument configuration;NetworkConfig proposed;
+    if(!deserializeJson(configuration,serialCommand.substring(7)) && decodeNetwork(configuration,proposed)) {
+     String raw;serializeJson(configuration,raw);
+     if(nvs.putString("network",raw)==raw.length()){Serial.println("Конфигурация сохранена; перезапуск");ESP.restart();}
+     else Serial.println("Ошибка сохранения конфигурации");
+    } else Serial.println("Некорректная конфигурация");
+   }
+   if(serialCommand=="NETWORK_RESET" && !OUTPUTS_VERIFIED){executor.stop();nvs.remove("network");ESP.restart();}
    if(serialCommand=="FORMAT" && !OUTPUTS_VERIFIED) {executor.stop();LittleFS.end();if(LittleFS.format())ESP.restart();}
-   serialCommand="";
-  } else if(serialCommand.length()<32)serialCommand+=c;
+   serialCommand="";serialOverflow=false;
+  } else if(serialCommand.length()<8192)serialCommand+=c;else serialOverflow=true;
  }
  static std::string savedFault;
  if(executor.error()!=savedFault){savedFault=executor.error();nvs.putString("fault",savedFault.c_str());status();}

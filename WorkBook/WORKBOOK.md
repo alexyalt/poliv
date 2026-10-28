@@ -679,3 +679,12 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Проверки:** полный pytest 290 passed, 1 skipped; native 9 passed; ESP32 SUCCESS; Chromium desktop/mobile OK. Тест snapshot проверяет восстановление и отказ при повреждении.
 - **Границы:** этап 11 частично выполнен; OTA/provisioning/TLS, аппаратная приёмка и пилот этапа 12 остаются открытыми. Не заявляем реальных испытаний платы/systemd.
 - **Восстановление:** docs/STAGE11_PROGRESS.md; ветка feature/stage11-dashboards. Следующий шаг — стендовая проверка по инструкции и отдельная реализация безопасного OTA/provisioning.
+
+## [28.10.2026] Этап 11 — USB provisioning и TLS
+- **План:** service-only CONFIG по USB, atomic NVS network blob, hostname/CA validation TLS на ESP32, server TLS config и broker TLS profile; тесты и инструкция.
+- **Границы:** конфигурация физического active-level остаётся compile-time; OTA отдельно, аппаратная приёмка не выполнена.
+
+## [28.10.2026] Этап 11 — provisioning/TLS контрольная точка
+- **Сделано:** USB service CONFIG/NETWORK_RESET, validated network JSON в одном NVS ключе; CLI с getpass и paced serial; ESP32 WiFiClientSecure с CA и запретом handshake до validTime; сервер strict TLS context, broker --tls профиль 8883.
+- **Проверки:** 10 native passed; ESP32 build SUCCESS; stage11 5 passed. Ошибка CA на сервере прерывает старт MQTT до connect/loop, без перехода на plaintext.
+- **Осталось в сессии:** реальный broker TLS smoke (hostname/CA/ACL), полная регрессия, обновить инструкцию.

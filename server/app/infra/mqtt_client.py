@@ -123,6 +123,8 @@ class MqttServerClient:
             return
         self.conn  # создаём СОБСТВЕННОЕ соединение этого потока обслуживания
         c = self._factory() if self._factory else self._make_paho_client()
+        from .mqtt_tls import configure_tls
+        configure_tls(c, self.cfg.mqtt, self.cfg.project_root)
         self.client = c
         c.on_connect = self._on_connect
         c.on_disconnect = self._on_disconnect

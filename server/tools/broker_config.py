@@ -23,13 +23,14 @@ def acl_for(boxes):
     return '\n'.join(lines) + '\n'
 
 
-def generate(destination, boxes):
+def generate(destination, boxes, tls=False):
     acl = acl_for(boxes)
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=False)
     (destination / 'poliv.acl').write_text(acl, encoding='utf-8')
     (destination / 'poliv.conf').write_text(
-        'listener 1883 0.0.0.0\nallow_anonymous false\n'
+        ('listener 8883 0.0.0.0\ncertfile /etc/mosquitto/certs/broker.crt\nkeyfile /etc/mosquitto/certs/broker.key\n' if tls else 'listener 1883 0.0.0.0\n') +
+        'allow_anonymous false\n'
         'password_file /etc/mosquitto/poliv.passwd\n'
         'acl_file /etc/mosquitto/poliv.acl\n'
         'persistence true\npersistence_location /var/lib/mosquitto/\n'
@@ -39,9 +40,10 @@ def generate(destination, boxes):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--destination', required=True)
+    parser.add_argument('--tls', action='store_true', help='Generate a TLS-only listener on 8883')
     parser.add_argument('--box', action='append', required=True)
     args = parser.parse_args()
-    generate(args.destination, args.box)
+    generate(args.destination, args.box, tls=args.tls)
     print('Created broker config and ACL. Create passwords with mosquitto_passwd; see deployment guide.')
 
 

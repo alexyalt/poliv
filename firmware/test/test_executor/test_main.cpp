@@ -1,6 +1,7 @@
 #include <unity.h>
 #include "executor.h"
 #include "protocol.h"
+#include "provisioning.h"
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
@@ -83,4 +84,14 @@ void boot_load_does_not_overwrite_cursor() {
  auto old=plan();old.version=0;TEST_ASSERT_FALSE(e.apply(old));
  auto newer=plan();newer.version=2;TEST_ASSERT_FALSE(e.apply(newer));
 }
-int main() {UNITY_BEGIN();RUN_TEST(event_failure_prevents_opening);RUN_TEST(boot_load_does_not_overwrite_cursor);RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}
+void provisioning_validation() {
+ JsonDocument d;deserializeJson(d,R"({"ssid":"test","wifi_password":"secret123","host":"broker.local","username":"box_5B2338","password":"password","port":8883,"tls":true})");
+ NetworkConfig c;c.host="unchanged";
+ TEST_ASSERT_FALSE(decodeNetwork(d,c));TEST_ASSERT_EQUAL_STRING("unchanged",c.host.c_str());
+ d["ca_pem"]="-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----";
+ TEST_ASSERT_TRUE(decodeNetwork(d,c));TEST_ASSERT_TRUE(c.tls);TEST_ASSERT_EQUAL(8883,c.port);
+ d["port"]=65536;TEST_ASSERT_FALSE(decodeNetwork(d,c));
+ d["port"]=1883;d["tls"]=false;d["host"]="mqtt://host/path";TEST_ASSERT_FALSE(decodeNetwork(d,c));
+ d["host"]="192.168.1.2";TEST_ASSERT_TRUE(decodeNetwork(d,c));
+}
+int main() {UNITY_BEGIN();RUN_TEST(provisioning_validation);RUN_TEST(event_failure_prevents_opening);RUN_TEST(boot_load_does_not_overwrite_cursor);RUN_TEST(server_contract_and_canonical_hash);RUN_TEST(reject_bad_wire_payload);RUN_TEST(offline_execution);RUN_TEST(manual_pause_stop);RUN_TEST(invalid_and_storage);RUN_TEST(recovery_skip_resume);RUN_TEST(fault_late_and_rollover);return UNITY_END();}
