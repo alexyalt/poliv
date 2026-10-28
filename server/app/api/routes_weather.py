@@ -81,6 +81,14 @@ def register_api_routes_weather(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
         return decorator
 
     # ---------------------------------------------------------------- current
+    @api("GET", "/api/v1/weather/outlook")
+    async def outlook(request: Request):
+        denied = _check(request, "viewer")
+        if denied is not None:
+            return denied
+        from ..services.weather_outlook import view
+        return view(conn)
+
     @api("GET", "/api/v1/weather/current")
     async def weather_current(request: Request):
         denied = _check(request, "viewer")
@@ -215,6 +223,8 @@ def register_api_routes_weather(app: FastAPI, cfg, conn: sqlite3.Connection) -> 
             try:
                 obs = wx.update_observations(owned)
                 fc_rows = wx.update_forecasts(owned)
+                from ..services.weather_outlook import update as update_outlook
+                update_outlook(owned)
                 return {"observation_saved": obs is not None,
                         "forecast_rows_saved": fc_rows,
                         "conditions": wx.current_conditions(owned)}

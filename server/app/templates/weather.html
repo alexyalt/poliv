@@ -1,7 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Погода и правила{% endblock %}
+{% block title %}Погода и правила</details>
+{% endblock %}
 {% block content %}
-<h1>Погодные корректировки (Этап 7)</h1>
+<h1>Погода и состояние посадок</h1>
+{% include "weather_outlook.html" %}
+<details class="weather-rules"><summary>Правила автоматической корректировки полива</summary>
 
 {# ---------- Баннеры offline-статуса ---------- #}
 {% if cond.status == 'disabled' %}
@@ -321,4 +324,5 @@
   setInterval(() => { loadCurrent(); loadForecast(); }, POLL_MS);
 })();
 </script>
+</details>
 {% endblock %}

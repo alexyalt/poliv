@@ -103,8 +103,8 @@ def weather_config(conn: sqlite3.Connection) -> dict:
     """Снимок настроек weather.* (с дефолтами Артефакта 0.7 §17.7)."""
     return {
         "enabled": bool(get_weather_setting(conn, "weather.enabled", True)),
-        "latitude": get_weather_setting(conn, "weather.latitude", None),
-        "longitude": get_weather_setting(conn, "weather.longitude", None),
+        "latitude": get_weather_setting(conn, "weather.latitude", 44.423062),
+        "longitude": get_weather_setting(conn, "weather.longitude", 34.06452),
         "update_interval_min": int(get_weather_setting(
             conn, "weather.update_interval_min", 60) or 60),
         "offline_policy": str(get_weather_setting(
@@ -634,6 +634,8 @@ class WeatherUpdater(threading.Thread):
                     if cfgw["enabled"]:
                         update_observations(conn)
                         update_forecasts(conn)
+                    from .weather_outlook import update as update_outlook
+                    update_outlook(conn)
                 finally:
                     conn.close()
             except Exception:

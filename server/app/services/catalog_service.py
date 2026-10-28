@@ -692,6 +692,27 @@ class CatalogService:
     @staticmethod
     def _validate_setting_value(key: str, parsed: Any) -> Any:
         """Валидация значения настройки по ключу (stage2_hotfix_v3, аудит п. 3)."""
+        import math
+        limits = {
+            'weather.latitude': (-90,90), 'weather.longitude': (-180,180),
+            'weather.wind_warning_ms': (1,50), 'weather.frost_warning_c': (-15,10),
+            'weather.heat_warning_c': (15,50), 'weather.rain_warning_mm': (0.1,100),
+            'weather.update_interval_min': (5,1440),
+            'dashboard.refresh_sec': (3,60), 'dashboard.columns': (2,8),
+            'dashboard.pause_minutes': (1,1440), 'dashboard.manual_seconds': (1,3600),
+        }
+        if key in limits:
+            if isinstance(parsed, bool):
+                raise ValidationError('Ожидается число')
+            n = _parse_number(parsed, key)
+            lo, hi = limits[key]
+            if not math.isfinite(n) or not lo <= n <= hi:
+                raise ValidationError(f'{key}: допустимый диапазон {lo}…{hi}')
+            if key.startswith('dashboard.') or key == 'weather.update_interval_min':
+                if n != int(n):
+                    raise ValidationError('Ожидается целое число')
+                return int(n)
+            return n
         if key == "adjustment.rain_delay_hours":
             # целое число, диапазон [0..720]; null/не-число -> ValidationError (422),
             # БД не меняется. Строки форм ("36") допускаются.

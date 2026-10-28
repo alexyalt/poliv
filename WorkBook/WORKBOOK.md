@@ -693,3 +693,14 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Проверки:** настоящий временный Mosquitto + TLS: доверенный CA, отказ hostname mismatch/unknown CA, wrong password и cross-device publish; полный pytest 292 passed/1 skipped; native 10 passed; ESP32 SUCCESS.
 - **Сделано:** mqtt_tls_smoke в CI, пошаговая ИНСТРУКЦИЯ_USB_TLS.md (CA/SAN, конфиг брокера/сервера/USB, отказные сценарии); основная инструкция и STAGE11_PROGRESS дополнены.
 - **Ограничения:** ESP32 TLS/provisioning не проверены физически; NVS не зашифрован; CONFIG только service build; NTP обязателен до TLS; эмулятор ещё plaintext. OTA и rollback остаются открытыми.
+
+## [28.10.2026] Монитор и агропрогноз — начало
+- **Запрос:** завершать программные задачи, проверить интерфейс/компактность, выделить проблемы на мониторе, Open-Meteo 24ч/7д, ветер и полезные растениям показатели; координаты 44.423062/34.06452.
+- **План:** snapshot с точными координатами/свежестью, графики температуры/осадков/ветра/ET0, рекомендации и null-safe UI; monitor mode/приоритет аварий/фильтр; настраиваемые пороги, refresh/плотность/команды; браузерные и регрессионные проверки.
+- **Восстановление:** feature/weather-monitor от 6d01347. Аппаратные испытания и OTA/rollback не объявлять выполненными; отдельный handoff в конце сессии.
+
+## [28.10.2026] Монитор/прогноз — первая контрольная точка
+- **Сделано:** migration 0014, snapshot Open-Meteo по координатам, 24ч/7д с ветром/порывами/ET0/VPD/почвой/UV; SVG charts без CDN, null-safe таблица; advisory thresholds; настройки monitor columns/refresh/pause/manual duration.
+- **Монитор:** аварии/нет связи первыми, постоянная контрастная рамка и текст (без мигания), счётчики, filter problems, fullscreen, адаптивная сетка. Правила погоды свернуты под прогнозом.
+- **Проверки:** stage7+stage11 44 passed; stage11+stage5 18 passed; dashboard Chromium OK; weather monitor 4 passed.
+- **Далее:** реальные данные Open-Meteo и расширенный UI smoke/негативные сценарии/полная регрессия; незавершённые OTA/аппаратные этапы зафиксировать отдельно.

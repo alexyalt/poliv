@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+import json
 
 from fastapi import Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -235,6 +236,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             live=tiles,
             active_view=request.url.path == "/active-zones",
             dashboard_zones=catalog.list_zones(),
+            monitor_settings={s["key"]: json.loads(s["value_json"]) for s in catalog.list_settings() if s["key"].startswith("dashboard.")},
             summary=summary,
             programs=catalog.list_programs(),
             zones_count=len(catalog.list_zones()),

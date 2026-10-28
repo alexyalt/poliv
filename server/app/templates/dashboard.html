@@ -3,7 +3,7 @@
 {% block content %}
 <div class="dash-heading"><div><p class="dash-eyebrow">ОБЗОР СИСТЕМЫ</p><h1>{{ 'Активные зоны' if active_view else 'Контроллеры' }}</h1></div>
 <nav class="dash-tabs" aria-label="Дашборды"><a href="/" {% if not active_view %}aria-current="page"{% endif %}>Контроллеры</a><a href="/active-zones" {% if active_view %}aria-current="page"{% endif %}>Активные зоны</a></nav></div>
-<p id="dash-summary" class="muted">Обновление состояния…</p>
+<div class="monitor-toolbar"><div id="dash-summary" class="monitor-summary" aria-live="polite">Обновление состояния…</div><div class="monitor-tools"><label class="monitor-filter"><input id="problems-only" type="checkbox"> Только проблемы</label><button id="monitor-mode" class="btn" type="button">На весь экран</button><a class="btn" href="/weather">Прогноз</a></div></div><div id="monitor-health" role="status" class="monitor-health"></div>
 <div id="net-banner" class="alert alert-error" role="status" hidden>Нет связи с сервером. Данные могли устареть; управление недоступно.</div>
 <div id="dashboard-tiles" class="dashboard-tiles" aria-label="{{ 'Активные зоны' if active_view else 'Контроллеры' }}"></div>
 <p id="dash-empty" class="dash-empty" hidden>{{ 'Сейчас нет активных зон' if active_view else 'Контроллеры ещё не добавлены' }}. <a href="/controllers">Открыть справочник</a></p>
@@ -19,12 +19,17 @@
 <script id="dash-zones" type="application/json">{{ dashboard_zones|tojson }}</script>
 <script>
 (() => {
+  const preferences = {{ monitor_settings|tojson }};
+  const refreshMs = (preferences['dashboard.refresh_sec'] || 5)*1000;
+  const pauseMinutes = preferences['dashboard.pause_minutes'] || 60;
+  document.documentElement.style.setProperty('--monitor-columns', preferences['dashboard.columns'] || 4);
   const activeView = {{ active_view|tojson }};
   const canControl = {{ (user.role in ('operator','admin'))|tojson }};
   const zones = JSON.parse(document.getElementById('dash-zones').textContent);
   const root = document.getElementById('dashboard-tiles');
   const dialog = document.getElementById('start-dialog');
-  let current = [], stale = false;
+  let current = [], stale = false, problemsOnly = false;
+  document.querySelector('#start-form input[name=duration_sec]').value=preferences['dashboard.manual_seconds'] || 60;
   const make = (tag, cls, text) => {const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
   function state(c) {
     if(stale || c.connection_status !== 'online')return ['offline','Нет связи'];
@@ -33,6 +38,7 @@
     if(c.service_mode_active || c.mode==='service')return ['service','Сервис'];
     if(c.active_zones.length && c.phase==='water')return ['watering','Полив'];
     if(c.phase==='soak')return ['soak','Впитывание'];
+    if(!c.time_valid)return ['warning','Нет времени'];
     return ['ready','Готов'];
   }
   function zoneName(c,n) {const z=zones.find(z=>z.controller_id===c.id && z.zone_number===n);return z?z.name:'Зона '+n;}
@@ -48,10 +54,10 @@
   }
   function command(c,action,text,disabled) {
     const form=make('form');form.method='post';form.action='/controllers/'+c.id+'/action/'+action;
-    if(action==='pause_controller'){const i=make('input');i.type='hidden';i.name='duration_sec';i.value=3600;form.append(i);}
+    if(action==='pause_controller'){const i=make('input');i.type='hidden';i.name='duration_sec';i.value=pauseMinutes*60;form.append(i);}
     const button=make('button',action==='stop_all'?'btn btn-secondary stop-button':'btn btn-secondary',text);
     button.type='submit';button.disabled=disabled;
-    if(action==='pause_controller')button.title='Приостановить на 1 час';
+    if(action==='pause_controller')button.title='Приостановить на '+pauseMinutes+' мин';
     form.append(button);return form;
   }
   function tile(c,n) {
@@ -61,6 +67,7 @@
     link.setAttribute('aria-label','Настройки: '+c.name+(n?' · '+zoneName(c,n):''));
     const head=make('div','tile-title');head.append(make('h2','',n?zoneName(c,n):c.name),make('span','tile-status',label));link.append(head);
     link.append(make('p','tile-subtitle',n?c.name:c.box_id));
+    if(['error','warning'].includes(kind))link.append(make('p','tile-problem',kind==='error'?'Аварийная блокировка · проверьте контроллер':'Время не синхронизировано'));
     const metrics=make('div','tile-metrics');
     const water=make('div');water.append(make('span','metric-label','Работает'),make('strong','',c.connection_status==='online' && !stale?(n?zoneName(c,n):c.active_zones.map(z=>zoneName(c,z)).join(', ')||'—'):'Нет данных'));
     const flow=make('div');flow.append(make('span','metric-label',n && c.active_zones.length>1?'Поток контроллера':'Поток воды'),make('strong','',!stale && c.connection_status==='online' && c.flow_enabled && c.instant_lpm!=null?Number(c.instant_lpm).toLocaleString('ru-RU',{maximumFractionDigits:1})+' л/мин':'—'));
@@ -75,23 +82,34 @@
   }
   function render(data) {
     current=data;root.replaceChildren();let count=0;
-    for(const c of data) {
+    const priority={error:0,offline:1,warning:2,watering:3,paused:4,soak:5,service:6,ready:7};
+    const sorted=[...data].sort((a,b)=>(priority[state(a)[0]]-priority[state(b)[0]]) || a.name.localeCompare(b.name,'ru'));
+    for(const c of sorted) {
+      if(problemsOnly && !['error','warning','offline'].includes(state(c)[0]))continue;
       if(activeView) {
         if(stale || c.connection_status!=='online' || c.phase!=='water' || ['paused','error','service'].includes(c.mode))continue;
         for(const n of c.active_zones){root.append(tile(c,n));count++;}
       } else {root.append(tile(c));count++;}
     }
     document.getElementById('dash-empty').hidden=count>0 || stale;
-    document.getElementById('dash-summary').textContent=activeView?'Активных зон: '+count:'Всего: '+data.length+' · На связи: '+data.filter(c=>c.connection_status==='online').length;
+    const summary=document.getElementById('dash-summary');summary.replaceChildren();
+    for(const [text,value,kind] of [['Всего',data.length,''],['Полив',data.filter(c=>state(c)[0]==='watering').length,'watering'],['Аварии',data.filter(c=>state(c)[0]==='error').length,'error'],['Нет связи',data.filter(c=>state(c)[0]==='offline').length,'offline']]){const badge=make('span','summary-chip '+kind);badge.append(make('strong','',value),document.createTextNode(' '+text));summary.append(badge);}
+    const health=document.getElementById('monitor-health');const issues=data.filter(c=>['error','warning','offline'].includes(state(c)[0])).length;
+    health.className='monitor-health '+(issues?'has-issues':'all-clear');health.textContent=stale?'Данные устарели':(issues?'Требуют внимания: '+issues:'Все контроллеры без обнаруженных проблем')+' · Обновлено '+new Date().toLocaleTimeString('ru-RU');
+    if(problemsOnly && !count)document.getElementById('dash-empty').textContent='Проблем по выбранному фильтру нет';
   }
+  document.getElementById('problems-only').onchange=e=>{problemsOnly=e.target.checked;render(current);};
+  const modeButton=document.getElementById('monitor-mode');
+  modeButton.onclick=async()=>{document.body.classList.toggle('monitor-mode');const on=document.body.classList.contains('monitor-mode');modeButton.textContent=on?'Выйти из монитора':'На весь экран';try{if(on && !document.fullscreenElement)await document.documentElement.requestFullscreen();else if(!on && document.fullscreenElement)await document.exitFullscreen();}catch{}};
+  document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement){document.body.classList.remove('monitor-mode');modeButton.textContent='На весь экран';}});
   document.getElementById('cancel-start').onclick=()=>dialog.close();
   render(JSON.parse(document.getElementById('dash-initial').textContent));
   async function poll() {
-    try {const r=await fetch('/api/controllers/live',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw new Error();const d=await r.json();stale=false;document.getElementById('net-banner').hidden=true;render(d.controllers || d);}
+    try {const r=await fetch('/api/controllers/live',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw new Error();const d=await r.json();if(!Array.isArray(d))throw new Error();stale=false;document.getElementById('net-banner').hidden=true;render(d.controllers || d);}
     catch {stale=true;dialog.close();document.getElementById('net-banner').hidden=false;render(current);}
-    finally {setTimeout(poll,5000);}
+    finally {setTimeout(poll,refreshMs);}
   }
-  setTimeout(poll,5000);
+  setTimeout(poll,refreshMs);
 })();
 </script>
 {% endblock %}
