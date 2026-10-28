@@ -14,3 +14,5 @@ data/schedules/
 data/archive/
 archive/
 backups/
+firmware/.pio/
+firmware/include/secrets.h
