@@ -1,182 +1,97 @@
 {% extends "base.html" %}
-{% block title %}Дашборд{% endblock %}
+{% block title %}{{ 'Активные зоны' if active_view else 'Контроллеры' }}{% endblock %}
 {% block content %}
-<h1>Дашборд</h1>
-<p class="muted">{{ stage }}. Живое состояние контроллеров обновляется автоматически (каждые 10 секунд).</p>
-
-<div id="net-banner" class="alert alert-error" style="display:none">
-  ⚠ Нет связи с сервером — данные ниже могли устареть.
-</div>
-
-<div class="grid">
-  <section class="card span2">
-    <h2>Сводка</h2>
-    <p class="summary-line">
-      Контроллеров: <strong data-f="sum-total">{{ summary.controllers_total }}</strong> ·
-      Онлайн: <strong data-f="sum-online">{{ summary.controllers_online }}</strong> ·
-      Поливают сейчас: <strong data-f="sum-watering">{{ summary.watering_now }}</strong> ·
-      Сегодня: <strong data-f="sum-today-sec">{{ summary.today.water_sec }}</strong> с полива,
-      <strong data-f="sum-today-runs">{{ summary.today.runs }}</strong> прог.
-    </p>
-    <h2>Контроллеры (живое состояние)</h2>
-    {% if live %}
-    <div class="live-grid">
-      {% for c in live %}
-      <div class="live-tile" data-controller-id="{{ c.id }}" data-box="{{ c.box_id }}">
-        <div class="live-head">
-          <strong>{{ c.name }}</strong>
-          <span class="badge badge-{{ c.connection_status }}" data-f="status">{{ c.connection_status }}</span>
-        </div>
-        <div class="muted small" data-f="box">{{ c.box_id }}</div>
-        <table class="kv">
-          <tr><td>Режим</td><td data-f="mode">{{ c.mode or '—' }}</td></tr>
-          <tr><td>Фаза</td><td data-f="phase">{{ c.phase or '—' }}</td></tr>
-          <tr><td>Активная зона</td><td data-f="active_zone">{% if c.active_zone is not none %}№{{ c.active_zone }}{% else %}—{% endif %}</td></tr>
-          <tr><td>Активные зоны</td><td data-f="zones">{{ c.active_zones | join(',') or '—' }}</td></tr>
-          <tr><td>Остаток фазы</td><td data-f="phase_remaining">—</td></tr>
-          <tr><td>Полив за сегодня</td><td data-f="today_liters">{% if c.watered_today_liters is not none %}{{ c.watered_today_liters }} л{% else %}—{% endif %}</td></tr>
-          <tr><td>Виден</td><td data-f="seen">{{ (c.last_seen_at or 'никогда')[:19] }}</td></tr>
-        </table>
-        <ul class="tile-errors" data-f="errors">
-          {% for e in c.errors %}<li>{{ e }}</li>{% endfor %}
-        </ul>
-        <p class="tile-open"><a href="/controllers/{{ c.id }}">Открыть →</a></p>
-        {% if user.role in ('operator', 'admin') %}
-        <div class="live-actions">
-          <form method="post" action="/controllers/{{ c.id }}/action/zone_open" class="inline-form">
-            <input type="number" name="zone" min="1" max="16" value="1" style="width:4rem" title="Номер зоны">
-            <input type="number" name="duration_sec" min="1" value="60" style="width:5rem" title="Длительность, сек">
-            <button type="submit" class="btn btn-small">Открыть зону</button>
-          </form>
-          <form method="post" action="/controllers/{{ c.id }}/action/zone_close" class="inline-form">
-            <input type="number" name="zone" min="1" max="16" value="1" style="width:4rem">
-            <button type="submit" class="btn btn-small">Закрыть</button>
-          </form>
-          <form method="post" action="/controllers/{{ c.id }}/action/stop_all" class="inline-form">
-            <button type="submit" class="btn btn-small btn-danger">Стоп</button>
-          </form>
-          <form method="post" action="/controllers/{{ c.id }}/action/pause_controller" class="inline-form">
-            <input type="number" name="duration_sec" min="1" value="300" style="width:5rem" title="Пауза, сек">
-            <button type="submit" class="btn btn-small">Пауза</button>
-          </form>
-          <form method="post" action="/controllers/{{ c.id }}/action/resume_controller" class="inline-form">
-            <button type="submit" class="btn btn-small">Продолжить</button>
-          </form>
-        </div>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}<p class="muted">Контроллеров пока нет. <a href="/controllers">Создать</a>.</p>{% endif %}
-    <p><a class="btn btn-small" href="/controllers">Управление контроллерами</a></p>
-  </section>
-
-  <section class="card">
-    <h2>Программы полива</h2>
-    {% if programs %}
-    <table>
-      <tr><th>Название</th><th>Зон</th><th>Состояние</th></tr>
-      {% for p in programs %}
-      <tr>
-        <td><a href="/programs/{{ p.id }}">{{ p.name }}</a></td>
-        <td>{{ p.zone_count }}</td>
-        <td>{{ 'вкл.' if p.enabled else 'выкл.' }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}<p class="muted">Программ пока нет. <a href="/programs">Создать</a>.</p>{% endif %}
-    <p>Зон в системе: {{ zones_count }} · <a class="btn btn-small" href="/zones">Зоны</a></p>
-  </section>
-
-  <section class="card span2">
-    <h2>Журнал действий (последние 20)</h2>
-    <table>
-      <tr><th>Время (UTC)</th><th>Пользователь</th><th>Действие</th><th>Объект</th></tr>
-      {% for l in logs %}
-      <tr>
-        <td>{{ l.ts[:19] }}</td><td>{{ l.username or '—' }}</td>
-        <td>{{ l.action }}</td>
-        <td>{{ (l.object_type ~ ' #' ~ l.object_id) if l.object_type else '—' }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </section>
-</div>
-{% endblock %}
-
-{% block scripts %}
+<div class="dash-heading"><div><p class="dash-eyebrow">ОБЗОР СИСТЕМЫ</p><h1>{{ 'Активные зоны' if active_view else 'Контроллеры' }}</h1></div>
+<nav class="dash-tabs" aria-label="Дашборды"><a href="/" {% if not active_view %}aria-current="page"{% endif %}>Контроллеры</a><a href="/active-zones" {% if active_view %}aria-current="page"{% endif %}>Активные зоны</a></nav></div>
+<p id="dash-summary" class="muted">Обновление состояния…</p>
+<div id="net-banner" class="alert alert-error" role="status" hidden>Нет связи с сервером. Данные могли устареть; управление недоступно.</div>
+<div id="dashboard-tiles" class="dashboard-tiles" aria-label="{{ 'Активные зоны' if active_view else 'Контроллеры' }}"></div>
+<p id="dash-empty" class="dash-empty" hidden>{{ 'Сейчас нет активных зон' if active_view else 'Контроллеры ещё не добавлены' }}. <a href="/controllers">Открыть справочник</a></p>
+<noscript><p>Для обновления плиток включите JavaScript. <a href="/controllers">Список контроллеров</a></p></noscript>
+<dialog id="start-dialog" class="start-dialog"><form method="post" id="start-form">
+<h2>Запустить полив</h2><p id="start-controller" class="muted"></p>
+<label>Зона<select name="zone" id="start-zone" required></select></label>
+<label>Длительность, секунд<input name="duration_sec" type="number" min="1" max="3600" value="60" required></label>
+<p class="muted small">Ручной полив выбранной зоны. Приостановленное расписание продолжится после завершения.</p>
+<div class="tile-controls"><button class="btn" type="submit">Старт</button><button class="btn btn-secondary" type="button" id="cancel-start">Отмена</button></div>
+</form></dialog>
+<script id="dash-initial" type="application/json">{{ live|tojson }}</script>
+<script id="dash-zones" type="application/json">{{ dashboard_zones|tojson }}</script>
 <script>
-/* Этап 5: опрос /api/dashboard-view каждые 10 секунд и обновление плиток
-   без перезагрузки страницы; при ошибке сети — баннер «нет связи»
-   (Артефакт 0.6 §7.2). */
-(function () {
-  var POLL_MS = 10000;
-  var banner = document.getElementById('net-banner');
-
-  function setText(tile, name, value) {
-    var el = tile.querySelector('[data-f="' + name + '"]');
-    if (el) el.textContent = value;
+(() => {
+  const activeView = {{ active_view|tojson }};
+  const canControl = {{ (user.role in ('operator','admin'))|tojson }};
+  const zones = JSON.parse(document.getElementById('dash-zones').textContent);
+  const root = document.getElementById('dashboard-tiles');
+  const dialog = document.getElementById('start-dialog');
+  let current = [], stale = false;
+  const make = (tag, cls, text) => {const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
+  function state(c) {
+    if(stale || c.connection_status !== 'online')return ['offline','Нет связи'];
+    if(c.mode==='error' || (c.emergency_lock_until_ts && c.emergency_lock_until_ts>Date.now()/1000))return ['error','Авария'];
+    if(c.mode==='paused')return ['paused','Пауза'];
+    if(c.service_mode_active || c.mode==='service')return ['service','Сервис'];
+    if(c.active_zones.length && c.phase==='water')return ['watering','Полив'];
+    if(c.phase==='soak')return ['soak','Впитывание'];
+    return ['ready','Готов'];
   }
-  function fmtRemain(sec) {
-    if (sec === null || sec === undefined) return '—';
-    var m = Math.floor(sec / 60), s = sec % 60;
-    return m + ':' + (s < 10 ? '0' : '') + s;
+  function zoneName(c,n) {const z=zones.find(z=>z.controller_id===c.id && z.zone_number===n);return z?z.name:'Зона '+n;}
+  function start(c,n) {
+    document.getElementById('start-controller').textContent=c.name;
+    const select=document.getElementById('start-zone');select.replaceChildren();
+    for(const z of zones.filter(z=>z.controller_id===c.id && z.enabled && !z.deleted_at)) {
+      const o=make('option','',z.name+' · №'+z.zone_number);o.value=z.zone_number;select.append(o);
+    }
+    if(n)select.value=n;
+    if(!select.options.length)return;
+    document.getElementById('start-form').action='/controllers/'+c.id+'/action/zone_open';dialog.showModal();
   }
-
-  function refresh() {
-    fetch('/api/dashboard-view', { credentials: 'same-origin' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function (d) {
-        if (banner) banner.style.display = 'none';
-        var s = d.summary || {};
-        setText(document, 'sum-total', s.controllers_total);
-        setText(document, 'sum-online', s.controllers_online);
-        setText(document, 'sum-watering', s.watering_now);
-        setText(document, 'sum-today-sec', s.today ? s.today.water_sec : 0);
-        setText(document, 'sum-today-runs', s.today ? s.today.runs : 0);
-        (d.controllers || []).forEach(function (c) {
-          var tile = document.querySelector(
-            '.live-tile[data-controller-id="' + c.id + '"]');
-          if (!tile) return;
-          var badge = tile.querySelector('[data-f="status"]');
-          if (badge) {
-            badge.textContent = c.connection_status;
-            badge.className = 'badge badge-' + c.connection_status;
-          }
-          setText(tile, 'mode', c.mode || '—');
-          setText(tile, 'phase', c.phase || '—');
-          setText(tile, 'active_zone',
-                  (c.active_zone === null || c.active_zone === undefined)
-                    ? '—' : '№' + c.active_zone);
-          setText(tile, 'zones',
-                  (c.active_zones && c.active_zones.length)
-                    ? c.active_zones.join(',') : '—');
-          setText(tile, 'phase_remaining', fmtRemain(c.phase_remaining_sec));
-          setText(tile, 'today_liters',
-                  (c.watered_today_liters === null || c.watered_today_liters === undefined)
-                    ? '—' : c.watered_today_liters + ' л');
-          setText(tile, 'seen', (c.last_seen_at || 'никогда').slice(0, 19));
-          var ul = tile.querySelector('[data-f="errors"]');
-          if (ul) {
-            ul.innerHTML = '';
-            (c.errors || []).forEach(function (e) {
-              var li = document.createElement('li');
-              li.textContent = e;
-              ul.appendChild(li);
-            });
-          }
-        });
-      })
-      .catch(function () {
-        if (banner) banner.style.display = 'block';
-      });
+  function command(c,action,text,disabled) {
+    const form=make('form');form.method='post';form.action='/controllers/'+c.id+'/action/'+action;
+    if(action==='pause_controller'){const i=make('input');i.type='hidden';i.name='duration_sec';i.value=3600;form.append(i);}
+    const button=make('button',action==='stop_all'?'btn btn-secondary stop-button':'btn btn-secondary',text);
+    button.type='submit';button.disabled=disabled;
+    if(action==='pause_controller')button.title='Приостановить на 1 час';
+    form.append(button);return form;
   }
-
-  setInterval(refresh, POLL_MS);
-  refresh();
+  function tile(c,n) {
+    const [kind,label]=state(c), card=make('article','controller-tile state-'+kind);
+    card.dataset.controllerId=c.id;card.dataset.box=c.box_id;
+    const link=make('a','tile-detail');link.href='/controllers/'+c.id;
+    link.setAttribute('aria-label','Настройки: '+c.name+(n?' · '+zoneName(c,n):''));
+    const head=make('div','tile-title');head.append(make('h2','',n?zoneName(c,n):c.name),make('span','tile-status',label));link.append(head);
+    link.append(make('p','tile-subtitle',n?c.name:c.box_id));
+    const metrics=make('div','tile-metrics');
+    const water=make('div');water.append(make('span','metric-label','Работает'),make('strong','',c.connection_status==='online' && !stale?(n?zoneName(c,n):c.active_zones.map(z=>zoneName(c,z)).join(', ')||'—'):'Нет данных'));
+    const flow=make('div');flow.append(make('span','metric-label',n && c.active_zones.length>1?'Поток контроллера':'Поток воды'),make('strong','',!stale && c.connection_status==='online' && c.flow_enabled && c.instant_lpm!=null?Number(c.instant_lpm).toLocaleString('ru-RU',{maximumFractionDigits:1})+' л/мин':'—'));
+    metrics.append(water,flow);link.append(metrics);card.append(link);
+    if(canControl) {
+      const controls=make('div','tile-controls');const disabled=['offline','error','service'].includes(kind);
+      if(kind==='paused')controls.append(command(c,'resume_controller','Старт',disabled));
+      else {const b=make('button','btn','Старт');b.type='button';b.disabled=disabled || !zones.some(z=>z.controller_id===c.id && z.enabled && !z.deleted_at);b.onclick=()=>start(c,n);controls.append(b);}
+      controls.append(command(c,'pause_controller','Пауза',disabled||kind==='paused'),command(c,'stop_all','Стоп',kind==='offline'));card.append(controls);
+    }
+    return card;
+  }
+  function render(data) {
+    current=data;root.replaceChildren();let count=0;
+    for(const c of data) {
+      if(activeView) {
+        if(stale || c.connection_status!=='online' || c.phase!=='water' || ['paused','error','service'].includes(c.mode))continue;
+        for(const n of c.active_zones){root.append(tile(c,n));count++;}
+      } else {root.append(tile(c));count++;}
+    }
+    document.getElementById('dash-empty').hidden=count>0 || stale;
+    document.getElementById('dash-summary').textContent=activeView?'Активных зон: '+count:'Всего: '+data.length+' · На связи: '+data.filter(c=>c.connection_status==='online').length;
+  }
+  document.getElementById('cancel-start').onclick=()=>dialog.close();
+  render(JSON.parse(document.getElementById('dash-initial').textContent));
+  async function poll() {
+    try {const r=await fetch('/api/controllers/live',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw new Error();const d=await r.json();stale=false;document.getElementById('net-banner').hidden=true;render(d.controllers || d);}
+    catch {stale=true;dialog.close();document.getElementById('net-banner').hidden=false;render(current);}
+    finally {setTimeout(poll,5000);}
+  }
+  setTimeout(poll,5000);
 })();
 </script>
 {% endblock %}

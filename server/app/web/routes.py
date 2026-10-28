@@ -170,6 +170,7 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
         return resp
 
     @app.get("/", response_class=HTMLResponse)
+    @app.get("/active-zones", response_class=HTMLResponse)
     def dashboard(request: Request):
         # Этап 5: плитки дашборда с живым состоянием + ошибки/объём за сегодня
         # (тот же расчёт, что у view-API /api/dashboard-view).
@@ -232,6 +233,8 @@ def register_web_routes(app, cfg: Config, conn: sqlite3.Connection, auth: AuthSe
             "dashboard.html",
             controllers=catalog.list_controllers(),
             live=tiles,
+            active_view=request.url.path == "/active-zones",
+            dashboard_zones=catalog.list_zones(),
             summary=summary,
             programs=catalog.list_programs(),
             zones_count=len(catalog.list_zones()),
