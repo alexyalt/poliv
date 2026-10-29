@@ -6,7 +6,7 @@ $ErrorActionPreference='Stop'
 $Project=Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location $Project
 $Python=Join-Path $Project '.venv\Scripts\python.exe'
-if (!(Test-Path $Python)) { throw 'Create .venv first. See docs/WINDOWS_MANUAL_TEST.md' }
+if (!(Test-Path $Python)) { throw 'Create .venv first. See docs/WINDOWS_SETUP.md' }
 $RuntimePath=(Resolve-Path -LiteralPath $Runtime).Path
 $env:POLIV_DATA_ROOT=$RuntimePath
 $env:POLIV_CONFIG_LOCAL=Join-Path $RuntimePath 'config.local.toml'

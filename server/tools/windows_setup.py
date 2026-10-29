@@ -62,7 +62,7 @@ def main():
         print(f'Set a separate device password for box_{box}. Keep it for USB configuration.')
         subprocess.run([str(password_tool),str(passwd),'box_'+box],check=True)
     print('Created runtime:',root)
-    print('Restrict folder permissions to your Windows account; see WINDOWS_MANUAL_TEST.md.')
+    print('Restrict folder permissions to your Windows account; see WINDOWS_SETUP.md.')
     print('If interrupted, keep this directory for diagnosis and retry with a NEW runtime directory.')
 
 

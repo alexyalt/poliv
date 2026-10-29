@@ -16,3 +16,4 @@ archive/
 backups/
 firmware/.pio/
 firmware/include/secrets.h
+test-reports/
