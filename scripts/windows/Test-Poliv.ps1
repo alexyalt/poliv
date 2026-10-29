@@ -1,14 +1,26 @@
 param(
-  [Parameter(Mandatory=$true)][string]$Runtime,
+  [string]$Runtime,
+  [string]$ProjectRoot,
   [ValidateSet('software','controller')][string]$Stage='software',
   [string]$Resume
 )
 $ErrorActionPreference='Stop'
-$Project=Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-Set-Location $Project
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+  $ProjectRoot=Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+}
+$Project=(Resolve-Path -LiteralPath $ProjectRoot).Path
+Set-Location -LiteralPath $Project
+if ([string]::IsNullOrWhiteSpace($Runtime)) {
+  $Runtime=Join-Path (Split-Path $Project -Parent) 'poliv-runtime'
+}
+Write-Host "Project: $Project"
+Write-Host "Runtime: $Runtime"
+if (!(Test-Path -LiteralPath (Join-Path $Project 'requirements.lock'))) {
+  throw 'Project root is invalid: requirements.lock missing.'
+}
 $env:PYTHONUTF8='1'
 $Python=Join-Path $Project '.venv\Scripts\python.exe'
-if (!(Test-Path $Python)) {
+if (!(Test-Path -LiteralPath $Python)) {
   & py -3.13 -m venv (Join-Path $Project '.venv')
   if ($LASTEXITCODE -ne 0) { throw 'Install Python 3.13 x64 with py launcher.' }
 }

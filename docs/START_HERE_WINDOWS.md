@@ -1,3 +1,32 @@
+# Запуск из вашего каталога с кириллицей и пробелами
+
+Проект: `C:\Users\Зам. директора\Downloads\КОНТРОЛЛЕР\proj\poliv`.
+Скрипты определяют папку проекта по собственному расположению; переносить проект
+или редактировать пути внутри скрипта не требуется. PowerShell-файлы оставлены
+ASCII-совместимыми для Windows PowerShell 5.1. setup.json читается как UTF-8.
+
+При запуске без `-Runtime` используется соседний каталог
+`C:\Users\Зам. директора\Downloads\КОНТРОЛЛЕР\proj\poliv-runtime`.
+Он должен быть подготовлен один раз. Если runtime уже создан в другом месте,
+передавайте его прежний путь через `-Runtime` — повторно создавать его не нужно.
+
+```powershell
+Set-Location -LiteralPath 'C:\Users\Зам. директора\Downloads\КОНТРОЛЛЕР\proj\poliv'
+py -3.13 -m venv .venv
+& '.\.venv\Scripts\python.exe' -m pip install -q -r requirements.lock
+# Только если runtime ещё НЕ создан; IP замените адресом компьютера из ipconfig:
+& '.\.venv\Scripts\python.exe' -m server.tools.windows_setup --runtime '..\poliv-runtime' --host 192.168.1.20 --box 5B2338
+# Этап без контроллера:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\windows\Test-Poliv.ps1' -Stage software
+# Позже, после подготовки ESP32:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\windows\Test-Poliv.ps1' -Stage controller
+```
+
+Все пути с пробелами заключайте в кавычки. Для другого checkout можно указать
+`-ProjectRoot 'D:\Другой каталог\poliv'`. Это необязательный параметр.
+Ниже сохранены подробности этапов и примеры с явно указанным runtime:
+если вы выбрали соседний `poliv-runtime`, используйте его вместо `C:\PolivLab\runtime-001`.
+
 # Windows: интерактивное тестирование и отчёт
 
 Мастер запускает отдельные процессы Mosquitto/сервера, выполняет HTTP-проверки,
@@ -13,7 +42,7 @@
 3. Откройте PowerShell и перейдите в проект:
 
 ```powershell
-Set-Location C:\PolivLab\poliv
+Set-Location -LiteralPath 'C:\Users\Зам. директора\Downloads\КОНТРОЛЛЕР\proj\poliv'
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -q -r requirements.lock
 .\.venv\Scripts\python.exe -m server.tools.windows_setup --runtime C:\PolivLab\runtime-001 --host 192.168.1.20 --box 5B2338

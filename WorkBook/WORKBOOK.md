@@ -758,3 +758,8 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Запрос:** два интерактивных этапа, автоматический venv/broker/server, вопросы и сохраняемый отчёт; убрать старые инструкции/аудиты.
 - **Сделано:** Test-Poliv.ps1/test_wizard.py, отчёты JSON/Markdown с checkpoint/resume; physical action opt-in и stop cleanup; чужие процессы не захватываются. Удалены старые этапные инструкции, audit/handoff snapshots, comments screenshots, SOL AUDIT STAGE 8 и test placeholder. ТЗ/ADR/история WorkBook сохранены.
 - **Проверки:** unit validation/resume/process cleanup 2 passed. Дальше полный pytest, Windows CI, документация.
+
+## [29.10.2026] Windows — каталог пользователя с кириллицей
+- **Запрос:** проект в C:\Users\Зам. директора\Downloads\КОНТРОЛЛЕР\proj\poliv.
+- **Изменения:** Test-Poliv/Start-Poliv используют LiteralPath, optional ProjectRoot; default runtime соседний poliv-runtime; setup.json читается UTF8. Инструкция содержит точные команды с кавычками для указанного пути.
+- **Сохранность:** существующий runtime не переносится и не перезаписывается; при ином пути передавать -Runtime.
