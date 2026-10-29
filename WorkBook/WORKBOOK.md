@@ -763,3 +763,7 @@ config/config.local.toml; проверено git check-ignore. В коммите
 - **Запрос:** проект в C:\Users\Зам. директора\Downloads\КОНТРОЛЛЕР\proj\poliv.
 - **Изменения:** Test-Poliv/Start-Poliv используют LiteralPath, optional ProjectRoot; default runtime соседний poliv-runtime; setup.json читается UTF8. Инструкция содержит точные команды с кавычками для указанного пути.
 - **Сохранность:** существующий runtime не переносится и не перезаписывается; при ином пути передавать -Runtime.
+
+## [29.10.2026] Windows — диагностика отсутствующего Python
+- **Симптом:** `py -3.13` вернул `No suitable Python runtime found`; `.venv` не создана, последующие ошибки `python.exe not found` были вторичными.
+- **Исправлено:** Test-Poliv теперь проверяет Python до создания venv и показывает одну понятную команду `winget install --id Python.Python.3.13 --exact --scope user`, после чего просит открыть новое PowerShell окно. Инструкция START_HERE_WINDOWS дополнена альтернативой python.org и проверкой `py -3.13 --version`.

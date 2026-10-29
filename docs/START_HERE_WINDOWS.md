@@ -36,6 +36,27 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\windows\Test-
 
 ## 1. Подготовить компьютер один раз
 
+### Если `py -3.13` не найден
+
+Сообщение `No suitable Python runtime found` означает, что Python ещё не установлен.
+Установите его через PowerShell:
+
+```powershell
+winget install --id Python.Python.3.13 --exact --scope user
+```
+
+Если `winget` недоступен, скачайте Python 3.13 x64 с https://www.python.org/downloads/windows/.
+В установщике включите **Install launcher for all users** и **Add python.exe to PATH**.
+После установки полностью закройте PowerShell и откройте новое окно. Проверьте:
+
+```powershell
+py -3.13 --version
+```
+
+Ожидается `Python 3.13.x`. Только после этого запускайте `Test-Poliv.ps1`; он сам
+создаст `.venv`. Если `.venv` не появилась после неудачной попытки, это нормально:
+повторный запуск создаст её после установки Python.
+
 1. Установите Git, Python 3.13 x64 с `py` launcher и Mosquitto 2.x для Windows.
 2. Скачайте main в `C:\PolivLab\poliv` (или git clone). Для ZIP нужны все файлы,
    включая scripts/server/firmware. Без .git в отчёте будет «unknown commit».
