@@ -753,3 +753,8 @@ config/config.local.toml; проверено git check-ignore. В коммите
 ## [28.10.2026] Main post-merge CI — граница часа
 - Windows 4011035, browser/MQTT/firmware прошли. Main 635ed63 выявил flaky forecast fixture import-time: час устаревал до проверки. Исправлено локальным fixture и фиксированным clock, строгое ожидание 24 сохранено.
 - Merge выполнен по запросу пользователя, Windows инструкция указывает main. Финальный CI исправления проверяется перед передачей.
+
+## [29.10.2026] Windows wizard и очистка документации
+- **Запрос:** два интерактивных этапа, автоматический venv/broker/server, вопросы и сохраняемый отчёт; убрать старые инструкции/аудиты.
+- **Сделано:** Test-Poliv.ps1/test_wizard.py, отчёты JSON/Markdown с checkpoint/resume; physical action opt-in и stop cleanup; чужие процессы не захватываются. Удалены старые этапные инструкции, audit/handoff snapshots, comments screenshots, SOL AUDIT STAGE 8 и test placeholder. ТЗ/ADR/история WorkBook сохранены.
+- **Проверки:** unit validation/resume/process cleanup 2 passed. Дальше полный pytest, Windows CI, документация.

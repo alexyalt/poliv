@@ -1,7 +1,7 @@
 name: windows-preflight
 on:
   push:
-    branches: [main, 'fix/windows-preflight-audit']
+    branches: [main, 'fix/windows-preflight-audit', 'feature/windows-test-wizard']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -29,5 +29,7 @@ jobs:
         run: |
           $Tokens=$null; $ParseErrors=$null
           [System.Management.Automation.Language.Parser]::ParseFile("$pwd/scripts/windows/Start-Poliv.ps1",[ref]$Tokens,[ref]$ParseErrors) | Out-Null
+          if ($ParseErrors.Count) { throw ($ParseErrors | Out-String) }
+          [System.Management.Automation.Language.Parser]::ParseFile("$pwd/scripts/windows/Test-Poliv.ps1",[ref]$Tokens,[ref]$ParseErrors) | Out-Null
           if ($ParseErrors.Count) { throw ($ParseErrors | Out-String) }
       - run: git diff --exit-code -- data logs server/poliv.db
